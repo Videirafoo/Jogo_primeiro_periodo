@@ -1,6 +1,9 @@
 # Jogo de Adivinhação em Python
 
-Pequeno projeto didático para quem está começando em programação e quer praticar conceitos fundamentais de Python em um sistema completo e executável.
+Pequeno projeto didático para quem está começando em programação e quer transformar fundamentos de Python em um **programa completo e executável**.
+
+**Nível:** iniciante  
+**Objetivo:** sair de exercícios isolados e entender como várias estruturas trabalham juntas em um mesmo fluxo.
 
 ## O que este projeto ensina
 
@@ -10,8 +13,8 @@ Pequeno projeto didático para quem está começando em programação e quer pra
 - laços `while`;
 - tratamento de erros com `try/except`;
 - validação de entrada;
-- geração de números aleatórios;
-- organização do fluxo com `main()`;
+- números aleatórios;
+- organização com `main()`;
 - repetição de partidas.
 
 ## Como funciona
@@ -22,8 +25,6 @@ Ao acertar, o programa mostra a quantidade de tentativas e pergunta se o usuári
 
 ## Executar
 
-No terminal:
-
 ```bash
 python main.py
 ```
@@ -31,7 +32,7 @@ python main.py
 ## Estrutura
 
 ```text
-jogo/
+jogo_primeiro_periodo/
 ├── main.py
 ├── README.md
 ├── EXPLICACAO.md
@@ -41,19 +42,41 @@ jogo/
         └── python.yml
 ```
 
-## Próximas evoluções
+## Como estudar este projeto
 
-Quem estiver estudando pode tentar implementar:
+1. execute uma partida completa;
+2. leia `EXPLICACAO.md`;
+3. identifique onde o programa valida entradas;
+4. altere o intervalo do número secreto;
+5. implemente uma melhoria sem copiar a solução pronta;
+6. teste manualmente antes de fazer commit.
 
-1. níveis de dificuldade;
-2. limite de tentativas;
-3. sistema de pontuação;
-4. ranking salvo em JSON;
-5. testes automatizados;
-6. interface gráfica;
-7. versão web ou mobile.
+## Desafios de evolução
+
+- [ ] níveis de dificuldade;
+- [ ] limite de tentativas;
+- [ ] sistema de pontuação;
+- [ ] ranking salvo em JSON;
+- [ ] testes automatizados;
+- [ ] interface gráfica;
+- [ ] versão web;
+- [ ] versão mobile.
+
+## Qualidade
+
+O GitHub Actions valida automaticamente a sintaxe Python em pushes e pull requests.
+
+## Próximo passo
+
+Depois deste projeto, o caminho recomendado é criar mini sistemas com **arquivos/JSON, CRUD, validação e testes**.
+
+## Tecnologias
+
+`Python 3` · `Git` · `GitHub Actions`
 
 ## Autor
 
 **Fernando Otávio Videira Junior**  
 Engenharia de Software — Universidade de Vassouras, Campus Saquarema
+
+> Um projeto pequeno, mas completo, ensina mais integração de conceitos do que vários exercícios desconectados.
