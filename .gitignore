@@ -5,3 +5,4 @@ venv/
 .env
 .vscode/
 .idea/
+dados_jogador.json
