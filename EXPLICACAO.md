@@ -1,6 +1,6 @@
 # Explicação do Projeto
 
-Este arquivo mostra como os principais conceitos de Python aparecem no jogo.
+Este arquivo explica como os principais conceitos de Python aparecem na versão atual do jogo.
 
 ## 1. Importação
 
@@ -8,72 +8,197 @@ Este arquivo mostra como os principais conceitos de Python aparecem no jogo.
 import random
 ```
 
-A biblioteca `random` permite gerar o número secreto da partida.
+A biblioteca `random` é usada para gerar o número secreto da partida.
 
-## 2. Funções
+## 2. Configuração das dificuldades
 
-O projeto separa responsabilidades em funções:
+As dificuldades ficam organizadas em um dicionário:
 
-- `ler_numero()` valida a entrada;
-- `jogar()` controla uma partida;
-- `deseja_jogar_novamente()` controla a repetição;
-- `main()` organiza o programa.
+```python
+DIFICULDADES = {
+    "1": {
+        "nome": "Fácil",
+        "minimo": 1,
+        "maximo": 50,
+        "tentativas": 10,
+        "multiplicador": 1,
+    }
+}
+```
 
-Essa separação deixa o código mais fácil de entender e modificar.
+Isso evita espalhar vários números pelo código e deixa as regras fáceis de localizar.
 
-## 3. Tratamento de erros
+Cada dificuldade informa:
+
+- nome;
+- número mínimo;
+- número máximo;
+- quantidade de tentativas;
+- multiplicador da pontuação.
+
+## 3. Funções
+
+O programa foi dividido em funções pequenas, cada uma com uma responsabilidade.
+
+### `ler_numero()`
+
+Recebe a entrada do jogador e só aceita números dentro do intervalo permitido.
+
+### `ler_opcao()`
+
+Valida opções de menu, como dificuldade e jogar novamente.
+
+### `escolher_dificuldade()`
+
+Mostra o menu e retorna as regras do modo escolhido.
+
+### `avaliar_palpite()`
+
+Compara o palpite com o número secreto e retorna:
+
+- `maior`;
+- `menor`;
+- `acertou`.
+
+### `classificar_distancia()`
+
+Calcula a distância entre o palpite e o número secreto usando:
+
+```python
+distancia = abs(numero_secreto - palpite)
+```
+
+Depois informa se o palpite está frio, morno, quente ou muito quente.
+
+### `calcular_pontuacao()`
+
+Quanto menos tentativas o jogador usa, maior a pontuação.
+
+A dificuldade também aplica um multiplicador.
+
+### `jogar()`
+
+Controla uma partida completa:
+
+1. gera o número secreto;
+2. controla o limite de tentativas;
+3. recebe palpites;
+4. mostra dicas;
+5. calcula a pontuação ao acertar;
+6. encerra a partida quando as tentativas acabam.
+
+### `deseja_jogar_novamente()`
+
+Pergunta se outra partida deve ser iniciada.
+
+### `main()`
+
+Organiza o programa inteiro e mantém:
+
+- número de partidas jogadas;
+- melhor pontuação da sessão.
+
+## 4. Tratamento de erros
+
+O jogador pode digitar texto por engano sem encerrar o programa:
 
 ```python
 try:
-    valor = int(input("Digite: "))
+    valor = int(input(mensagem))
 except ValueError:
-    print("Entrada inválida")
+    print("Entrada inválida. Digite um número inteiro.")
 ```
 
-O programa não encerra se o usuário digitar texto no lugar de um número.
+Depois o laço continua pedindo uma entrada válida.
 
-## 4. Condicionais
+## 5. Condicionais
 
-O programa compara o palpite com o número secreto:
+O resultado do palpite é analisado com condicionais:
 
 ```python
 if palpite < numero_secreto:
-    ...
-elif palpite > numero_secreto:
-    ...
-else:
-    ...
+    return "maior"
+if palpite > numero_secreto:
+    return "menor"
+return "acertou"
 ```
 
-## 5. Repetição
+Esse trecho é uma das principais regras do jogo.
 
-O `while` mantém a partida ativa até o jogador acertar.
+## 6. Repetição
 
-Outro `while` permite iniciar novas partidas.
+Existem dois tipos principais de repetição.
 
-## 6. Contador
+### `while`
 
-A variável `tentativas` começa em zero e aumenta a cada palpite:
+É usado para continuar pedindo uma entrada até o usuário informar um valor válido.
+
+### `for`
+
+É usado para limitar a quantidade de tentativas:
 
 ```python
-tentativas += 1
+for tentativa in range(1, limite + 1):
 ```
 
-## 7. Ponto de entrada
+Dessa forma, a partida realmente pode terminar sem o jogador acertar.
+
+## 7. Pontuação
+
+A pontuação começa com um valor base e diminui conforme o número de tentativas aumenta.
+
+Depois é aplicado o multiplicador da dificuldade.
+
+Exemplo:
+
+- acertar rapidamente no modo fácil gera uma boa pontuação;
+- acertar rapidamente no modo difícil gera ainda mais pontos.
+
+## 8. Testes automatizados
+
+O arquivo `test_main.py` usa a biblioteca `unittest`, que já faz parte do Python.
+
+Os testes verificam funções como:
+
+- avaliação do palpite;
+- proximidade do número;
+- cálculo da pontuação;
+- validação de entradas;
+- seleção de dificuldade;
+- vitória;
+- derrota por limite de tentativas.
+
+Para executar:
+
+```bash
+python -m unittest -v
+```
+
+## 9. Ponto de entrada
 
 ```python
 if __name__ == "__main__":
     main()
 ```
 
-Esse padrão faz o programa executar `main()` apenas quando o arquivo é iniciado diretamente.
+Isso faz `main()` executar apenas quando `main.py` é iniciado diretamente.
 
-## Desafio
+Também permite que `test_main.py` importe as funções sem iniciar o jogo automaticamente.
 
-Tente adicionar três dificuldades:
+## 10. O que melhorou em relação à primeira versão
 
-- fácil: 1 a 50;
-- normal: 1 a 100;
-- difícil: 1 a 500.
+A primeira versão já permitia adivinhar números e jogar novamente.
 
-Depois compare quantas tentativas são necessárias em cada nível.
+A versão atual adiciona:
+
+- três dificuldades;
+- limite real de tentativas;
+- dicas de proximidade;
+- pontuação;
+- melhor pontuação da sessão;
+- menu para sair;
+- funções mais fáceis de testar;
+- testes automatizados;
+- CI executando os testes.
+
+Mesmo com essas melhorias, o código continua usando conceitos que podem ser estudados no início da graduação.
