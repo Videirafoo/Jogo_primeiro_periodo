@@ -1,36 +1,78 @@
-# Jogo de Adivinhação em Python
+# Desafio do Número Secreto — Jogo em Python
 
-Projeto didático do primeiro período que transforma fundamentos de Python em um **jogo completo, executável e testado**.
+Projeto didático em Python que transforma fundamentos de programação em um jogo de terminal completo, rejogável, testado e com progresso local.
 
 **Nível:** iniciante  
-**Objetivo:** praticar lógica de programação usando um jogo de terminal simples de entender, jogar e modificar.
+**Objetivo:** praticar lógica de programação usando um jogo simples de entender, jogar e modificar.
 
-## Como jogar
+## Como funciona
 
-O computador escolhe um número secreto e você tenta descobri-lo antes de acabar o limite de tentativas.
+O computador escolhe um número secreto e o jogador precisa descobri-lo antes de acabar o limite de tentativas.
 
 Durante a partida, o jogo informa:
 
 - se o número secreto é maior ou menor que o palpite;
 - se o palpite está frio, morno, quente ou muito quente;
+- a faixa possível atual do número secreto;
 - quantas tentativas ainda restam;
 - a pontuação conquistada ao acertar.
 
-Quanto menos tentativas forem usadas, maior a pontuação.
+Palpites repetidos não gastam tentativa.
 
 ## Dificuldades
 
-| Modo | Intervalo | Tentativas | Pontuação |
+| Modo | Intervalo | Tentativas | Multiplicador |
 |---|---:|---:|---:|
-| Fácil | 1 a 50 | 10 | multiplicador x1 |
-| Normal | 1 a 100 | 8 | multiplicador x2 |
-| Difícil | 1 a 500 | 10 | multiplicador x3 |
+| Fácil | 1 a 50 | 10 | x1 |
+| Normal | 1 a 100 | 8 | x2 |
+| Difícil | 1 a 500 | 10 | x3 |
 
-O programa também guarda a **melhor pontuação da sessão** enquanto estiver aberto.
+As dicas de proximidade são calculadas proporcionalmente ao tamanho do intervalo. Assim, o modo difícil continua justo mesmo usando números muito maiores.
 
-## Executar
+## Sistema de dica
 
-É necessário ter Python 3 instalado.
+Durante uma partida, digite:
+
+```text
+DICA
+```
+
+O jogo informa características do número secreto, como:
+
+- se ele é par ou ímpar;
+- se é divisível por 5.
+
+A dica pode ser usada apenas uma vez por partida e reduz a pontuação final em 15%.
+
+## Pontuação
+
+Quanto menos tentativas forem usadas, maior será a pontuação.
+
+A dificuldade aplica um multiplicador e o uso da dica aplica uma pequena penalidade.
+
+Exemplo:
+
+- acertar rapidamente no Fácil gera uma boa pontuação;
+- acertar rapidamente no Difícil gera uma pontuação maior;
+- usar `DICA` ajuda, mas reduz o total recebido.
+
+## Progresso salvo
+
+O jogo registra automaticamente em `dados_jogador.json`:
+
+- partidas jogadas;
+- vitórias;
+- taxa de vitória;
+- melhor pontuação geral;
+- melhor pontuação por dificuldade.
+
+Esse arquivo é criado localmente ao jogar e está no `.gitignore`, portanto não é enviado para o GitHub.
+
+## Executar no VS Code
+
+1. abra a pasta do projeto no VS Code;
+2. abra o terminal integrado;
+3. execute:
 
 ```bash
 python main.py
@@ -50,22 +92,35 @@ Não existem bibliotecas externas para instalar.
 python -m unittest -v
 ```
 
-Os testes verificam as principais regras do jogo, incluindo comparação de palpites, dicas de proximidade, pontuação, validação de entrada, dificuldades e partidas completas.
+A suíte cobre as principais regras do jogo, incluindo:
 
-## O que este projeto pratica
+- comparação de palpites;
+- proximidade adaptativa;
+- cálculo de pontuação;
+- penalidade da dica;
+- geração de dicas;
+- escolha de dificuldade;
+- vitória e derrota;
+- palpite repetido sem perda de tentativa;
+- criação, atualização e leitura das estatísticas em JSON.
+
+## Conceitos de Python praticados
 
 - variáveis e constantes;
 - funções;
 - dicionários;
+- listas e conjuntos (`set`);
 - `if`, `elif` e `else`;
 - `for` e `while`;
-- tratamento de erros com `try/except`;
+- `try/except`;
 - validação de entrada;
 - números aleatórios com `random`;
-- contadores e pontuação;
+- leitura e escrita de JSON;
+- arquivos com `pathlib.Path`;
+- contadores, recordes e pontuação;
 - organização com `main()`;
 - testes automatizados com `unittest`;
-- GitHub Actions.
+- automação com GitHub Actions.
 
 ## Estrutura
 
@@ -81,28 +136,38 @@ Jogo_primeiro_periodo/
         └── python.yml
 ```
 
-## Fluxo do programa
+Ao jogar, também é criado localmente:
+
+```text
+dados_jogador.json
+```
+
+## Fluxo do jogo
 
 ```text
 iniciar
+  ↓
+informar nome
+  ↓
+carregar progresso
   ↓
 escolher dificuldade
   ↓
 gerar número secreto
   ↓
-receber palpite
+receber palpite ou DICA
   ↓
 validar entrada
   ↓
 comparar palpite
   ↓
-mostrar dica
+atualizar faixa possível + mostrar proximidade
   ↓
 acertou? ── não ──→ próxima tentativa
   ↓ sim
 calcular pontuação
   ↓
-mostrar resultado
+atualizar e salvar estatísticas
   ↓
 jogar novamente?
 ```
@@ -110,11 +175,12 @@ jogar novamente?
 ## Como estudar este projeto
 
 1. execute uma partida em cada dificuldade;
-2. abra `main.py` e localize a função de cada parte do jogo;
-3. leia `EXPLICACAO.md`;
-4. execute `python -m unittest -v`;
-5. altere uma regra simples, como quantidade de tentativas;
-6. execute os testes novamente e observe se o comportamento continua correto.
+2. teste o comando `DICA`;
+3. tente repetir um palpite e observe que a tentativa não é perdida;
+4. termine uma partida e abra `dados_jogador.json`;
+5. leia `main.py` e `EXPLICACAO.md`;
+6. execute `python -m unittest -v`;
+7. altere uma regra simples e execute os testes novamente.
 
 ## Qualidade
 
@@ -123,19 +189,17 @@ O GitHub Actions executa automaticamente:
 1. validação da sintaxe Python;
 2. suíte de testes com `unittest`.
 
-Isso permite verificar cada nova alteração sem depender somente de testes manuais.
+Isso ajuda a impedir que alterações futuras quebrem regras já funcionando.
 
-## Possíveis evoluções futuras
+## Próximas evoluções possíveis
 
-Estas ideias não fazem parte da versão atual:
+Sem mudar a proposta didática, o projeto ainda pode evoluir para:
 
-- ranking persistido em JSON;
-- escolha de nome do jogador;
-- recorde salvo entre execuções;
-- interface gráfica;
+- ranking com vários jogadores;
+- conquistas;
+- modos de jogo adicionais;
+- interface gráfica com Tkinter ou Pygame;
 - versão web.
-
-O projeto continua propositalmente simples para que o código permaneça compatível com o nível de aprendizagem de um estudante no início do curso.
 
 ## Autor
 
