@@ -1,18 +1,24 @@
 # Explicação do Projeto
 
-Este arquivo explica como os principais conceitos de Python aparecem na versão atual do jogo.
+Este arquivo explica os principais conceitos de Python usados na versão atual do **Desafio do Número Secreto**.
 
-## 1. Importação
+## 1. Importações
 
 ```python
+import json
 import random
+from pathlib import Path
 ```
 
-A biblioteca `random` é usada para gerar o número secreto da partida.
+Cada importação tem uma função:
+
+- `random`: gera o número secreto;
+- `json`: salva e carrega o progresso do jogador;
+- `Path`: facilita trabalhar com o arquivo de dados.
 
 ## 2. Configuração das dificuldades
 
-As dificuldades ficam organizadas em um dicionário:
+As dificuldades ficam em um dicionário:
 
 ```python
 DIFICULDADES = {
@@ -26,94 +32,35 @@ DIFICULDADES = {
 }
 ```
 
-Isso evita espalhar vários números pelo código e deixa as regras fáceis de localizar.
-
-Cada dificuldade informa:
+Cada modo informa:
 
 - nome;
 - número mínimo;
 - número máximo;
 - quantidade de tentativas;
-- multiplicador da pontuação.
+- multiplicador de pontuação.
 
-## 3. Funções
+Isso deixa as regras centralizadas e fáceis de alterar.
 
-O programa foi dividido em funções pequenas, cada uma com uma responsabilidade.
-
-### `ler_numero()`
-
-Recebe a entrada do jogador e só aceita números dentro do intervalo permitido.
+## 3. Entrada do jogador
 
 ### `ler_opcao()`
 
 Valida opções de menu, como dificuldade e jogar novamente.
 
-### `escolher_dificuldade()`
+### `ler_nome()`
 
-Mostra o menu e retorna as regras do modo escolhido.
+Lê o nome informado pelo jogador.
 
-### `avaliar_palpite()`
+Se o jogador apenas pressionar Enter, o programa usa:
 
-Compara o palpite com o número secreto e retorna:
-
-- `maior`;
-- `menor`;
-- `acertou`.
-
-### `classificar_distancia()`
-
-Calcula a distância entre o palpite e o número secreto usando:
-
-```python
-distancia = abs(numero_secreto - palpite)
+```text
+Jogador
 ```
 
-Depois informa se o palpite está frio, morno, quente ou muito quente.
+## 4. Comparação do palpite
 
-### `calcular_pontuacao()`
-
-Quanto menos tentativas o jogador usa, maior a pontuação.
-
-A dificuldade também aplica um multiplicador.
-
-### `jogar()`
-
-Controla uma partida completa:
-
-1. gera o número secreto;
-2. controla o limite de tentativas;
-3. recebe palpites;
-4. mostra dicas;
-5. calcula a pontuação ao acertar;
-6. encerra a partida quando as tentativas acabam.
-
-### `deseja_jogar_novamente()`
-
-Pergunta se outra partida deve ser iniciada.
-
-### `main()`
-
-Organiza o programa inteiro e mantém:
-
-- número de partidas jogadas;
-- melhor pontuação da sessão.
-
-## 4. Tratamento de erros
-
-O jogador pode digitar texto por engano sem encerrar o programa:
-
-```python
-try:
-    valor = int(input(mensagem))
-except ValueError:
-    print("Entrada inválida. Digite um número inteiro.")
-```
-
-Depois o laço continua pedindo uma entrada válida.
-
-## 5. Condicionais
-
-O resultado do palpite é analisado com condicionais:
+A função `avaliar_palpite()` compara o valor informado com o número secreto:
 
 ```python
 if palpite < numero_secreto:
@@ -123,50 +70,215 @@ if palpite > numero_secreto:
 return "acertou"
 ```
 
-Esse trecho é uma das principais regras do jogo.
+O retorno informa se o próximo palpite deve ser maior, menor ou se o jogador acertou.
 
-## 6. Repetição
+## 5. Dica de proximidade
 
-Existem dois tipos principais de repetição.
-
-### `while`
-
-É usado para continuar pedindo uma entrada até o usuário informar um valor válido.
-
-### `for`
-
-É usado para limitar a quantidade de tentativas:
+A função `classificar_distancia()` calcula a distância entre o palpite e o número secreto:
 
 ```python
-for tentativa in range(1, limite + 1):
+distancia = abs(numero_secreto - palpite)
 ```
 
-Dessa forma, a partida realmente pode terminar sem o jogador acertar.
+Depois transforma essa distância em uma proporção do intervalo do modo.
 
-## 7. Pontuação
+Isso é importante porque os modos usam intervalos diferentes:
 
-A pontuação começa com um valor base e diminui conforme o número de tentativas aumenta.
+- Fácil: 1 a 50;
+- Normal: 1 a 100;
+- Difícil: 1 a 500.
 
-Depois é aplicado o multiplicador da dificuldade.
+Assim, os conceitos de frio, morno, quente e muito quente funcionam de forma mais justa em todas as dificuldades.
+
+## 6. Faixa possível
+
+Durante a partida, o jogo mantém dois valores:
+
+```python
+limite_inferior
+limite_superior
+```
+
+Se o número secreto for maior que o palpite, o limite inferior aumenta.
+
+Se for menor, o limite superior diminui.
 
 Exemplo:
 
-- acertar rapidamente no modo fácil gera uma boa pontuação;
-- acertar rapidamente no modo difícil gera ainda mais pontos.
+```text
+Faixa atual: 1 a 100
+Palpite: 50
+O número secreto é MAIOR.
 
-## 8. Testes automatizados
+Nova faixa:
+51 a 100
+```
 
-O arquivo `test_main.py` usa a biblioteca `unittest`, que já faz parte do Python.
+Isso torna a partida mais estratégica e ajuda o jogador a usar lógica.
 
-Os testes verificam funções como:
+## 7. Palpites repetidos
 
-- avaliação do palpite;
-- proximidade do número;
-- cálculo da pontuação;
-- validação de entradas;
-- seleção de dificuldade;
+Os números já tentados são guardados em um conjunto:
+
+```python
+palpites_usados = set()
+```
+
+Antes de consumir uma tentativa, o programa verifica:
+
+```python
+if palpite in palpites_usados:
+```
+
+Se o número já foi usado, o jogador recebe um aviso e não perde tentativa.
+
+## 8. Sistema de dica
+
+Durante a partida é possível digitar:
+
+```text
+DICA
+```
+
+A função `gerar_dica()` informa:
+
+- se o número é par ou ímpar;
+- se é divisível por 5.
+
+A dica só pode ser usada uma vez em cada partida.
+
+Para manter o equilíbrio, ela reduz a pontuação final em 15%.
+
+## 9. Pontuação
+
+A função `calcular_pontuacao()` começa com uma pontuação base.
+
+Quanto mais tentativas forem usadas, menor fica essa pontuação.
+
+Depois o multiplicador da dificuldade é aplicado.
+
+Se o jogador usou a dica:
+
+```python
+pontos = int(pontos * 0.85)
+```
+
+Isso mantém uma decisão de jogo: receber ajuda ou tentar conquistar a pontuação máxima.
+
+## 10. Salvando o progresso em JSON
+
+O arquivo usado é:
+
+```text
+dados_jogador.json
+```
+
+O programa salva:
+
+```python
+{
+    "partidas": 0,
+    "vitorias": 0,
+    "melhor_pontuacao": 0,
+    "melhor_por_modo": {}
+}
+```
+
+### `carregar_estatisticas()`
+
+Procura o arquivo e carrega os dados já existentes.
+
+Se o arquivo ainda não existir ou estiver inválido, o programa usa os valores iniciais.
+
+### `salvar_estatisticas()`
+
+Usa `json.dump()` para gravar as estatísticas no computador.
+
+### `atualizar_estatisticas()`
+
+Atualiza:
+
+- quantidade de partidas;
+- vitórias;
+- melhor pontuação geral;
+- recorde de cada dificuldade.
+
+## 11. Tratamento de erros
+
+Durante a partida, o jogador pode digitar texto que não seja um número.
+
+O código usa:
+
+```python
+try:
+    palpite = int(entrada)
+except ValueError:
+    print("Entrada inválida. Digite um número ou DICA.")
+```
+
+Dessa forma, o programa não fecha quando o usuário comete um erro de digitação.
+
+O carregamento do JSON também possui tratamento de erros para impedir que um arquivo inválido quebre o jogo.
+
+## 12. Repetição
+
+O jogo usa principalmente `while`.
+
+Na partida:
+
+```python
+while tentativa <= limite:
+```
+
+O laço continua até o jogador acertar ou usar todas as tentativas.
+
+Também existem laços de validação que continuam pedindo uma opção enquanto ela for inválida.
+
+## 13. Função `jogar()`
+
+A função `jogar()` controla uma partida completa:
+
+1. gera o número secreto;
+2. cria a faixa inicial;
+3. registra palpites já usados;
+4. aceita número ou `DICA`;
+5. valida a entrada;
+6. compara o palpite;
+7. atualiza a faixa possível;
+8. mostra a proximidade;
+9. calcula a pontuação;
+10. retorna `0` em caso de derrota.
+
+## 14. Função `main()`
+
+A função `main()` organiza o programa inteiro:
+
+1. mostra o título;
+2. lê o nome;
+3. carrega o progresso salvo;
+4. mostra as estatísticas;
+5. pede a dificuldade;
+6. inicia a partida;
+7. atualiza e salva os dados;
+8. pergunta se o jogador quer continuar.
+
+## 15. Testes automatizados
+
+O arquivo `test_main.py` usa `unittest`.
+
+A suíte verifica regras como:
+
+- comparação do palpite;
+- proximidade adaptativa;
+- cálculo de pontuação;
+- penalidade ao usar dica;
+- geração das dicas;
+- escolha de dificuldade;
 - vitória;
-- derrota por limite de tentativas.
+- derrota;
+- palpite repetido sem gastar tentativa;
+- salvar e carregar estatísticas;
+- recuperação quando o JSON está corrompido.
 
 Para executar:
 
@@ -174,31 +286,43 @@ Para executar:
 python -m unittest -v
 ```
 
-## 9. Ponto de entrada
+## 16. GitHub Actions
+
+O arquivo `.github/workflows/python.yml` executa automaticamente:
+
+1. validação da sintaxe;
+2. testes automatizados.
+
+Assim, alterações futuras podem ser verificadas no GitHub.
+
+## 17. Ponto de entrada
 
 ```python
 if __name__ == "__main__":
     main()
 ```
 
-Isso faz `main()` executar apenas quando `main.py` é iniciado diretamente.
+Isso faz o jogo iniciar apenas quando `main.py` é executado diretamente.
 
-Também permite que `test_main.py` importe as funções sem iniciar o jogo automaticamente.
+Também permite que `test_main.py` importe as funções sem iniciar uma partida automaticamente.
 
-## 10. O que melhorou em relação à primeira versão
+## 18. Evolução da versão
 
-A primeira versão já permitia adivinhar números e jogar novamente.
-
-A versão atual adiciona:
+A versão atual possui:
 
 - três dificuldades;
 - limite real de tentativas;
-- dicas de proximidade;
-- pontuação;
-- melhor pontuação da sessão;
-- menu para sair;
-- funções mais fáceis de testar;
+- faixa possível atualizada durante a partida;
+- dicas de proximidade adaptadas ao modo;
+- comando `DICA`;
+- penalidade de pontuação ao usar ajuda;
+- proteção contra palpites repetidos;
+- nome do jogador;
+- estatísticas persistentes em JSON;
+- taxa de vitória;
+- recorde geral;
+- recorde por dificuldade;
 - testes automatizados;
-- CI executando os testes.
+- CI no GitHub Actions.
 
-Mesmo com essas melhorias, o código continua usando conceitos que podem ser estudados no início da graduação.
+Mesmo com as melhorias, o projeto continua usando conceitos acessíveis para quem está aprendendo programação em Python.
