@@ -1,39 +1,78 @@
 # Jogo de Adivinhação em Python
 
-Pequeno projeto didático para quem está começando em programação e quer transformar fundamentos de Python em um **programa completo e executável**.
+Projeto didático do primeiro período que transforma fundamentos de Python em um **jogo completo, executável e testado**.
 
 **Nível:** iniciante  
-**Objetivo:** sair de exercícios isolados e entender como várias estruturas trabalham juntas em um mesmo fluxo.
+**Objetivo:** praticar lógica de programação usando um jogo de terminal simples de entender, jogar e modificar.
 
-## O que este projeto ensina
+## Como jogar
 
-- variáveis;
-- funções;
-- `if`, `elif` e `else`;
-- laços `while`;
-- tratamento de erros com `try/except`;
-- validação de entrada;
-- números aleatórios;
-- organização com `main()`;
-- repetição de partidas.
+O computador escolhe um número secreto e você tenta descobri-lo antes de acabar o limite de tentativas.
 
-## Como funciona
+Durante a partida, o jogo informa:
 
-O computador escolhe um número aleatório entre **1 e 100**. O jogador informa palpites e recebe dicas dizendo se o número secreto é maior ou menor.
+- se o número secreto é maior ou menor que o palpite;
+- se o palpite está frio, morno, quente ou muito quente;
+- quantas tentativas ainda restam;
+- a pontuação conquistada ao acertar.
 
-Ao acertar, o programa mostra a quantidade de tentativas e pergunta se o usuário deseja jogar novamente.
+Quanto menos tentativas forem usadas, maior a pontuação.
+
+## Dificuldades
+
+| Modo | Intervalo | Tentativas | Pontuação |
+|---|---:|---:|---:|
+| Fácil | 1 a 50 | 10 | multiplicador x1 |
+| Normal | 1 a 100 | 8 | multiplicador x2 |
+| Difícil | 1 a 500 | 10 | multiplicador x3 |
+
+O programa também guarda a **melhor pontuação da sessão** enquanto estiver aberto.
 
 ## Executar
+
+É necessário ter Python 3 instalado.
 
 ```bash
 python main.py
 ```
 
+No Windows também pode funcionar com:
+
+```bash
+py main.py
+```
+
+Não existem bibliotecas externas para instalar.
+
+## Executar os testes
+
+```bash
+python -m unittest -v
+```
+
+Os testes verificam as principais regras do jogo, incluindo comparação de palpites, dicas de proximidade, pontuação, validação de entrada, dificuldades e partidas completas.
+
+## O que este projeto pratica
+
+- variáveis e constantes;
+- funções;
+- dicionários;
+- `if`, `elif` e `else`;
+- `for` e `while`;
+- tratamento de erros com `try/except`;
+- validação de entrada;
+- números aleatórios com `random`;
+- contadores e pontuação;
+- organização com `main()`;
+- testes automatizados com `unittest`;
+- GitHub Actions.
+
 ## Estrutura
 
 ```text
-jogo_primeiro_periodo/
+Jogo_primeiro_periodo/
 ├── main.py
+├── test_main.py
 ├── README.md
 ├── EXPLICACAO.md
 ├── .gitignore
@@ -42,41 +81,63 @@ jogo_primeiro_periodo/
         └── python.yml
 ```
 
+## Fluxo do programa
+
+```text
+iniciar
+  ↓
+escolher dificuldade
+  ↓
+gerar número secreto
+  ↓
+receber palpite
+  ↓
+validar entrada
+  ↓
+comparar palpite
+  ↓
+mostrar dica
+  ↓
+acertou? ── não ──→ próxima tentativa
+  ↓ sim
+calcular pontuação
+  ↓
+mostrar resultado
+  ↓
+jogar novamente?
+```
+
 ## Como estudar este projeto
 
-1. execute uma partida completa;
-2. leia `EXPLICACAO.md`;
-3. identifique onde o programa valida entradas;
-4. altere o intervalo do número secreto;
-5. implemente uma melhoria sem copiar a solução pronta;
-6. teste manualmente antes de fazer commit.
-
-## Desafios de evolução
-
-- [ ] níveis de dificuldade;
-- [ ] limite de tentativas;
-- [ ] sistema de pontuação;
-- [ ] ranking salvo em JSON;
-- [ ] testes automatizados;
-- [ ] interface gráfica;
-- [ ] versão web;
-- [ ] versão mobile.
+1. execute uma partida em cada dificuldade;
+2. abra `main.py` e localize a função de cada parte do jogo;
+3. leia `EXPLICACAO.md`;
+4. execute `python -m unittest -v`;
+5. altere uma regra simples, como quantidade de tentativas;
+6. execute os testes novamente e observe se o comportamento continua correto.
 
 ## Qualidade
 
-O GitHub Actions valida automaticamente a sintaxe Python em pushes e pull requests.
+O GitHub Actions executa automaticamente:
 
-## Próximo passo
+1. validação da sintaxe Python;
+2. suíte de testes com `unittest`.
 
-Depois deste projeto, o caminho recomendado é criar mini sistemas com **arquivos/JSON, CRUD, validação e testes**.
+Isso permite verificar cada nova alteração sem depender somente de testes manuais.
 
-## Tecnologias
+## Possíveis evoluções futuras
 
-`Python 3` · `Git` · `GitHub Actions`
+Estas ideias não fazem parte da versão atual:
+
+- ranking persistido em JSON;
+- escolha de nome do jogador;
+- recorde salvo entre execuções;
+- interface gráfica;
+- versão web.
+
+O projeto continua propositalmente simples para que o código permaneça compatível com o nível de aprendizagem de um estudante no início do curso.
 
 ## Autor
 
 **Fernando Otávio Videira Junior**  
 Engenharia de Software — Universidade de Vassouras, Campus Saquarema
-
-> Um projeto pequeno, mas completo, ensina mais integração de conceitos do que vários exercícios desconectados.
