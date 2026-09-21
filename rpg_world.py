@@ -5,6 +5,7 @@ import pygame
 
 from character_visuals import ALLY_STYLES, draw_ally, draw_dialogue_box
 from rpg_entities import EnemyActor, Loot, NPC
+from world_art import WorldArt
 
 
 WORLD_W = 1800
@@ -539,6 +540,7 @@ class RPGWorld:
         self.hit_stop = 0.0
         self.flash_timer = 0.0
         self.ally_cooldown = 0.8
+        self.world_art = WorldArt(chapter["number"], (WORLD_W, WORLD_H))
 
         self.obstacles = self._build_obstacles()
         self.shrines = self._build_shrines()
@@ -651,6 +653,11 @@ class RPGWorld:
         return values
 
     def handle_key(self, event):
+        if event.key == pygame.K_r:
+            self._ally_assist()
+            self.ally_cooldown = 2.4
+            return
+
         if event.key in (pygame.K_i, pygame.K_TAB):
             self.inventory_open = not self.inventory_open
             self.events.append("choice")
@@ -1059,9 +1066,7 @@ class RPGWorld:
     def draw(self, surface, fonts):
         seconds = pygame.time.get_ticks() / 1000
         theme = self.theme
-        surface.fill(theme["ground"])
-
-        self._draw_ground(surface, theme, seconds)
+        self.world_art.draw(surface, self.camera, seconds)
         items = []
         for rect in self.obstacles[4:]:
             items.append((rect.bottom, "obstacle", rect))
@@ -1210,41 +1215,11 @@ class RPGWorld:
                 surface.blit(layer, (x - 9, y - 9))
 
     def _draw_obstacle(self, surface, rect):
-        screen = rect.move(
-            -int(self.camera.x),
-            -int(self.camera.y),
-        )
-        if not screen.colliderect(
-            pygame.Rect(0, 0, 1280, 720)
-        ):
-            return
-
-        pygame.draw.rect(
+        self.world_art.draw_obstacle(
             surface,
-            (23, 30, 35),
-            screen,
-            border_radius=10,
+            rect,
+            self.camera,
         )
-        pygame.draw.rect(
-            surface,
-            (47, 55, 58),
-            screen,
-            2,
-            border_radius=10,
-        )
-
-        for x in range(
-            screen.left + 12,
-            screen.right - 6,
-            25,
-        ):
-            pygame.draw.line(
-                surface,
-                (55, 64, 65),
-                (x, screen.top + 7),
-                (x - 7, screen.bottom - 7),
-                2,
-            )
 
     def _ally_pos(self, index):
         angle = math.pi + (index - 1.5) * 0.55

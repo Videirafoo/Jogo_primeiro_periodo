@@ -1,9 +1,22 @@
 from array import array
 import math
+from pathlib import Path
 import random
 
 import pygame
 
+
+
+ASSET_ROOT = Path(__file__).with_name("assets") / "audio" / "cc0"
+EXTERNAL_SFX = {
+    "sword": "steel1.wav",
+    "shield": "metal1.wav",
+    "axe_hit": "metal1.wav",
+    "gate": "switch1.wav",
+    "thunder": "cracker1.wav",
+    "lightning": "cracker1.wav",
+    "choice": "switch1.wav",
+}
 
 AMBIENCE_BY_EVENT = {
     "rain": "rain",
@@ -152,6 +165,15 @@ class Audio:
         self.current_ambience = None
 
     def _create_sound(self, name):
+        external = EXTERNAL_SFX.get(name)
+        if external:
+            path = ASSET_ROOT / external
+            if path.exists():
+                try:
+                    return pygame.mixer.Sound(str(path))
+                except pygame.error:
+                    pass
+
         profiles = {
             "intro": (220, 0.45, "tone"),
             "dream_fall": (120, 0.70, "sweep"),

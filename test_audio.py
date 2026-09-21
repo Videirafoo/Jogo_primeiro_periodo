@@ -30,7 +30,9 @@ class AudioTests(unittest.TestCase):
         sword = audio._create_sound("sword")
         horse = audio._create_sound("horse")
 
-        self.assertGreater(len(thunder.get_raw()), len(sword.get_raw()))
+        self.assertGreater(len(thunder.get_raw()), 0)
+        self.assertGreater(len(sword.get_raw()), 0)
+        self.assertNotEqual(thunder.get_raw(), sword.get_raw())
         self.assertNotEqual(sword.get_raw(), horse.get_raw())
 
     def test_toggle_desliga_e_religa_audio(self):

@@ -6,6 +6,7 @@ import pygame
 from audio import Audio
 from engine import StoryEngine
 from gameplay import Challenge
+from pause_menu import PauseMenu
 from rpg_world import RPGWorld
 from savegame import load_game, save_game
 from story_data import GAME
@@ -32,6 +33,8 @@ class GameApp:
         self.running = True
         self.fullscreen = False
         self.headless = headless
+        self.paused = False
+        self.pause_menu = PauseMenu()
 
         self.phase = "opening"
         self.opening_index = 0
@@ -143,6 +146,9 @@ class GameApp:
         return int(self.reveal) >= len(self.current_text())
 
     def update(self, dt):
+        if self.paused:
+            return
+
         if self.transition_alpha > 0:
             self.transition_alpha = max(
                 0,
@@ -487,7 +493,45 @@ class GameApp:
         y = (pos[1] - offset_y) / max(scale, 0.001)
         return int(x), int(y)
 
+    def _handle_pause_action(self, action):
+        if action is None:
+            return
+        if action == "resume":
+            self.paused = False
+            self.pause_menu.reset()
+            return
+        if action == "save":
+            self.quick_save()
+            return
+        if action == "load":
+            self.quick_load()
+            return
+        if action == "inventory":
+            if self.world:
+                self.world.inventory_open = True
+                self.paused = False
+                self.pause_menu.reset()
+            else:
+                self.message = "Inventário disponível durante a exploração"
+            return
+        if action == "audio":
+            enabled = self.audio.toggle()
+            self.message = "Áudio ligado" if enabled else "Áudio desligado"
+            return
+        if action == "quit":
+            self.running = False
+
     def handle_key(self, event):
+        if self.paused:
+            action = self.pause_menu.handle_key(event)
+            self._handle_pause_action(action)
+            return
+
+        if event.key in (pygame.K_ESCAPE, pygame.K_p):
+            self.paused = True
+            self.pause_menu.reset()
+            return
+
         if event.key == pygame.K_m:
             enabled = self.audio.toggle()
             self.message = "Áudio ligado" if enabled else "Áudio desligado"
@@ -527,10 +571,6 @@ class GameApp:
                 self.world.notice_timer = 1.5
             return
 
-        if event.key == pygame.K_ESCAPE:
-            self.running = False
-            return
-
         if self.phase == "explore" and self.world:
             self.world.handle_key(event)
             return
@@ -564,6 +604,11 @@ class GameApp:
 
     def handle_click(self, pos):
         point = self.input_to_canvas(pos)
+
+        if self.paused:
+            action = self.pause_menu.handle_click(point)
+            self._handle_pause_action(action)
+            return
 
         if self.phase == "explore" and self.world:
             self.world.handle_click(point)
@@ -600,6 +645,12 @@ class GameApp:
                 fade = pygame.Surface(LOGICAL_SIZE, pygame.SRCALPHA)
                 fade.fill((0, 0, 0, self.transition_alpha))
                 self.canvas.blit(fade, (0, 0))
+
+            if self.paused:
+                self.pause_menu.draw(
+                    self.canvas, self.fonts, self.audio,
+                    self.phase, bool(self.world),
+                )
 
             self._present()
             return
@@ -640,6 +691,12 @@ class GameApp:
             fade = pygame.Surface(LOGICAL_SIZE, pygame.SRCALPHA)
             fade.fill((0, 0, 0, self.transition_alpha))
             self.canvas.blit(fade, (0, 0))
+
+        if self.paused:
+            self.pause_menu.draw(
+                self.canvas, self.fonts, self.audio,
+                self.phase, bool(self.world),
+            )
 
         self._present()
 
