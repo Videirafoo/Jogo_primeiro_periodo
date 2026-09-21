@@ -58,6 +58,8 @@ Se o jogador apenas pressionar Enter, o programa usa:
 Jogador
 ```
 
+A função `normalizar_nome()` remove espaços repetidos e padroniza maiúsculas e minúsculas. Assim, entradas como `fernando` e `FERNANDO` usam o mesmo nome salvo.
+
 ## 4. Comparação do palpite
 
 A função `avaliar_palpite()` compara o valor informado com o número secreto:
@@ -173,16 +175,19 @@ O arquivo usado é:
 dados_jogador.json
 ```
 
-Agora o arquivo pode guardar mais de um jogador:
+A estrutura atual possui uma versão e pode guardar vários jogadores:
 
 ```python
 {
+    "versao": 2,
     "jogadores": {
         "Fernando": {
-            "partidas": 0,
-            "vitorias": 0,
-            "melhor_pontuacao": 0,
-            "melhor_por_modo": {}
+            "partidas": 3,
+            "vitorias": 2,
+            "melhor_pontuacao": 1800,
+            "melhor_por_modo": {"Normal": 1800},
+            "historico": [],
+            "conquistas": []
         }
     }
 }
@@ -192,7 +197,7 @@ Agora o arquivo pode guardar mais de um jogador:
 
 Procura no arquivo apenas as estatísticas do nome informado.
 
-Se o arquivo ainda não existir ou estiver inválido, o programa usa os valores iniciais.
+Se o arquivo ainda não existir, estiver inválido ou for de uma versão anterior, o programa usa valores seguros e mantém compatibilidade com o formato antigo.
 
 ### `salvar_estatisticas(nome, estatisticas)`
 
@@ -204,12 +209,25 @@ Remove apenas o progresso do jogador informado.
 
 ### `atualizar_estatisticas()`
 
-Atualiza:
+Atualiza partidas, vitórias, recordes, histórico e conquistas.
 
-- quantidade de partidas;
-- vitórias;
-- melhor pontuação geral;
-- recorde de cada dificuldade.
+### Histórico
+
+Cada partida registra dificuldade, vitória ou derrota, tentativas, pontos e uso da dica. Somente as 5 partidas mais recentes são mantidas.
+
+### Conquistas
+
+O projeto possui conquistas simples:
+
+- Primeira vitória;
+- De primeira;
+- Sem dica;
+- Mestre do Difícil;
+- 5 vitórias.
+
+### Ranking
+
+A função `obter_ranking()` organiza os jogadores pela melhor pontuação e retorna os 5 primeiros.
 
 ## 11. Tratamento de erros
 
@@ -255,20 +273,21 @@ A função `jogar()` controla uma partida completa:
 7. atualiza a faixa possível;
 8. mostra a proximidade;
 9. calcula a pontuação;
-10. retorna `0` em caso de derrota.
+10. retorna um dicionário com pontos, tentativas, uso da dica e resultado da partida.
 
 ## 14. Função `main()`
 
 A função `main()` organiza o programa inteiro:
 
 1. mostra o título;
-2. lê o nome;
-3. carrega o progresso salvo;
-4. mostra as estatísticas;
-5. pede a dificuldade;
-6. inicia a partida;
-7. atualiza e salva os dados;
-8. pergunta se o jogador quer continuar.
+2. lê e normaliza o nome;
+3. mostra o menu principal;
+4. inicia partidas;
+5. exibe estatísticas e histórico;
+6. exibe ranking;
+7. exibe conquistas;
+8. permite zerar apenas o progresso do jogador;
+9. salva os dados após cada partida.
 
 ## 15. Testes automatizados
 
@@ -286,6 +305,11 @@ A suíte verifica regras como:
 - derrota;
 - palpite repetido sem gastar tentativa;
 - salvar e carregar estatísticas;
+- ranking;
+- conquistas;
+- histórico limitado;
+- normalização do nome;
+- versão do arquivo de dados;
 - recuperação quando o JSON está corrompido.
 
 Para executar:
@@ -325,11 +349,16 @@ A versão atual possui:
 - comando `DICA`;
 - penalidade de pontuação ao usar ajuda;
 - proteção contra palpites repetidos;
-- nome do jogador;
+- menu principal;
+- jogadores separados;
+- normalização do nome;
 - estatísticas persistentes em JSON;
+- save versionado;
 - taxa de vitória;
-- recorde geral;
-- recorde por dificuldade;
+- recorde geral e por dificuldade;
+- histórico das 5 partidas mais recentes;
+- ranking local Top 5;
+- cinco conquistas;
 - testes automatizados;
 - CI no GitHub Actions.
 

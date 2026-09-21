@@ -64,9 +64,13 @@ O jogo registra automaticamente em `dados_jogador.json`:
 - vitórias;
 - taxa de vitória;
 - melhor pontuação geral;
-- melhor pontuação por dificuldade.
+- melhor pontuação por dificuldade;
+- histórico das 5 partidas mais recentes;
+- conquistas desbloqueadas.
 
-As estatísticas ficam separadas pelo nome digitado no início. Assim, pessoas diferentes podem jogar no mesmo computador sem misturar o progresso.
+As estatísticas ficam separadas pelo nome digitado no início. O nome é normalizado para evitar duplicidade por diferenças simples de letras maiúsculas ou espaços.
+
+O arquivo de progresso possui uma versão própria para facilitar futuras evoluções sem perder compatibilidade.
 
 Esse arquivo é criado localmente ao jogar e está no `.gitignore`, portanto não é enviado para o GitHub.
 
@@ -107,6 +111,11 @@ A suíte cobre as principais regras do jogo, incluindo:
 - menu principal;
 - estatísticas separadas por jogador;
 - zerar apenas o progresso do jogador escolhido;
+- ranking local com os 5 melhores jogadores;
+- conquistas;
+- histórico limitado às 5 partidas mais recentes;
+- normalização do nome;
+- versão do arquivo de progresso;
 - criação, atualização e leitura das estatísticas em JSON.
 
 ## Conceitos de Python praticados
@@ -155,8 +164,10 @@ iniciar
 informar nome
   ↓
 menu principal
-  ├─ Jogar → escolher dificuldade → partida → salvar estatísticas
-  ├─ Estatísticas → mostrar progresso do jogador
+  ├─ Jogar → dificuldade → partida → histórico/conquistas → salvar
+  ├─ Estatísticas → recordes + últimas partidas
+  ├─ Ranking → Top 5 local
+  ├─ Conquistas → mostrar medalhas liberadas
   ├─ Regras → mostrar instruções
   ├─ Zerar progresso → apagar somente os dados do jogador
   └─ Sair
@@ -167,10 +178,11 @@ menu principal
 1. execute uma partida em cada dificuldade;
 2. teste o comando `DICA`;
 3. tente repetir um palpite e observe que a tentativa não é perdida;
-4. termine uma partida e abra `dados_jogador.json`;
-5. leia `main.py` e `EXPLICACAO.md`;
-6. execute `python -m unittest -v`;
-7. altere uma regra simples e execute os testes novamente.
+4. abra o ranking e as conquistas;
+5. termine partidas e observe o histórico das 5 mais recentes;
+6. abra `dados_jogador.json` e veja a separação por jogador;
+7. leia `main.py` e `EXPLICACAO.md`;
+8. execute `python -m unittest -v`.
 
 ## Qualidade
 
@@ -185,9 +197,9 @@ Isso ajuda a impedir que alterações futuras quebrem regras já funcionando.
 
 Sem mudar a proposta didática, o projeto ainda pode evoluir para:
 
-- ranking com vários jogadores;
-- conquistas;
 - modos de jogo adicionais;
+- mais conquistas;
+- ranking por dificuldade;
 - interface gráfica com Tkinter ou Pygame;
 - versão web.
 

@@ -4,6 +4,8 @@ from pathlib import Path
 
 
 ARQUIVO_DADOS = Path(__file__).with_name("dados_jogador.json")
+VERSAO_DADOS = 2
+LIMITE_HISTORICO = 5
 
 DIFICULDADES = {
     "1": {
@@ -38,21 +40,27 @@ def ler_opcao(mensagem, opcoes_validas):
         print("Opção inválida. Tente novamente.")
 
 
-def ler_nome():
-    nome = input("Digite seu nome: ").strip()
+def normalizar_nome(nome):
+    nome = " ".join(nome.split())
     if not nome:
         return "Jogador"
-    return nome[:30]
+    return nome[:30].title()
+
+
+def ler_nome():
+    return normalizar_nome(input("Digite seu nome: "))
 
 
 def mostrar_menu_principal():
     print("\n=== MENU PRINCIPAL ===")
     print("1 - Jogar")
     print("2 - Estatísticas")
-    print("3 - Regras")
-    print("4 - Zerar meu progresso")
+    print("3 - Ranking")
+    print("4 - Conquistas")
+    print("5 - Regras")
+    print("6 - Zerar meu progresso")
     print("0 - Sair")
-    return ler_opcao("Opção: ", {"0", "1", "2", "3", "4"})
+    return ler_opcao("Opção: ", {"0", "1", "2", "3", "4", "5", "6"})
 
 
 def escolher_dificuldade():
@@ -114,36 +122,51 @@ def estatisticas_vazias():
         "vitorias": 0,
         "melhor_pontuacao": 0,
         "melhor_por_modo": {},
+        "historico": [],
+        "conquistas": [],
+    }
+
+
+def dados_vazios():
+    return {
+        "versao": VERSAO_DADOS,
+        "jogadores": {},
     }
 
 
 def carregar_dados(caminho=ARQUIVO_DADOS):
     if not caminho.exists():
-        return {"jogadores": {}}
+        return dados_vazios()
 
     try:
         with caminho.open("r", encoding="utf-8") as arquivo:
             dados = json.load(arquivo)
     except (OSError, json.JSONDecodeError):
-        return {"jogadores": {}}
+        return dados_vazios()
 
     if isinstance(dados.get("jogadores"), dict):
+        dados["versao"] = VERSAO_DADOS
         return dados
 
     if "partidas" in dados:
-        return {"formato_antigo": dados, "jogadores": {}}
+        return {
+            "versao": VERSAO_DADOS,
+            "formato_antigo": dados,
+            "jogadores": {},
+        }
 
-    return {"jogadores": {}}
+    return dados_vazios()
 
 
 def completar_estatisticas(estatisticas):
     padrao = estatisticas_vazias()
     for chave, valor in padrao.items():
-        estatisticas.setdefault(chave, valor)
+        estatisticas.setdefault(chave, valor.copy() if isinstance(valor, (dict, list)) else valor)
     return estatisticas
 
 
 def carregar_estatisticas(nome, caminho=ARQUIVO_DADOS):
+    nome = normalizar_nome(nome)
     dados = carregar_dados(caminho)
 
     if nome in dados["jogadores"]:
@@ -156,8 +179,10 @@ def carregar_estatisticas(nome, caminho=ARQUIVO_DADOS):
 
 
 def salvar_estatisticas(nome, estatisticas, caminho=ARQUIVO_DADOS):
+    nome = normalizar_nome(nome)
     dados = carregar_dados(caminho)
     dados.pop("formato_antigo", None)
+    dados["versao"] = VERSAO_DADOS
     dados["jogadores"][nome] = estatisticas
 
     try:
@@ -170,6 +195,7 @@ def salvar_estatisticas(nome, estatisticas, caminho=ARQUIVO_DADOS):
 
 
 def zerar_progresso(nome, caminho=ARQUIVO_DADOS):
+    nome = normalizar_nome(nome)
     dados = carregar_dados(caminho)
     dados.pop("formato_antigo", None)
     dados["jogadores"].pop(nome, None)
@@ -183,18 +209,104 @@ def zerar_progresso(nome, caminho=ARQUIVO_DADOS):
         return False
 
 
-def atualizar_estatisticas(estatisticas, pontos, modo):
+def criar_registro_partida(resultado, modo):
+    return {
+        "modo": modo,
+        "venceu": resultado["venceu"],
+        "tentativas": resultado["tentativas"],
+        "pontos": resultado["pontos"],
+        "usou_dica": resultado["usou_dica"],
+    }
+
+
+def atualizar_conquistas(estatisticas, resultado, modo):
+    conquistas = estatisticas["conquistas"]
+
+    if resultado["venceu"] and "Primeira vitória" not in conquistas:
+        conquistas.append("Primeira vitória")
+
+    if resultado["venceu"] and resultado["tentativas"] == 1:
+        if "De primeira" not in conquistas:
+            conquistas.append("De primeira")
+
+    if resultado["venceu"] and not resultado["usou_dica"]:
+        if "Sem dica" not in conquistas:
+            conquistas.append("Sem dica")
+
+    if resultado["venceu"] and modo == "Difícil":
+        if "Mestre do Difícil" not in conquistas:
+            conquistas.append("Mestre do Difícil")
+
+    if estatisticas["vitorias"] >= 5 and "5 vitórias" not in conquistas:
+        conquistas.append("5 vitórias")
+
+
+def atualizar_estatisticas(estatisticas, resultado, modo):
     estatisticas["partidas"] += 1
 
-    if pontos > 0:
+    if resultado["venceu"]:
         estatisticas["vitorias"] += 1
+        pontos = resultado["pontos"]
         estatisticas["melhor_pontuacao"] = max(
             estatisticas["melhor_pontuacao"], pontos
         )
         recorde_modo = estatisticas["melhor_por_modo"].get(modo, 0)
         estatisticas["melhor_por_modo"][modo] = max(recorde_modo, pontos)
 
+    estatisticas["historico"].append(criar_registro_partida(resultado, modo))
+    estatisticas["historico"] = estatisticas["historico"][-LIMITE_HISTORICO:]
+    atualizar_conquistas(estatisticas, resultado, modo)
     return estatisticas
+
+
+def obter_ranking(caminho=ARQUIVO_DADOS):
+    dados = carregar_dados(caminho)
+    ranking = []
+
+    for nome, estatisticas in dados["jogadores"].items():
+        estatisticas = completar_estatisticas(estatisticas)
+        ranking.append(
+            {
+                "nome": nome,
+                "pontos": estatisticas["melhor_pontuacao"],
+                "vitorias": estatisticas["vitorias"],
+            }
+        )
+
+    ranking.sort(key=lambda jogador: (-jogador["pontos"], -jogador["vitorias"], jogador["nome"]))
+    return ranking[:5]
+
+
+def mostrar_ranking(caminho=ARQUIVO_DADOS):
+    ranking = obter_ranking(caminho)
+    print("\n=== RANKING LOCAL ===")
+
+    if not ranking:
+        print("Ainda não há jogadores no ranking.")
+        return
+
+    for posicao, jogador in enumerate(ranking, start=1):
+        print(
+            f"{posicao}º - {jogador['nome']}: "
+            f"{jogador['pontos']} pontos | {jogador['vitorias']} vitória(s)"
+        )
+
+
+def mostrar_historico(estatisticas):
+    print("\nÚltimas partidas:")
+
+    if not estatisticas["historico"]:
+        print("- Nenhuma partida registrada.")
+        return
+
+    for partida in reversed(estatisticas["historico"]):
+        resultado = "Vitória" if partida["venceu"] else "Derrota"
+        dica = "com dica" if partida["usou_dica"] else "sem dica"
+        print(
+            f"- {partida['modo']}: {resultado} | "
+            f"{partida['tentativas']} tentativa(s) | "
+            f"{partida['pontos']} pontos | {dica}"
+        )
 
 
 def mostrar_estatisticas(nome, estatisticas):
@@ -212,7 +324,19 @@ def mostrar_estatisticas(nome, estatisticas):
         for modo, pontos in estatisticas["melhor_por_modo"].items():
             print(f"- {modo}: {pontos} pontos")
 
+    mostrar_historico(estatisticas)
     print("-" * 46)
+
+
+def mostrar_conquistas(nome, estatisticas):
+    print(f"\n=== CONQUISTAS DE {nome.upper()} ===")
+
+    if not estatisticas["conquistas"]:
+        print("Nenhuma conquista desbloqueada ainda.")
+        return
+
+    for conquista in estatisticas["conquistas"]:
+        print(f"- {conquista}")
 
 
 def mostrar_regras():
@@ -223,6 +347,16 @@ def mostrar_regras():
     print("4. Palpites repetidos e entradas inválidas não gastam tentativa.")
     print("5. Você pode usar DICA uma vez, mas perde 15% da pontuação.")
     print("6. Quanto menos tentativas usar, maior será sua pontuação.")
+    print("7. Vitórias especiais podem liberar conquistas.")
+
+
+def criar_resultado(pontos, tentativas, usou_dica, venceu):
+    return {
+        "pontos": pontos,
+        "tentativas": tentativas,
+        "usou_dica": usou_dica,
+        "venceu": venceu,
+    }
 
 
 def jogar(configuracao):
@@ -273,9 +407,9 @@ def jogar(configuracao):
             continue
 
         palpites_usados.add(palpite)
-        resultado = avaliar_palpite(palpite, numero_secreto)
+        resultado_palpite = avaliar_palpite(palpite, numero_secreto)
 
-        if resultado == "acertou":
+        if resultado_palpite == "acertou":
             pontos = calcular_pontuacao(
                 tentativa,
                 configuracao["multiplicador"],
@@ -284,9 +418,9 @@ def jogar(configuracao):
             print(f"\nACERTOU! O número secreto era {numero_secreto}.")
             print(f"Você conseguiu em {tentativa} tentativa(s).")
             print(f"Pontuação da partida: {pontos} pontos.")
-            return pontos
+            return criar_resultado(pontos, tentativa, usou_dica, True)
 
-        if resultado == "maior":
+        if resultado_palpite == "maior":
             print("O número secreto é MAIOR.")
             limite_inferior = max(limite_inferior, palpite + 1)
         else:
@@ -298,7 +432,7 @@ def jogar(configuracao):
         tentativa += 1
 
     print(f"\nFim de jogo. O número secreto era {numero_secreto}.")
-    return 0
+    return criar_resultado(0, limite, usou_dica, False)
 
 
 def mostrar_cabecalho():
@@ -321,20 +455,25 @@ def main():
             if configuracao is None:
                 continue
 
-            pontos = jogar(configuracao)
+            resultado = jogar(configuracao)
             estatisticas = carregar_estatisticas(nome)
-            atualizar_estatisticas(estatisticas, pontos, configuracao["nome"])
+            atualizar_estatisticas(estatisticas, resultado, configuracao["nome"])
             salvar_estatisticas(nome, estatisticas)
             mostrar_estatisticas(nome, estatisticas)
 
         elif opcao == "2":
-            estatisticas = carregar_estatisticas(nome)
-            mostrar_estatisticas(nome, estatisticas)
+            mostrar_estatisticas(nome, carregar_estatisticas(nome))
 
         elif opcao == "3":
-            mostrar_regras()
+            mostrar_ranking()
 
         elif opcao == "4":
+            mostrar_conquistas(nome, carregar_estatisticas(nome))
+
+        elif opcao == "5":
+            mostrar_regras()
+
+        elif opcao == "6":
             resposta = ler_opcao(
                 "Tem certeza que deseja zerar seu progresso? [S/N]: ",
                 {"s", "sim", "n", "nao", "não"},
