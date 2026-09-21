@@ -1,258 +1,154 @@
-# Desafio do Número Secreto — Jogo em Python
+# OS ETERNOS — O SONHO DE VALDRAK
 
-Projeto didático em Python que transforma fundamentos de programação em um jogo de terminal completo, rejogável, testado e com progresso local.
+Jogo narrativo interativo em Python + Pygame, ambientado em Valdrak: uma terra viking presa entre sonho, magia, memória e tecnologia.
 
-**Nível:** iniciante  
-**Objetivo:** praticar lógica de programação usando um jogo simples de entender, jogar e modificar.
+## História
 
-## Como funciona
+O protagonista dorme em um dia comum e desperta dentro de Valdrak.
 
-O computador escolhe um número secreto e o jogador precisa descobri-lo antes de acabar o limite de tentativas.
+Vikings, runas, cavalos, lobos de ferro e uma força que parece conhecer as memórias dos sonhadores cercam o caminho.
 
-Durante a partida, o jogo informa:
+O poder do protagonista é **Tecnologia**:
 
-- se o número secreto é maior ou menor que o palpite;
-- se o palpite está frio, morno, quente ou muito quente;
-- a faixa possível atual do número secreto;
-- quantas tentativas ainda restam;
-- a pontuação conquistada ao acertar.
+- Scanner de Runas;
+- Mapa Holográfico;
+- Pulso de Código.
 
-Palpites repetidos não gastam tentativa.
+Durante a jornada, outros sonhadores podem formar **Os Eternos**:
 
-## Dificuldades
+- Thorvald — Raio de Torv;
+- Aurel — Olho do Céu;
+- Kaion — Lâmina do Vento;
+- Brenor — Fogo da Forja;
+- Eiran — Cura da Aurora;
+- Noctar — Sombra dos Corvos.
 
-| Modo | Intervalo | Tentativas | Multiplicador |
-|---|---:|---:|---:|
-| Fácil | 1 a 50 | 10 | x1 |
-| Normal | 1 a 100 | 8 | x2 |
-| Difícil | 1 a 500 | 10 | x3 |
+## Como a V2 funciona
 
-As dicas de proximidade são calculadas proporcionalmente ao tamanho do intervalo. Assim, o modo difícil continua justo mesmo usando números muito maiores.
+A história começa diretamente no prólogo. Não existe menu antes do conto.
 
-## Sistema de dica
+Cada trecho da narrativa aparece em uma cena própria. Depois, o jogador toma decisões que alteram Coragem, Sabedoria, Tecnologia, Amizade, Caos, Marcas, aliados, ferramentas e o final.
 
-Durante uma partida, digite:
+A campanha possui:
 
-```text
-DICA
+- prólogo com 16 momentos narrativos;
+- 7 capítulos;
+- escolhas ramificadas;
+- 242 caminhos completos atualmente válidos;
+- 5 finais;
+- efeitos sonoros;
+- interface gráfica redimensionável;
+- fullscreen;
+- HUD de atributos, aliados e tecnologia.
+
+## Controles
+
+| Tecla | Ação |
+|---|---|
+| Enter / Espaço | Revelar ou continuar a narrativa |
+| 1 / 2 / 3 | Escolher uma ação |
+| M | Ligar/desligar áudio |
+| F11 | Tela cheia |
+| Esc | Sair |
+| R | Sonhar novamente após o final |
+
+Também é possível usar o mouse.
+
+## Rodar no Windows / VS Code
+
+Abra o terminal na pasta do projeto:
+
+```powershell
+git switch v2-interface-grafica
+git pull
 ```
 
-O jogo informa características do número secreto, como:
+Crie o ambiente:
 
-- se ele é par ou ímpar;
-- se é divisível por 5.
-
-A dica pode ser usada apenas uma vez por partida e reduz a pontuação final em 15%.
-
-## Pontuação
-
-Quanto menos tentativas forem usadas, maior será a pontuação.
-
-A dificuldade aplica um multiplicador e o uso da dica aplica uma pequena penalidade.
-
-Exemplo:
-
-- acertar rapidamente no Fácil gera uma boa pontuação;
-- acertar rapidamente no Difícil gera uma pontuação maior;
-- usar `DICA` ajuda, mas reduz o total recebido.
-
-## Progresso salvo
-
-O jogo registra automaticamente em `dados_jogador.json`:
-
-- partidas jogadas;
-- vitórias;
-- taxa de vitória;
-- melhor pontuação geral;
-- melhor pontuação por dificuldade;
-- histórico das 5 partidas mais recentes;
-- conquistas desbloqueadas.
-
-As estatísticas ficam separadas pelo nome digitado no início. O nome é normalizado para evitar duplicidade por diferenças simples de letras maiúsculas ou espaços.
-
-O arquivo de progresso possui uma versão própria para facilitar futuras evoluções sem perder compatibilidade.
-
-Esse arquivo é criado localmente ao jogar e está no `.gitignore`, portanto não é enviado para o GitHub.
-
-## Executar no VS Code
-
-1. abra a pasta do projeto no VS Code;
-2. abra o terminal integrado;
-3. execute:
-
-```bash
-python main.py
-```
-
-No Windows também pode funcionar com:
-
-```bash
-py main.py
-```
-
-A versão de terminal não precisa de bibliotecas externas.
-
-## V2 gráfica com Pygame
-
-A V2 fica na branch `v2-interface-grafica` e preserva a versão estável de terminal na branch `main`.
-
-Ela adiciona:
-
-- tela de perfil;
-- menu visual;
-- seleção de dificuldade;
-- HUD de tentativas e faixa atual;
-- campo de palpite;
-- botão e atalho de dica;
-- estatísticas;
-- ranking;
-- conquistas;
-- regras;
-- persistência no mesmo `dados_jogador.json`.
-
-### Rodar a V2 no VS Code
-
-No terminal do projeto:
-
-```bash
+```powershell
 python -m venv .venv
 ```
 
-No Windows:
+Ative:
 
-```bash
-.venv\Scripts\activate
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Atualize o ambiente desta V2:
+
+```powershell
+pip uninstall -y pygame
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-python app_pygame.py
 ```
 
-No Linux/macOS:
+Execute:
 
-```bash
-source .venv/bin/activate
-pip install -r requirements.txt
-python app_pygame.py
+```powershell
+python eternos.py
 ```
 
-A V1 de terminal continua disponível com:
+## Testes
 
-```bash
-python main.py
-```
-
-## Executar os testes
-
-```bash
+```powershell
 python -m unittest -v
 ```
 
-A suíte cobre as principais regras do jogo, incluindo:
+Smoke gráfico:
 
-- comparação de palpites;
-- proximidade adaptativa;
-- cálculo de pontuação;
-- penalidade da dica;
-- geração de dicas;
-- escolha de dificuldade;
-- vitória e derrota;
-- palpite repetido sem perda de tentativa;
-- menu principal;
-- estatísticas separadas por jogador;
-- zerar apenas o progresso do jogador escolhido;
-- ranking local com os 5 melhores jogadores;
-- conquistas;
-- histórico limitado às 5 partidas mais recentes;
-- normalização do nome;
-- versão do arquivo de progresso;
-- criação, atualização e leitura das estatísticas em JSON.
-
-## Conceitos de Python praticados
-
-- variáveis e constantes;
-- funções;
-- dicionários;
-- listas e conjuntos (`set`);
-- `if`, `elif` e `else`;
-- `for` e `while`;
-- `try/except`;
-- validação de entrada;
-- números aleatórios com `random`;
-- leitura e escrita de JSON;
-- arquivos com `pathlib.Path`;
-- contadores, recordes e pontuação;
-- organização com `main()`;
-- testes automatizados com `unittest`;
-- automação com GitHub Actions.
+```powershell
+python eternos.py --smoke
+```
 
 ## Estrutura
 
 ```text
 Jogo_primeiro_periodo/
-├── main.py
-├── app_pygame.py
-├── test_main.py
-├── test_v2_pygame.py
+├── eternos.py
+├── engine.py
+├── story_data.py
+├── ui.py
+├── audio.py
+├── test_engine.py
 ├── requirements.txt
 ├── README.md
 ├── EXPLICACAO.md
-├── .gitignore
+├── INSTRUCOES.md
 └── .github/
     └── workflows/
         └── python.yml
 ```
 
-Ao jogar, também é criado localmente:
+## Arquitetura
 
-```text
-dados_jogador.json
-```
+### story_data.py
 
-## Fluxo do jogo
+Conteúdo canônico recuperado do jogo original: prólogo, aliados, capítulos, escolhas, requisitos, consequências, atributos e finais.
 
-```text
-iniciar
-  ↓
-informar nome
-  ↓
-menu principal
-  ├─ Jogar → dificuldade → partida → histórico/conquistas → salvar
-  ├─ Estatísticas → recordes + últimas partidas
-  ├─ Ranking → Top 5 local
-  ├─ Conquistas → mostrar medalhas liberadas
-  ├─ Regras → mostrar instruções
-  ├─ Zerar progresso → apagar somente os dados do jogador
-  └─ Sair
-```
+### engine.py
 
-## Como estudar este projeto
+Motor independente da interface: estado, aliados, ferramentas, requisitos, efeitos, progressão e seleção do final.
 
-1. execute uma partida em cada dificuldade;
-2. teste o comando `DICA`;
-3. tente repetir um palpite e observe que a tentativa não é perdida;
-4. abra o ranking e as conquistas;
-5. termine partidas e observe o histórico das 5 mais recentes;
-6. abra `dados_jogador.json` e veja a separação por jogador;
-7. leia `main.py` e `EXPLICACAO.md`;
-8. execute `python -m unittest -v`.
+### ui.py
 
-## Qualidade
+Design visual do jogo: cenas, painéis, HUD, botões, backgrounds procedurais e adaptação de tela.
 
-O GitHub Actions executa automaticamente:
+### audio.py
 
-1. validação da sintaxe Python;
-2. suíte de testes com `unittest`.
+Efeitos sonoros gerados em tempo de execução para chuva, trovão, tecnologia, runas, fogo, portal, espada e outros eventos.
 
-Isso ajuda a impedir que alterações futuras quebrem regras já funcionando.
+### eternos.py
 
-## Próximas evoluções possíveis
+Loop principal da V2 gráfica.
 
-Sem mudar a proposta didática, o projeto ainda pode evoluir para:
+## Princípio desta versão
 
-- modos de jogo adicionais;
-- mais conquistas;
-- ranking por dificuldade;
-- interface gráfica com Tkinter ou Pygame;
-- versão web.
+A narrativa vem primeiro.
+
+O jogo deve ser lido e vivido como um conto interativo: cena → narração → consequência → escolha → nova cena.
+
+As escolhas mudam o caminho, mas não podem impedir o jogador de chegar ao fim da história.
 
 ## Autor
 
