@@ -6,6 +6,8 @@ import pygame
 from audio import Audio
 from engine import StoryEngine
 from gameplay import Challenge
+from rpg_world import RPGWorld
+from savegame import load_game, save_game
 from story_data import GAME
 import ui
 
@@ -42,6 +44,17 @@ class GameApp:
         self.challenge_context = None
         self.pending_choice_result = None
         self.prologue_action_done = False
+        self.world = None
+        self.rpg_profile = {
+            "level": 1,
+            "xp": 0,
+            "xp_next": 4,
+            "max_health": 100,
+            "health": 100,
+            "max_energy": 100,
+            "energy": 100,
+            "kills": 0,
+        }
 
         self.reveal = 0.0
         self.message = ""
@@ -83,6 +96,9 @@ class GameApp:
         if self.phase == "challenge" and self.challenge_context == "prologue":
             return "Primeiro perigo"
 
+        if self.phase == "explore" and self.engine.current_chapter:
+            return f"Explore — {self.engine.current_chapter['title']}"
+
         if self.phase in {"chapter", "choices", "challenge", "result"}:
             chapter = self.engine.current_chapter
             return chapter["title"]
@@ -101,6 +117,10 @@ class GameApp:
 
         if self.phase == "challenge" and self.challenge_context == "prologue":
             return "Prólogo"
+
+        if self.phase == "explore" and self.engine.current_chapter:
+            chapter = self.engine.current_chapter
+            return f"Capítulo {chapter['number']} de {len(GAME['chapters'])}"
 
         if self.phase in {"chapter", "choices", "challenge", "result"}:
             chapter = self.engine.current_chapter
@@ -128,6 +148,22 @@ class GameApp:
                 0,
                 self.transition_alpha - int(dt * 520),
             )
+
+        if self.phase == "explore" and self.world:
+            self.world.update(dt, pygame.key.get_pressed())
+
+            for event_name in self.world.pop_events():
+                self.audio.play(event_name, 0.58)
+
+            if self.world.selected_choice is not None:
+                index = self.world.selected_choice
+                reward = self.world.apply_rewards()
+                self.world = None
+                self.phase = "choices"
+                if reward:
+                    self.message = reward
+                self.choose(index)
+            return
 
         if self.phase == "challenge" and self.challenge:
             self.challenge.update(dt, pygame.key.get_pressed())
@@ -167,10 +203,7 @@ class GameApp:
                 self.scene_index += 1
                 self._play_current_item()
             else:
-                self.phase = "choices"
-                self.message = ""
-                self.transition_alpha = 140
-                self.audio.play("choice", 0.22)
+                self._start_exploration()
             return
 
         if self.phase == "result":
@@ -203,6 +236,26 @@ class GameApp:
         self.scene_index = 0
         self.phase = "chapter"
         self._play_current_item()
+
+    def _start_exploration(self):
+        chapter = self.engine.current_chapter
+        if chapter is None:
+            return
+
+        self.world = RPGWorld(
+            chapter,
+            self.engine,
+            self.rpg_profile,
+        )
+        self.phase = "explore"
+        self.message = ""
+        self.transition_alpha = 170
+        self.audio.set_ambience(
+            self.world.theme["ambience"],
+            direct=True,
+        )
+        self.audio.play("rune", 0.38)
+        self.quick_save(silent=True)
 
     def choose(self, index):
         if self.phase != "choices":
@@ -327,6 +380,65 @@ class GameApp:
         else:
             self._next_chapter_or_ending()
 
+    def quick_save(self, silent=False):
+        saved = save_game(
+            self.engine,
+            self.rpg_profile,
+            self.phase,
+            self.opening_index,
+            self.scene_index,
+        )
+
+        if not silent:
+            self.message = (
+                "Jogo salvo"
+                if saved
+                else "Não foi possível salvar"
+            )
+
+        return saved
+
+    def quick_load(self):
+        data = load_game()
+        if data is None:
+            self.message = "Nenhum save válido encontrado"
+            self.audio.play("error", 0.42)
+            return False
+
+        engine_data = data["engine"]
+        self.engine.state = engine_data["state"]
+        self.engine.allies = list(engine_data["allies"])
+        self.engine.history = list(engine_data["history"])
+        self.engine.chapter_index = engine_data["chapter_index"]
+        self.rpg_profile = dict(data["rpg_profile"])
+
+        self.opening_index = data.get("opening_index", 0)
+        self.scene_index = data.get("scene_index", 0)
+        self.challenge = None
+        self.challenge_context = None
+        self.pending_choice_result = None
+        self.world = None
+        self.result_items = []
+        self.result_index = 0
+        self.ending = None
+        self.ending_index = 0
+
+        resume_phase = data.get("resume_phase", "chapter")
+
+        if resume_phase == "explore" and self.engine.current_chapter:
+            self._start_exploration()
+        elif resume_phase == "opening":
+            self.phase = "opening"
+            self._play_current_item()
+        else:
+            self.phase = "chapter"
+            self.scene_index = 0
+            self._play_current_item()
+
+        self.message = "Save carregado"
+        self.audio.play("wake", 0.42)
+        return True
+
     def toggle_fullscreen(self):
         if self.headless:
             return
@@ -349,6 +461,17 @@ class GameApp:
         self.challenge_context = None
         self.pending_choice_result = None
         self.prologue_action_done = False
+        self.world = None
+        self.rpg_profile = {
+            "level": 1,
+            "xp": 0,
+            "xp_next": 4,
+            "max_health": 100,
+            "health": 100,
+            "max_energy": 100,
+            "energy": 100,
+            "kills": 0,
+        }
         self.message = ""
         self._play_current_item()
 
@@ -374,8 +497,42 @@ class GameApp:
             self.toggle_fullscreen()
             return
 
+        if event.key == pygame.K_F5:
+            self.quick_save()
+            if self.world:
+                self.world.notice = self.message
+                self.world.notice_timer = 1.8
+            return
+
+        if event.key == pygame.K_F9:
+            self.quick_load()
+            if self.world:
+                self.world.notice = self.message
+                self.world.notice_timer = 1.8
+            return
+
+        if event.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
+            volume = self.audio.adjust_volume(-0.10)
+            self.message = f"Volume {int(volume * 100)}%"
+            if self.world:
+                self.world.notice = self.message
+                self.world.notice_timer = 1.5
+            return
+
+        if event.key in (pygame.K_EQUALS, pygame.K_KP_PLUS):
+            volume = self.audio.adjust_volume(0.10)
+            self.message = f"Volume {int(volume * 100)}%"
+            if self.world:
+                self.world.notice = self.message
+                self.world.notice_timer = 1.5
+            return
+
         if event.key == pygame.K_ESCAPE:
             self.running = False
+            return
+
+        if self.phase == "explore" and self.world:
+            self.world.handle_key(event)
             return
 
         if self.phase == "challenge" and self.challenge:
@@ -408,6 +565,10 @@ class GameApp:
     def handle_click(self, pos):
         point = self.input_to_canvas(pos)
 
+        if self.phase == "explore" and self.world:
+            self.world.handle_click(point)
+            return
+
         if self.phase == "challenge" and self.challenge:
             if self.challenge.finished:
                 self._finish_challenge()
@@ -431,6 +592,18 @@ class GameApp:
 
     def draw(self):
         seconds = pygame.time.get_ticks() / 1000
+
+        if self.phase == "explore" and self.world:
+            self.world.draw(self.canvas, self.fonts)
+
+            if self.transition_alpha > 0:
+                fade = pygame.Surface(LOGICAL_SIZE, pygame.SRCALPHA)
+                fade.fill((0, 0, 0, self.transition_alpha))
+                self.canvas.blit(fade, (0, 0))
+
+            self._present()
+            return
+
         item = self.current_item()
 
         if self.phase == "challenge" and self.challenge:
@@ -804,7 +977,8 @@ def smoke():
             app.draw()
             rendered += 1
 
-        app.phase = "choices"
+        app._start_exploration()
+        app.transition_alpha = 0
         app.draw()
         rendered += 1
 
@@ -815,7 +989,14 @@ def smoke():
             )
 
         first = chapter["choices"].index(available[0])
-        app.choose(first)
+        app.world.selected_choice = first
+        app.update(0.016)
+
+        if app.phase != "challenge":
+            raise RuntimeError(
+                f"Exploração do capítulo {chapter['number']} "
+                "não abriu o desafio."
+            )
 
         if app.phase == "challenge":
             app.challenge.finished = True

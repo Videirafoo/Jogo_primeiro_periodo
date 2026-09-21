@@ -1,0 +1,96 @@
+import os
+import unittest
+
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+
+import pygame
+
+from engine import StoryEngine
+from rpg_world import RPGWorld
+from story_data import GAME
+
+
+class RPGWorldTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pygame.init()
+
+    @classmethod
+    def tearDownClass(cls):
+        pygame.quit()
+
+    def make_world(self, chapter_index=0):
+        engine = StoryEngine(GAME)
+        engine.chapter_index = chapter_index
+        profile = {
+            "level": 1,
+            "xp": 0,
+            "xp_next": 4,
+            "max_health": 100,
+            "health": 100,
+            "max_energy": 100,
+            "energy": 100,
+            "kills": 0,
+        }
+        return RPGWorld(engine.current_chapter, engine, profile)
+
+    def test_mundo_tem_tres_caminhos_fisicos(self):
+        world = self.make_world()
+        self.assertEqual(len(world.shrines), 3)
+
+    def test_ataque_derrota_inimigo_proximo(self):
+        world = self.make_world()
+        enemy = world.enemies[0]
+        enemy.pos = world.player.pos + world.player.facing * 45
+        enemy.hp = 1
+
+        world.attack()
+
+        self.assertTrue(enemy.dead)
+        self.assertEqual(world.profile["kills"], 1)
+
+    def test_pulso_de_codigo_gasta_energia(self):
+        world = self.make_world()
+        before = world.player.energy
+
+        world.tech_pulse()
+
+        self.assertLess(world.player.energy, before)
+
+    def test_interacao_escolhe_santuario(self):
+        world = self.make_world()
+        shrine = next(item for item in world.shrines if item.available)
+        world.player.pos.update(shrine.pos)
+
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e)
+        world.handle_key(event)
+
+        self.assertEqual(world.selected_choice, shrine.index)
+
+    def test_progressao_de_nivel_persiste_no_profile(self):
+        world = self.make_world()
+        world.profile["xp"] = world.profile["xp_next"] - 1
+
+        leveled = world.player.gain_xp(1)
+
+        self.assertTrue(leveled)
+        self.assertEqual(world.profile["level"], 2)
+        self.assertGreater(world.profile["max_health"], 100)
+
+    def test_recompensa_por_combate_altera_historia(self):
+        world = self.make_world()
+        world.profile["kills"] += 2
+        before = world.engine.state.get("coragem", 0)
+
+        reward = world.apply_rewards()
+
+        self.assertIn("Coragem", reward)
+        self.assertEqual(
+            world.engine.state["coragem"],
+            before + 1,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

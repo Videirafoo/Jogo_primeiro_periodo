@@ -33,9 +33,15 @@ Não use `app_pygame.py`. Esse arquivo pertencia ao protótipo de adivinhação 
 
 - `Enter` / `Espaço`: continuar narrativa;
 - `1`, `2`, `3`: escolher caminhos;
-- `WASD` / setas: mover em exploração e esquiva;
-- `Espaço` / clique: acertar desafios de timing;
-- `M`: áudio;
+- `WASD` / setas: mover na exploração, scanner e esquiva;
+- `E`: interagir com santuários e escolher caminhos;
+- `Espaço`: ataque corpo a corpo na exploração ou timing nos desafios;
+- `Q`: Pulso de Código;
+- `Shift`: dash;
+- `M`: ligar/desligar áudio;
+- `-` / `+`: ajustar volume;
+- `F5`: salvar;
+- `F9`: carregar;
 - `F11`: tela cheia;
 - `Esc`: sair.
 

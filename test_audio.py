@@ -45,6 +45,21 @@ class AudioTests(unittest.TestCase):
         self.assertTrue(audio.enabled)
         self.assertEqual(audio.current_ambience, "rain")
 
+    def test_volume_pode_ser_reduzido(self):
+        audio = Audio()
+        before = audio.master_volume
+        after = audio.adjust_volume(-0.10)
+
+        self.assertLess(after, before)
+        self.assertGreaterEqual(after, 0.15)
+
+    def test_volume_tem_limite_superior(self):
+        audio = Audio()
+        for _ in range(20):
+            audio.adjust_volume(0.10)
+
+        self.assertEqual(audio.master_volume, 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

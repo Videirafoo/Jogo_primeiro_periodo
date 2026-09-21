@@ -39,6 +39,8 @@ class Audio:
         self.cache = {}
         self.ambience_cache = {}
         self.current_ambience = None
+        self.master_volume = 0.72
+        self.ambience_mix = 0.72
 
         try:
             if not pygame.mixer.get_init():
@@ -71,6 +73,27 @@ class Audio:
 
         return self.enabled
 
+    def adjust_volume(self, delta):
+        self.master_volume = max(
+            0.15,
+            min(1.0, self.master_volume + delta),
+        )
+
+        if self.ambience_channel and self.current_ambience:
+            base = {
+                "rain": 0.34,
+                "wind": 0.23,
+                "forest": 0.24,
+                "fire": 0.28,
+                "techhum": 0.18,
+                "portalhum": 0.22,
+            }.get(self.current_ambience, 0.20)
+            self.ambience_channel.set_volume(
+                base * self.ambience_mix * self.master_volume
+            )
+
+        return self.master_volume
+
     def set_ambience(self, event_name, direct=False):
         ambience = event_name if direct else AMBIENCE_BY_EVENT.get(event_name)
 
@@ -101,7 +124,9 @@ class Audio:
             "portalhum": 0.22,
         }.get(ambience, 0.20)
 
-        self.ambience_channel.set_volume(volume)
+        self.ambience_channel.set_volume(
+            volume * self.ambience_mix * self.master_volume
+        )
         self.ambience_channel.play(sound, loops=-1, fade_ms=220)
 
     def play(self, name, volume=0.52):
@@ -118,7 +143,7 @@ class Audio:
             channel = self.event_channel
 
         if channel:
-            channel.set_volume(volume)
+            channel.set_volume(volume * self.master_volume)
             channel.play(sound)
 
     def stop(self):

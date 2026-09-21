@@ -81,7 +81,20 @@ A narrativa é revelada progressivamente. Enter/Espaço revela o restante do tex
 
 ## 10. Gameplay
 
-O módulo `gameplay.py` adiciona três famílias de desafio:
+Além dos desafios, cada capítulo agora possui uma área explorável em `rpg_world.py`.
+
+Nela o jogador pode:
+
+- mover o protagonista com câmera seguindo;
+- lutar contra lobos;
+- usar ataque corpo a corpo;
+- usar Pulso de Código;
+- executar dash;
+- ganhar XP e subir de nível;
+- ver aliados acompanhando o personagem;
+- escolher o caminho chegando fisicamente a um santuário e pressionando `E`.
+
+O módulo `gameplay.py` mantém três famílias de desafio:
 
 - exploração de runas com movimento;
 - timing para combate, portões e tecnologia;
@@ -97,17 +110,22 @@ A tecla M controla o áudio.
 
 ## 12. Testes
 
-`test_engine.py`, `test_gameplay.py` e `test_audio.py` validam narrativa, requisitos, caminhos, desafios, integração e áudio.
+`test_engine.py`, `test_gameplay.py`, `test_rpg_world.py`, `test_savegame.py` e `test_audio.py` validam narrativa, requisitos, caminhos, exploração, combate, progressão, save/load, desafios, integração e áudio.
 
 O GitHub Actions também executa um smoke gráfico headless da campanha completa.
 
-## 13. Próxima evolução
+## 13. Save e áudio
+
+`savegame.py` salva capítulo, atributos narrativos, aliados e progressão RPG. `F5` salva e `F9` carrega.
+
+O volume geral pode ser ajustado com `-` e `+`, além do mute com `M`.
+
+## 14. Próxima evolução
 
 - ilustrações próprias para cada capítulo;
 - retratos dos aliados;
 - partículas específicas;
 - transições cinematográficas;
-- save/load;
 - galeria de finais;
 - créditos;
 - empacotamento Windows.
