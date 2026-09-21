@@ -46,7 +46,7 @@ Isso deixa as regras centralizadas e fáceis de alterar.
 
 ### `ler_opcao()`
 
-Valida opções de menu, como dificuldade e jogar novamente.
+Valida opções do menu principal, da dificuldade e das confirmações.
 
 ### `ler_nome()`
 
@@ -173,26 +173,34 @@ O arquivo usado é:
 dados_jogador.json
 ```
 
-O programa salva:
+Agora o arquivo pode guardar mais de um jogador:
 
 ```python
 {
-    "partidas": 0,
-    "vitorias": 0,
-    "melhor_pontuacao": 0,
-    "melhor_por_modo": {}
+    "jogadores": {
+        "Fernando": {
+            "partidas": 0,
+            "vitorias": 0,
+            "melhor_pontuacao": 0,
+            "melhor_por_modo": {}
+        }
+    }
 }
 ```
 
-### `carregar_estatisticas()`
+### `carregar_estatisticas(nome)`
 
-Procura o arquivo e carrega os dados já existentes.
+Procura no arquivo apenas as estatísticas do nome informado.
 
 Se o arquivo ainda não existir ou estiver inválido, o programa usa os valores iniciais.
 
-### `salvar_estatisticas()`
+### `salvar_estatisticas(nome, estatisticas)`
 
-Usa `json.dump()` para gravar as estatísticas no computador.
+Usa `json.dump()` para gravar o progresso do jogador sem apagar os outros jogadores.
+
+### `zerar_progresso(nome)`
+
+Remove apenas o progresso do jogador informado.
 
 ### `atualizar_estatisticas()`
 

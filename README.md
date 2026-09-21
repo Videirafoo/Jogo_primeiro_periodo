@@ -66,6 +66,8 @@ O jogo registra automaticamente em `dados_jogador.json`:
 - melhor pontuação geral;
 - melhor pontuação por dificuldade.
 
+As estatísticas ficam separadas pelo nome digitado no início. Assim, pessoas diferentes podem jogar no mesmo computador sem misturar o progresso.
+
 Esse arquivo é criado localmente ao jogar e está no `.gitignore`, portanto não é enviado para o GitHub.
 
 ## Executar no VS Code
@@ -102,6 +104,9 @@ A suíte cobre as principais regras do jogo, incluindo:
 - escolha de dificuldade;
 - vitória e derrota;
 - palpite repetido sem perda de tentativa;
+- menu principal;
+- estatísticas separadas por jogador;
+- zerar apenas o progresso do jogador escolhido;
 - criação, atualização e leitura das estatísticas em JSON.
 
 ## Conceitos de Python praticados
@@ -149,27 +154,12 @@ iniciar
   ↓
 informar nome
   ↓
-carregar progresso
-  ↓
-escolher dificuldade
-  ↓
-gerar número secreto
-  ↓
-receber palpite ou DICA
-  ↓
-validar entrada
-  ↓
-comparar palpite
-  ↓
-atualizar faixa possível + mostrar proximidade
-  ↓
-acertou? ── não ──→ próxima tentativa
-  ↓ sim
-calcular pontuação
-  ↓
-atualizar e salvar estatísticas
-  ↓
-jogar novamente?
+menu principal
+  ├─ Jogar → escolher dificuldade → partida → salvar estatísticas
+  ├─ Estatísticas → mostrar progresso do jogador
+  ├─ Regras → mostrar instruções
+  ├─ Zerar progresso → apagar somente os dados do jogador
+  └─ Sair
 ```
 
 ## Como estudar este projeto

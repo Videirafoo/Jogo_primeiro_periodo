@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,12 +33,6 @@ class JogoAdivinhacaoTests(unittest.TestCase):
         self.assertIn("ímpar", main.gerar_dica(21))
         self.assertIn("não é divisível por 5", main.gerar_dica(21))
 
-    @patch("builtins.input", side_effect=["abc", "0", "101", "50"])
-    def test_ler_numero_valida_entrada(self, _):
-        with patch("builtins.print"):
-            valor = main.ler_numero("Palpite: ", 1, 100)
-        self.assertEqual(valor, 50)
-
     @patch("builtins.input", return_value="")
     def test_ler_nome_usa_padrao(self, _):
         self.assertEqual(main.ler_nome(), "Jogador")
@@ -51,10 +46,16 @@ class JogoAdivinhacaoTests(unittest.TestCase):
         self.assertEqual(dificuldade["tentativas"], 8)
 
     @patch("builtins.input", return_value="0")
-    def test_escolher_dificuldade_permite_sair(self, _):
+    def test_escolher_dificuldade_permite_voltar(self, _):
         with patch("builtins.print"):
             dificuldade = main.escolher_dificuldade()
         self.assertIsNone(dificuldade)
+
+    @patch("builtins.input", return_value="3")
+    def test_menu_principal(self, _):
+        with patch("builtins.print"):
+            opcao = main.mostrar_menu_principal()
+        self.assertEqual(opcao, "3")
 
     @patch("main.random.randint", return_value=42)
     @patch("builtins.input", side_effect=["30", "50", "42"])
@@ -89,9 +90,7 @@ class JogoAdivinhacaoTests(unittest.TestCase):
         self.assertEqual(pontos, 0)
 
     def test_atualizar_estatisticas(self):
-        with tempfile.TemporaryDirectory() as diretorio:
-            caminho = Path(diretorio) / "inexistente.json"
-            estatisticas = main.carregar_estatisticas(caminho)
+        estatisticas = main.estatisticas_vazias()
         main.atualizar_estatisticas(estatisticas, 1600, "Normal")
         self.assertEqual(estatisticas["partidas"], 1)
         self.assertEqual(estatisticas["vitorias"], 1)
@@ -107,25 +106,76 @@ class JogoAdivinhacaoTests(unittest.TestCase):
                 "melhor_pontuacao": 2000,
                 "melhor_por_modo": {"Normal": 2000},
             }
-            self.assertTrue(main.salvar_estatisticas(dados, caminho))
-            carregados = main.carregar_estatisticas(caminho)
+            self.assertTrue(main.salvar_estatisticas("Fernando", dados, caminho))
+            carregados = main.carregar_estatisticas("Fernando", caminho)
             self.assertEqual(carregados, dados)
+
+    def test_estatisticas_ficam_separadas_por_jogador(self):
+        with tempfile.TemporaryDirectory() as diretorio:
+            caminho = Path(diretorio) / "dados.json"
+            ana = main.estatisticas_vazias()
+            bruno = main.estatisticas_vazias()
+            main.atualizar_estatisticas(ana, 1000, "Fácil")
+            main.atualizar_estatisticas(bruno, 1800, "Normal")
+            main.salvar_estatisticas("Ana", ana, caminho)
+            main.salvar_estatisticas("Bruno", bruno, caminho)
+
+            self.assertEqual(
+                main.carregar_estatisticas("Ana", caminho)["melhor_pontuacao"],
+                1000,
+            )
+            self.assertEqual(
+                main.carregar_estatisticas("Bruno", caminho)["melhor_pontuacao"],
+                1800,
+            )
+
+    def test_zerar_progresso_remove_apenas_um_jogador(self):
+        with tempfile.TemporaryDirectory() as diretorio:
+            caminho = Path(diretorio) / "dados.json"
+            main.salvar_estatisticas("Ana", main.estatisticas_vazias(), caminho)
+            bruno = main.estatisticas_vazias()
+            main.atualizar_estatisticas(bruno, 900, "Fácil")
+            main.salvar_estatisticas("Bruno", bruno, caminho)
+
+            self.assertTrue(main.zerar_progresso("Ana", caminho))
+            self.assertEqual(
+                main.carregar_estatisticas("Ana", caminho)["partidas"],
+                0,
+            )
+            self.assertEqual(
+                main.carregar_estatisticas("Bruno", caminho)["partidas"],
+                1,
+            )
+
+    def test_formato_antigo_ainda_pode_ser_lido(self):
+        with tempfile.TemporaryDirectory() as diretorio:
+            caminho = Path(diretorio) / "dados.json"
+            antigo = {
+                "partidas": 2,
+                "vitorias": 1,
+                "melhor_pontuacao": 800,
+                "melhor_por_modo": {"Normal": 800},
+            }
+            caminho.write_text(
+                json.dumps(antigo, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            carregados = main.carregar_estatisticas("Fernando", caminho)
+            self.assertEqual(carregados["partidas"], 2)
+            self.assertEqual(carregados["melhor_pontuacao"], 800)
 
     def test_carregar_estatisticas_corrompidas_usa_padrao(self):
         with tempfile.TemporaryDirectory() as diretorio:
             caminho = Path(diretorio) / "dados.json"
             caminho.write_text("{arquivo quebrado", encoding="utf-8")
-            dados = main.carregar_estatisticas(caminho)
+            dados = main.carregar_estatisticas("Fernando", caminho)
             self.assertEqual(dados["partidas"], 0)
             self.assertEqual(dados["vitorias"], 0)
 
-    @patch("builtins.input", return_value="sim")
-    def test_deseja_jogar_novamente_sim(self, _):
-        self.assertTrue(main.deseja_jogar_novamente())
-
-    @patch("builtins.input", return_value="n")
-    def test_deseja_jogar_novamente_nao(self, _):
-        self.assertFalse(main.deseja_jogar_novamente())
+    def test_mostrar_regras(self):
+        with patch("builtins.print") as imprimir:
+            main.mostrar_regras()
+        self.assertTrue(imprimir.called)
 
 
 if __name__ == "__main__":

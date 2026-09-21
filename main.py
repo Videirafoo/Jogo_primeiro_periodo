@@ -30,23 +30,7 @@ DIFICULDADES = {
 }
 
 
-def ler_numero(mensagem, minimo, maximo):
-    """Lê um número inteiro dentro do intervalo informado."""
-    while True:
-        try:
-            valor = int(input(mensagem))
-        except ValueError:
-            print("Entrada inválida. Digite um número inteiro.")
-            continue
-
-        if minimo <= valor <= maximo:
-            return valor
-
-        print(f"Digite um número entre {minimo} e {maximo}.")
-
-
 def ler_opcao(mensagem, opcoes_validas):
-    """Lê uma opção textual e só retorna quando ela for válida."""
     while True:
         resposta = input(mensagem).strip().lower()
         if resposta in opcoes_validas:
@@ -55,20 +39,28 @@ def ler_opcao(mensagem, opcoes_validas):
 
 
 def ler_nome():
-    """Lê o nome usado na sessão."""
     nome = input("Digite seu nome: ").strip()
     if not nome:
         return "Jogador"
     return nome[:30]
 
 
+def mostrar_menu_principal():
+    print("\n=== MENU PRINCIPAL ===")
+    print("1 - Jogar")
+    print("2 - Estatísticas")
+    print("3 - Regras")
+    print("4 - Zerar meu progresso")
+    print("0 - Sair")
+    return ler_opcao("Opção: ", {"0", "1", "2", "3", "4"})
+
+
 def escolher_dificuldade():
-    """Mostra o menu de dificuldade e retorna a configuração escolhida."""
     print("\nEscolha a dificuldade:")
     print("1 - Fácil   | número de 1 a 50  | 10 tentativas | x1")
     print("2 - Normal  | número de 1 a 100 | 8 tentativas  | x2")
     print("3 - Difícil | número de 1 a 500 | 10 tentativas | x3")
-    print("0 - Sair")
+    print("0 - Voltar")
 
     opcao = ler_opcao("Opção: ", {"0", "1", "2", "3"})
     if opcao == "0":
@@ -77,7 +69,6 @@ def escolher_dificuldade():
 
 
 def avaliar_palpite(palpite, numero_secreto):
-    """Compara o palpite com o número secreto."""
     if palpite < numero_secreto:
         return "maior"
     if palpite > numero_secreto:
@@ -86,7 +77,6 @@ def avaliar_palpite(palpite, numero_secreto):
 
 
 def classificar_distancia(palpite, numero_secreto, tamanho_intervalo=100):
-    """Retorna uma dica de proximidade ajustada ao tamanho do intervalo."""
     distancia = abs(numero_secreto - palpite)
     referencia = max(1, tamanho_intervalo)
     proporcao = distancia / referencia
@@ -101,7 +91,6 @@ def classificar_distancia(palpite, numero_secreto, tamanho_intervalo=100):
 
 
 def calcular_pontuacao(tentativas_usadas, multiplicador, usou_dica=False):
-    """Calcula a pontuação; usar dica aplica uma pequena penalidade."""
     pontos_base = max(100, 1000 - (tentativas_usadas - 1) * 100)
     pontos = pontos_base * multiplicador
 
@@ -112,52 +101,89 @@ def calcular_pontuacao(tentativas_usadas, multiplicador, usou_dica=False):
 
 
 def gerar_dica(numero_secreto):
-    """Gera uma dica simples sem revelar o número secreto."""
     paridade = "par" if numero_secreto % 2 == 0 else "ímpar"
-    divisivel_por_5 = numero_secreto % 5 == 0
 
-    if divisivel_por_5:
+    if numero_secreto % 5 == 0:
         return f"O número é {paridade} e também é divisível por 5."
     return f"O número é {paridade} e não é divisível por 5."
 
 
-def carregar_estatisticas(caminho=ARQUIVO_DADOS):
-    """Carrega estatísticas salvas; se não existirem, retorna valores iniciais."""
-    padrao = {
+def estatisticas_vazias():
+    return {
         "partidas": 0,
         "vitorias": 0,
         "melhor_pontuacao": 0,
         "melhor_por_modo": {},
     }
 
+
+def carregar_dados(caminho=ARQUIVO_DADOS):
     if not caminho.exists():
-        return padrao
+        return {"jogadores": {}}
 
     try:
         with caminho.open("r", encoding="utf-8") as arquivo:
             dados = json.load(arquivo)
     except (OSError, json.JSONDecodeError):
-        return padrao
+        return {"jogadores": {}}
 
+    if isinstance(dados.get("jogadores"), dict):
+        return dados
+
+    if "partidas" in dados:
+        return {"formato_antigo": dados, "jogadores": {}}
+
+    return {"jogadores": {}}
+
+
+def completar_estatisticas(estatisticas):
+    padrao = estatisticas_vazias()
     for chave, valor in padrao.items():
-        dados.setdefault(chave, valor)
+        estatisticas.setdefault(chave, valor)
+    return estatisticas
 
-    return dados
+
+def carregar_estatisticas(nome, caminho=ARQUIVO_DADOS):
+    dados = carregar_dados(caminho)
+
+    if nome in dados["jogadores"]:
+        return completar_estatisticas(dados["jogadores"][nome])
+
+    if "formato_antigo" in dados:
+        return completar_estatisticas(dados["formato_antigo"])
+
+    return estatisticas_vazias()
 
 
-def salvar_estatisticas(estatisticas, caminho=ARQUIVO_DADOS):
-    """Salva as estatísticas em JSON."""
+def salvar_estatisticas(nome, estatisticas, caminho=ARQUIVO_DADOS):
+    dados = carregar_dados(caminho)
+    dados.pop("formato_antigo", None)
+    dados["jogadores"][nome] = estatisticas
+
     try:
         with caminho.open("w", encoding="utf-8") as arquivo:
-            json.dump(estatisticas, arquivo, ensure_ascii=False, indent=2)
+            json.dump(dados, arquivo, ensure_ascii=False, indent=2)
         return True
     except OSError:
         print("Aviso: não foi possível salvar as estatísticas.")
         return False
 
 
+def zerar_progresso(nome, caminho=ARQUIVO_DADOS):
+    dados = carregar_dados(caminho)
+    dados.pop("formato_antigo", None)
+    dados["jogadores"].pop(nome, None)
+
+    try:
+        with caminho.open("w", encoding="utf-8") as arquivo:
+            json.dump(dados, arquivo, ensure_ascii=False, indent=2)
+        return True
+    except OSError:
+        print("Aviso: não foi possível zerar o progresso.")
+        return False
+
+
 def atualizar_estatisticas(estatisticas, pontos, modo):
-    """Atualiza partidas, vitórias e recordes."""
     estatisticas["partidas"] += 1
 
     if pontos > 0:
@@ -172,7 +198,6 @@ def atualizar_estatisticas(estatisticas, pontos, modo):
 
 
 def mostrar_estatisticas(nome, estatisticas):
-    """Mostra um resumo do progresso do jogador."""
     partidas = estatisticas["partidas"]
     vitorias = estatisticas["vitorias"]
     taxa = (vitorias / partidas * 100) if partidas else 0
@@ -181,11 +206,26 @@ def mostrar_estatisticas(nome, estatisticas):
     print(f"ESTATÍSTICAS DE {nome.upper()}")
     print(f"Partidas: {partidas} | Vitórias: {vitorias} | Taxa: {taxa:.0f}%")
     print(f"Melhor pontuação: {estatisticas['melhor_pontuacao']}")
+
+    if estatisticas["melhor_por_modo"]:
+        print("Recordes por dificuldade:")
+        for modo, pontos in estatisticas["melhor_por_modo"].items():
+            print(f"- {modo}: {pontos} pontos")
+
     print("-" * 46)
 
 
+def mostrar_regras():
+    print("\n=== REGRAS ===")
+    print("1. Escolha uma dificuldade e tente descobrir o número secreto.")
+    print("2. A cada erro, o jogo informa se o número é maior ou menor.")
+    print("3. Frio, morno e quente mostram o quanto você está perto.")
+    print("4. Palpites repetidos e entradas inválidas não gastam tentativa.")
+    print("5. Você pode usar DICA uma vez, mas perde 15% da pontuação.")
+    print("6. Quanto menos tentativas usar, maior será sua pontuação.")
+
+
 def jogar(configuracao):
-    """Executa uma partida e retorna a pontuação conquistada."""
     minimo = configuracao["minimo"]
     maximo = configuracao["maximo"]
     limite = configuracao["tentativas"]
@@ -200,7 +240,7 @@ def jogar(configuracao):
     print(f"\n=== MODO {configuracao['nome'].upper()} ===")
     print(f"Descubra o número entre {minimo} e {maximo}.")
     print(f"Você tem {limite} tentativas.")
-    print("Durante a partida, digite DICA para receber uma pista (uma vez).")
+    print("Digite DICA para receber uma pista uma vez.")
 
     while tentativa <= limite:
         restantes = limite - tentativa + 1
@@ -214,7 +254,7 @@ def jogar(configuracao):
                 print("Você já usou a dica desta partida.")
             else:
                 print("DICA:", gerar_dica(numero_secreto))
-                print("Atenção: usar dica reduz a pontuação final em 15%.")
+                print("Usar dica reduz a pontuação final em 15%.")
                 usou_dica = True
             continue
 
@@ -261,12 +301,6 @@ def jogar(configuracao):
     return 0
 
 
-def deseja_jogar_novamente():
-    """Pergunta se o usuário deseja iniciar outra partida."""
-    resposta = ler_opcao("\nJogar novamente? [S/N]: ", {"s", "sim", "n", "nao", "não"})
-    return resposta in {"s", "sim"}
-
-
 def mostrar_cabecalho():
     print("=" * 46)
     print("        DESAFIO DO NÚMERO SECRETO")
@@ -277,27 +311,42 @@ def mostrar_cabecalho():
 def main():
     mostrar_cabecalho()
     nome = ler_nome()
-    estatisticas = carregar_estatisticas()
-
     print(f"\nBem-vindo, {nome}!")
-    mostrar_estatisticas(nome, estatisticas)
 
     while True:
-        configuracao = escolher_dificuldade()
+        opcao = mostrar_menu_principal()
 
-        if configuracao is None:
-            break
+        if opcao == "1":
+            configuracao = escolher_dificuldade()
+            if configuracao is None:
+                continue
 
-        pontos = jogar(configuracao)
-        atualizar_estatisticas(estatisticas, pontos, configuracao["nome"])
-        salvar_estatisticas(estatisticas)
-        mostrar_estatisticas(nome, estatisticas)
+            pontos = jogar(configuracao)
+            estatisticas = carregar_estatisticas(nome)
+            atualizar_estatisticas(estatisticas, pontos, configuracao["nome"])
+            salvar_estatisticas(nome, estatisticas)
+            mostrar_estatisticas(nome, estatisticas)
 
-        if not deseja_jogar_novamente():
+        elif opcao == "2":
+            estatisticas = carregar_estatisticas(nome)
+            mostrar_estatisticas(nome, estatisticas)
+
+        elif opcao == "3":
+            mostrar_regras()
+
+        elif opcao == "4":
+            resposta = ler_opcao(
+                "Tem certeza que deseja zerar seu progresso? [S/N]: ",
+                {"s", "sim", "n", "nao", "não"},
+            )
+            if resposta in {"s", "sim"}:
+                zerar_progresso(nome)
+                print("Seu progresso foi zerado.")
+
+        else:
             break
 
     print(f"\nObrigado por jogar, {nome}!")
-    print("Seu progresso foi salvo para a próxima partida.")
 
 
 if __name__ == "__main__":
