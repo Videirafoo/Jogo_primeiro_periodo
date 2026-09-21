@@ -45,6 +45,7 @@ class GameApp:
         self.restart_rect = None
 
         self.current_sfx = ""
+        self.transition_alpha = 210
         self._play_current_item()
 
     def current_item(self):
@@ -104,11 +105,18 @@ class GameApp:
         self.current_sfx = item.get("sfx", "rune")
         self.audio.play(self.current_sfx, 0.28)
         self.reveal = 0.0
+        self.transition_alpha = 180
 
     def reveal_complete(self):
         return int(self.reveal) >= len(self.current_text())
 
     def update(self, dt):
+        if self.transition_alpha > 0:
+            self.transition_alpha = max(
+                0,
+                self.transition_alpha - int(dt * 520),
+            )
+
         if self.phase in {"opening", "chapter", "result", "ending"}:
             self.reveal = min(
                 len(self.current_text()),
@@ -139,6 +147,7 @@ class GameApp:
             else:
                 self.phase = "choices"
                 self.message = ""
+                self.transition_alpha = 140
                 self.audio.play("choice", 0.22)
             return
 
@@ -159,6 +168,7 @@ class GameApp:
                 self.audio.play("ending_good", 0.42)
 
     def _next_chapter_or_ending(self):
+        self.message = ""
         next_chapter = self.engine.advance_chapter()
 
         if next_chapter is None:
@@ -308,6 +318,12 @@ class GameApp:
             self._draw_narration(accent)
 
         self._draw_footer(accent)
+
+        if self.transition_alpha > 0:
+            fade = pygame.Surface(LOGICAL_SIZE, pygame.SRCALPHA)
+            fade.fill((0, 0, 0, self.transition_alpha))
+            self.canvas.blit(fade, (0, 0))
+
         self._present()
 
     def _draw_narration(self, accent):
@@ -329,6 +345,23 @@ class GameApp:
             visible,
             accent,
         )
+
+        if self.message and self.phase == "result":
+            notice = pygame.Rect(58, 322, 820, 42)
+            ui.rounded_panel(
+                self.canvas,
+                notice,
+                (20, 31, 43),
+                accent,
+                12,
+            )
+            ui.text(
+                self.canvas,
+                self.message,
+                self.fonts["small"],
+                ui.GOLD,
+                (78, 334),
+            )
 
         ui.draw_status(
             self.canvas,
@@ -496,7 +529,11 @@ class GameApp:
             accent,
         )
 
-        help_text = "ENTER/ESPAÇO continuar • 1/2/3 escolher • M áudio • F11 tela cheia • ESC sair"
+        audio_state = "ON" if self.audio.enabled else "OFF"
+        help_text = (
+            "ENTER/ESPAÇO continuar • 1/2/3 escolher • "
+            f"M áudio {audio_state} • F11 tela cheia • ESC sair"
+        )
         ui.text(
             self.canvas,
             help_text,
