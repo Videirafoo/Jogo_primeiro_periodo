@@ -15,11 +15,15 @@ Não existe tela Iniciar.
 ```text
 Prólogo
   ↓
+Primeiro desafio jogável
+  ↓
 Capítulo
   ↓
 Cena narrativa
   ↓
 Escolha
+  ↓
+Desafio jogável
   ↓
 Consequência
   ↓
@@ -69,31 +73,40 @@ Há finais relacionados ao grupo de aliados, tecnologia e sabedoria, marcas de V
 
 A tela lógica é 1280x720 e é escalada para a janela real, preservando proporção.
 
-Isso permite redimensionar, usar diferentes monitores, ativar F11 e manter o layout consistente.
+O HUD foi reorganizado em uma faixa superior compacta para impedir sobreposição entre status, tecnologia, narrativa e botão de continuar. As escolhas usam a largura útil e os desafios têm área própria de ação.
 
 ## 9. Narração
 
 A narrativa é revelada progressivamente. Enter/Espaço revela o restante do texto e, no próximo acionamento, avança.
 
-## 10. Áudio
+## 10. Gameplay
 
-O módulo `audio.py` gera efeitos sonoros em tempo de execução para chuva, vento, cavalo, espada, machado, trovão, runa, tecnologia, fogo, portal e outros eventos.
+O módulo `gameplay.py` adiciona três famílias de desafio:
+
+- exploração de runas com movimento;
+- timing para combate, portões e tecnologia;
+- esquiva de machados e lobos.
+
+Falhar não bloqueia a campanha. Sucesso concede bônus coerentes com o capítulo; falha adiciona Caos.
+
+## 11. Áudio
+
+O módulo `audio.py` separa ambiente contínuo de efeitos. Chuva, vento, bosque, fogo, tecnologia e portal permanecem tocando em loop, enquanto acontecimentos como trovão, espada, machado, cavalo, lobo, runa e portão usam canais de SFX.
 
 A tecla M controla o áudio.
 
-## 11. Testes
+## 12. Testes
 
-`test_engine.py` valida conteúdo, requisitos, efeitos, aliados, tecnologia, finais e todos os caminhos possíveis.
+`test_engine.py`, `test_gameplay.py` e `test_audio.py` validam narrativa, requisitos, caminhos, desafios, integração e áudio.
 
-O GitHub Actions também executa um smoke gráfico headless.
+O GitHub Actions também executa um smoke gráfico headless da campanha completa.
 
-## 12. Próxima evolução visual
+## 13. Próxima evolução
 
 - ilustrações próprias para cada capítulo;
 - retratos dos aliados;
 - partículas específicas;
 - transições cinematográficas;
-- trilha ambiente;
 - save/load;
 - galeria de finais;
 - créditos;

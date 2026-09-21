@@ -5,6 +5,7 @@ import pygame
 
 from audio import Audio
 from engine import StoryEngine
+from gameplay import Challenge
 from story_data import GAME
 import ui
 
@@ -37,6 +38,10 @@ class GameApp:
         self.result_index = 0
         self.ending = None
         self.ending_index = 0
+        self.challenge = None
+        self.challenge_context = None
+        self.pending_choice_result = None
+        self.prologue_action_done = False
 
         self.reveal = 0.0
         self.message = ""
@@ -75,7 +80,10 @@ class GameApp:
                 return "Poder despertado"
             return "Valdrak"
 
-        if self.phase in {"chapter", "choices", "result"}:
+        if self.phase == "challenge" and self.challenge_context == "prologue":
+            return "Primeiro perigo"
+
+        if self.phase in {"chapter", "choices", "challenge", "result"}:
             chapter = self.engine.current_chapter
             return chapter["title"]
 
@@ -91,7 +99,10 @@ class GameApp:
         if self.phase == "opening":
             return "Prólogo"
 
-        if self.phase in {"chapter", "choices", "result"}:
+        if self.phase == "challenge" and self.challenge_context == "prologue":
+            return "Prólogo"
+
+        if self.phase in {"chapter", "choices", "challenge", "result"}:
             chapter = self.engine.current_chapter
             return f"Capítulo {chapter['number']} de {len(GAME['chapters'])}"
 
@@ -103,7 +114,8 @@ class GameApp:
     def _play_current_item(self):
         item = self.current_item()
         self.current_sfx = item.get("sfx", "rune")
-        self.audio.play(self.current_sfx, 0.28)
+        self.audio.set_ambience(self.current_sfx)
+        self.audio.play(self.current_sfx, 0.56)
         self.reveal = 0.0
         self.transition_alpha = 180
 
@@ -116,6 +128,12 @@ class GameApp:
                 0,
                 self.transition_alpha - int(dt * 520),
             )
+
+        if self.phase == "challenge" and self.challenge:
+            self.challenge.update(dt, pygame.key.get_pressed())
+            for event_name in self.challenge.pop_events():
+                self.audio.play(event_name, 0.58)
+            return
 
         if self.phase in {"opening", "chapter", "result", "ending"}:
             self.reveal = min(
@@ -130,6 +148,10 @@ class GameApp:
                 return
 
         if self.phase == "opening":
+            if self.opening_index == 6 and not self.prologue_action_done:
+                self._start_prologue_challenge()
+                return
+
             if self.opening_index + 1 < len(GAME["opening"]):
                 self.opening_index += 1
                 self._play_current_item()
@@ -206,12 +228,98 @@ class GameApp:
         else:
             self.message = ""
 
-        self.audio.play("choice", 0.25)
-        for sfx in result.get("sfx_sequence", [])[:1]:
-            self.audio.play(sfx, 0.24)
+        self.audio.play("choice", 0.50)
+        sequence = result.get("sfx_sequence", [])
+        if sequence:
+            self.audio.play(sequence[0], 0.58)
 
+        self.pending_choice_result = result
+        self.challenge = Challenge(chapter["number"])
+        self.challenge_context = "choice"
+        self.phase = "challenge"
+        self.transition_alpha = 165
+
+        ambience = {
+            1: "rain",
+            2: "wind",
+            3: "fire",
+            4: "forest",
+            5: "wind",
+            6: "fire",
+            7: "portalhum",
+        }.get(chapter["number"], "wind")
+        self.audio.set_ambience(ambience, direct=True)
+
+    def _start_prologue_challenge(self):
+        self.challenge = Challenge(0)
+        self.challenge_context = "prologue"
+        self.pending_choice_result = None
+        self.phase = "challenge"
+        self.transition_alpha = 165
+        self.message = "Desvie do machado para continuar vivo."
+        self.audio.set_ambience("rain", direct=True)
+        self.audio.play("axe_whoosh", 0.62)
+
+    def _finish_challenge(self):
+        if not self.challenge:
+            return
+
+        if self.challenge_context == "prologue":
+            if self.challenge.success:
+                self.engine.state["coragem"] = self.engine.state.get("coragem", 0) + 1
+                self.message = "Você desviou a tempo • +1 Coragem"
+            else:
+                self.engine.state["caos"] = self.engine.state.get("caos", 0) + 1
+                self.message = "O machado passou perto demais • +1 Caos"
+
+            self.prologue_action_done = True
+            self.challenge = None
+            self.challenge_context = None
+            self.phase = "opening"
+
+            if self.opening_index + 1 < len(GAME["opening"]):
+                self.opening_index += 1
+                self._play_current_item()
+            return
+
+        if not self.pending_choice_result:
+            return
+
+        if self.challenge.success:
+            bonus_key = {
+                1: "tecnologia",
+                2: "tecnologia",
+                3: "coragem",
+                4: "sabedoria",
+                5: "coragem",
+                6: "tecnologia",
+                7: "sabedoria",
+            }.get(self.engine.current_chapter["number"], "coragem")
+
+            self.engine.state[bonus_key] = self.engine.state.get(bonus_key, 0) + 1
+            bonus_name = {
+                "coragem": "Coragem",
+                "sabedoria": "Sabedoria",
+                "tecnologia": "Tecnologia",
+            }[bonus_key]
+            challenge_message = f"Desafio superado • +1 {bonus_name}"
+        else:
+            self.engine.state["caos"] = self.engine.state.get("caos", 0) + 1
+            challenge_message = "Desafio falhou • +1 Caos"
+
+        unlock_message = self.message
+        self.message = (
+            f"{challenge_message} • {unlock_message}"
+            if unlock_message
+            else challenge_message
+        )
+
+        result = self.pending_choice_result
         self.result_items = list(result["result"])
         self.result_index = 0
+        self.pending_choice_result = None
+        self.challenge = None
+        self.challenge_context = None
 
         if self.result_items:
             self.phase = "result"
@@ -237,6 +345,10 @@ class GameApp:
         self.result_index = 0
         self.ending = None
         self.ending_index = 0
+        self.challenge = None
+        self.challenge_context = None
+        self.pending_choice_result = None
+        self.prologue_action_done = False
         self.message = ""
         self._play_current_item()
 
@@ -253,8 +365,31 @@ class GameApp:
         return int(x), int(y)
 
     def handle_key(self, event):
+        if event.key == pygame.K_m:
+            enabled = self.audio.toggle()
+            self.message = "Áudio ligado" if enabled else "Áudio desligado"
+            return
+
+        if event.key == pygame.K_F11:
+            self.toggle_fullscreen()
+            return
+
+        if event.key == pygame.K_ESCAPE:
+            self.running = False
+            return
+
+        if self.phase == "challenge" and self.challenge:
+            if (
+                self.challenge.finished
+                and event.key in (pygame.K_RETURN, pygame.K_SPACE)
+            ):
+                self._finish_challenge()
+            else:
+                self.challenge.handle_key(event)
+            return
+
         if event.key in (pygame.K_RETURN, pygame.K_SPACE):
-            if self.phase != "choices" and self.phase != "finished":
+            if self.phase not in {"choices", "finished"}:
                 self.advance()
             return
 
@@ -265,22 +400,20 @@ class GameApp:
                 self.choose(1)
             elif event.key in (pygame.K_3, pygame.K_KP3):
                 self.choose(2)
-
-        if event.key == pygame.K_m:
-            enabled = self.audio.toggle()
-            self.message = "Áudio ligado" if enabled else "Áudio desligado"
-
-        if event.key == pygame.K_F11:
-            self.toggle_fullscreen()
+            return
 
         if event.key == pygame.K_r and self.phase == "finished":
             self.restart()
 
-        if event.key == pygame.K_ESCAPE:
-            self.running = False
-
     def handle_click(self, pos):
         point = self.input_to_canvas(pos)
+
+        if self.phase == "challenge" and self.challenge:
+            if self.challenge.finished:
+                self._finish_challenge()
+            else:
+                self.challenge.handle_click(point)
+            return
 
         if self.phase == "choices":
             for index, rect in enumerate(self.choice_rects):
@@ -299,7 +432,16 @@ class GameApp:
     def draw(self):
         seconds = pygame.time.get_ticks() / 1000
         item = self.current_item()
-        key = item.get("sfx", self.current_sfx or "rune")
+
+        if self.phase == "challenge" and self.challenge:
+            key = {
+                "rune": "scanner",
+                "timing": "tech",
+                "dodge": "wolf",
+            }.get(self.challenge.kind, "rune")
+        else:
+            key = item.get("sfx", self.current_sfx or "rune")
+
         accent = ui.draw_scene_background(self.canvas, key, seconds)
 
         ui.draw_header(
@@ -312,6 +454,8 @@ class GameApp:
 
         if self.phase == "choices":
             self._draw_choices(accent)
+        elif self.phase == "challenge":
+            self._draw_challenge(accent)
         elif self.phase == "finished":
             self._draw_finished(accent)
         else:
@@ -325,6 +469,27 @@ class GameApp:
             self.canvas.blit(fade, (0, 0))
 
         self._present()
+
+    def _draw_challenge(self, accent):
+        ui.draw_status(
+            self.canvas,
+            self.fonts,
+            self.engine.status_snapshot(),
+            self.engine.ally_names(),
+            self.engine.state["tools"],
+            accent,
+        )
+
+        if self.challenge:
+            self.challenge.draw(
+                self.canvas,
+                self.fonts,
+                accent,
+            )
+
+        self.continue_rect = None
+        self.choice_rects = []
+        self.restart_rect = None
 
     def _draw_narration(self, accent):
         full = self.current_text()
@@ -347,20 +512,20 @@ class GameApp:
         )
 
         if self.message and self.phase == "result":
-            notice = pygame.Rect(58, 322, 820, 42)
+            notice = pygame.Rect(88, 535, 850, 34)
             ui.rounded_panel(
                 self.canvas,
                 notice,
                 (20, 31, 43),
                 accent,
-                12,
+                10,
             )
             ui.text(
                 self.canvas,
                 self.message,
                 self.fonts["small"],
                 ui.GOLD,
-                (78, 334),
+                (104, 543),
             )
 
         ui.draw_status(
@@ -384,27 +549,36 @@ class GameApp:
     def _draw_choices(self, accent):
         chapter = self.engine.current_chapter
 
+        ui.draw_status(
+            self.canvas,
+            self.fonts,
+            self.engine.status_snapshot(),
+            self.engine.ally_names(),
+            self.engine.state["tools"],
+            accent,
+        )
+
         ui.text(
             self.canvas,
             "ESCOLHA SEU CAMINHO",
             self.fonts["small"],
             accent,
-            (58, 178),
+            (58, 280),
         )
         ui.text(
             self.canvas,
-            "Cada decisão altera atributos, aliados, tecnologia e o final.",
+            "A escolha muda a história e abre um desafio jogável.",
             self.fonts["body"],
             ui.INK,
-            (58, 205),
+            (58, 304),
         )
 
         self.choice_rects = []
         mouse = self.input_to_canvas(pygame.mouse.get_pos())
 
-        base_y = 252
+        base_y = 342
         for index, choice in enumerate(chapter["choices"]):
-            rect = pygame.Rect(58, base_y + index * 104, 820, 88)
+            rect = pygame.Rect(58, base_y + index * 92, 1164, 78)
             visual_choice = dict(choice)
             visual_choice["_number"] = str(index + 1)
 
@@ -423,22 +597,13 @@ class GameApp:
             )
             self.choice_rects.append(rect)
 
-        ui.draw_status(
-            self.canvas,
-            self.fonts,
-            self.engine.status_snapshot(),
-            self.engine.ally_names(),
-            self.engine.state["tools"],
-            accent,
-        )
-
         if self.message:
             ui.text(
                 self.canvas,
                 self.message,
                 self.fonts["small"],
                 ui.GOLD,
-                (58, 650),
+                (58, 624),
             )
 
         self.continue_rect = None
@@ -514,7 +679,10 @@ class GameApp:
         if self.phase == "opening":
             current = self.opening_index + 1
             total = len(GAME["opening"])
-        elif self.phase in {"chapter", "choices", "result"}:
+        elif self.phase == "challenge" and self.challenge_context == "prologue":
+            current = self.opening_index + 1
+            total = len(GAME["opening"])
+        elif self.phase in {"chapter", "choices", "challenge", "result"}:
             current = self.engine.chapter_index + 1
             total = len(GAME["chapters"])
         else:
@@ -530,16 +698,32 @@ class GameApp:
         )
 
         audio_state = "ON" if self.audio.enabled else "OFF"
-        help_text = (
-            "ENTER/ESPAÇO continuar • 1/2/3 escolher • "
-            f"M áudio {audio_state} • F11 tela cheia • ESC sair"
-        )
+
+        if self.phase == "challenge" and self.challenge:
+            if self.challenge.finished:
+                controls = "ENTER ou clique para continuar"
+            elif self.challenge.kind == "rune":
+                controls = "WASD/setas mover • alcance as runas"
+            elif self.challenge.kind == "timing":
+                controls = "ESPAÇO/clique no momento certo"
+            else:
+                controls = "A/D ou setas para desviar"
+
+            help_text = (
+                f"{controls} • M áudio {audio_state} • "
+                "F11 tela cheia • ESC sair"
+            )
+        else:
+            help_text = (
+                "ENTER/ESPAÇO continuar • 1/2/3 escolher • "
+                f"M áudio {audio_state} • F11 tela cheia • ESC sair"
+            )
         ui.text(
             self.canvas,
             help_text,
             self.fonts["small"],
             ui.MUTED,
-            (58, 653),
+            (58, 660),
         )
 
     def _present(self):
@@ -582,6 +766,24 @@ def smoke():
     app = GameApp(headless=True)
     rendered = 0
 
+    app.phase = "opening"
+    app.opening_index = 6
+    app.reveal = float(len(app.current_text()))
+    app.advance()
+
+    if app.phase != "challenge" or app.challenge_context != "prologue":
+        raise RuntimeError("Desafio do prólogo não foi iniciado.")
+
+    app.challenge._finish(True, "Smoke do prólogo.")
+    app.draw()
+    rendered += 1
+    app._finish_challenge()
+
+    if app.opening_index != 7:
+        raise RuntimeError("Desafio do prólogo não retornou à narrativa.")
+
+    app.restart()
+
     for index in range(len(GAME["opening"])):
         app.phase = "opening"
         app.opening_index = index
@@ -614,6 +816,14 @@ def smoke():
 
         first = chapter["choices"].index(available[0])
         app.choose(first)
+
+        if app.phase == "challenge":
+            app.challenge.finished = True
+            app.challenge.success = True
+            app.challenge.result_text = "Smoke do desafio concluído."
+            app.draw()
+            rendered += 1
+            app._finish_challenge()
 
         if app.phase == "result":
             for index in range(len(app.result_items)):

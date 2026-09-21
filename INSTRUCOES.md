@@ -28,3 +28,15 @@ python eternos.py
 ```
 
 Não use `app_pygame.py`. Esse arquivo pertencia ao protótipo de adivinhação arquivado.
+
+## Controles de jogo
+
+- `Enter` / `Espaço`: continuar narrativa;
+- `1`, `2`, `3`: escolher caminhos;
+- `WASD` / setas: mover em exploração e esquiva;
+- `Espaço` / clique: acertar desafios de timing;
+- `M`: áudio;
+- `F11`: tela cheia;
+- `Esc`: sair.
+
+A chuva e outros ambientes ficam tocando continuamente quando a cena pede. Os acontecimentos usam efeitos separados.

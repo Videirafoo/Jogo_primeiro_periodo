@@ -27,26 +27,33 @@ Durante a jornada, outros sonhadores podem formar **Os Eternos**:
 
 A história começa diretamente no prólogo. Não existe menu antes do conto.
 
-Cada trecho da narrativa aparece em uma cena própria. Depois, o jogador toma decisões que alteram Coragem, Sabedoria, Tecnologia, Amizade, Caos, Marcas, aliados, ferramentas e o final.
+A V2 mistura narrativa, decisão e gameplay. O jogador lê a cena, escolhe um caminho e entra em desafios jogáveis que alteram atributos e consequências.
 
 A campanha possui:
 
-- prólogo com 16 momentos narrativos;
+- prólogo com 16 momentos narrativos e primeiro desafio ainda no prólogo;
 - 7 capítulos;
 - escolhas ramificadas;
+- exploração de runas com WASD/setas;
+- desafios de timing para combate, portões e tecnologia;
+- esquiva de machados e lobos de ferro;
+- desempenho do jogador afetando Coragem, Sabedoria, Tecnologia e Caos;
 - 242 caminhos completos atualmente válidos;
 - 5 finais;
-- efeitos sonoros;
+- áudio ambiente contínuo para chuva, vento, bosque, fogo, tecnologia e portal;
+- efeitos sonoros separados para acontecimentos;
 - interface gráfica redimensionável;
 - fullscreen;
-- HUD de atributos, aliados e tecnologia.
+- HUD compacto de atributos, aliados e tecnologia.
 
 ## Controles
 
 | Tecla | Ação |
 |---|---|
-| Enter / Espaço | Revelar ou continuar a narrativa |
+| Enter / Espaço | Revelar/continuar narrativa ou acertar desafios de timing |
 | 1 / 2 / 3 | Escolher uma ação |
+| WASD / Setas | Mover no scanner de runas e nas esquivas |
+| Clique | Escolher ações e interagir em desafios |
 | M | Ligar/desligar áudio |
 | F11 | Tela cheia |
 | Esc | Sair |
@@ -107,10 +114,13 @@ python eternos.py --smoke
 Jogo_primeiro_periodo/
 ├── eternos.py
 ├── engine.py
+├── gameplay.py
 ├── story_data.py
 ├── ui.py
 ├── audio.py
 ├── test_engine.py
+├── test_gameplay.py
+├── test_audio.py
 ├── requirements.txt
 ├── README.md
 ├── EXPLICACAO.md
@@ -134,9 +144,13 @@ Motor independente da interface: estado, aliados, ferramentas, requisitos, efeit
 
 Design visual do jogo: cenas, painéis, HUD, botões, backgrounds procedurais e adaptação de tela.
 
+### gameplay.py
+
+Desafios jogáveis da campanha: rastreamento de runas, timing e esquiva.
+
 ### audio.py
 
-Efeitos sonoros gerados em tempo de execução para chuva, trovão, tecnologia, runas, fogo, portal, espada e outros eventos.
+Áudio procedural separado em ambiente contínuo e efeitos de acontecimentos. Chuva, vento, bosque, fogo, tecnologia e portal usam loops próprios; trovão, espada, machado, cavalo, lobo, runa e outros eventos usam SFX independentes.
 
 ### eternos.py
 
@@ -144,9 +158,9 @@ Loop principal da V2 gráfica.
 
 ## Princípio desta versão
 
-A narrativa vem primeiro.
+Narrativa e gameplay trabalham juntos.
 
-O jogo deve ser lido e vivido como um conto interativo: cena → narração → consequência → escolha → nova cena.
+O fluxo principal é: cena → escolha → desafio jogável → consequência → progressão → nova cena.
 
 As escolhas mudam o caminho, mas não podem impedir o jogador de chegar ao fim da história.
 

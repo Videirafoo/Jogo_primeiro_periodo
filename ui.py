@@ -217,28 +217,28 @@ def draw_header(surface, fs, chapter_label, title, accent):
 
 
 def draw_story_panel(surface, fs, title, body, accent):
-    rect = pygame.Rect(58, 375, 820, 285)
-    shadow = rect.move(0, 8)
-    pygame.draw.rect(surface, (0, 0, 0, 75), shadow, border_radius=22)
+    rect = pygame.Rect(58, 282, 1164, 306)
+    shadow = rect.move(0, 7)
+    pygame.draw.rect(surface, (0, 0, 0, 80), shadow, border_radius=22)
     rounded_panel(surface, rect, (12, 20, 31), (*accent,), 22)
 
-    text(surface, title.upper(), fs["small"], accent, (88, 402))
+    text(surface, title.upper(), fs["small"], accent, (88, 307))
     y = draw_wrapped(
         surface,
         body,
         fs["body"],
         INK,
         88,
-        438,
-        750,
+        345,
+        1080,
         31,
     )
     return rect, y
 
 
 def draw_continue(surface, fs, accent, label="CONTINUAR"):
-    rect = pygame.Rect(985, 598, 235, 54)
-    pygame.draw.rect(surface, accent, rect, border_radius=15)
+    rect = pygame.Rect(980, 598, 242, 46)
+    pygame.draw.rect(surface, accent, rect, border_radius=14)
     text(surface, label, fs["button"], DARK, rect.center, "center")
     return rect
 
@@ -272,9 +272,8 @@ def draw_choice(surface, fs, choice, rect, accent, mouse, locked=False, reason="
 
 
 def draw_status(surface, fs, status, allies, tools, accent):
-    rect = pygame.Rect(918, 175, 305, 390)
-    rounded_panel(surface, rect, (10, 18, 29), (55, 70, 89), 20)
-    text(surface, "STATUS DO SONHO", fs["small"], accent, (944, 200))
+    rect = pygame.Rect(58, 170, 1164, 88)
+    rounded_panel(surface, rect, (10, 18, 29), (55, 70, 89), 18)
 
     labels = [
         ("COR", "coragem"),
@@ -285,34 +284,42 @@ def draw_status(surface, fs, status, allies, tools, accent):
         ("MAR", "marcas"),
     ]
 
+    chip_w = 78
     for index, (label, key) in enumerate(labels):
-        y = 240 + index * 40
+        x = 78 + index * 88
         value = max(0, status.get(key, 0))
-        text(surface, label, fs["stat"], MUTED, (944, y))
-        text(surface, str(value), fs["stat"], INK, (1193, y), "topright")
-        pygame.draw.rect(surface, (33, 43, 57), (985, y + 3, 185, 10), border_radius=5)
-        width = min(185, int(185 * min(value, 15) / 15))
-        pygame.draw.rect(surface, accent, (985, y + 3, width, 10), border_radius=5)
+        text(surface, label, fs["small"], MUTED, (x, 187))
+        text(surface, str(value), fs["heading"], accent, (x, 208))
 
-    text(surface, "ALIADOS", fs["small"], GOLD, (944, 495))
-    ally_text = ", ".join(allies) if allies else "Ainda nenhum"
-    draw_wrapped(surface, ally_text, fs["small"], INK, 944, 518, 245, 20)
+    divider_x = 618
+    pygame.draw.line(surface, (55, 70, 89), (divider_x, 184), (divider_x, 244), 1)
 
-    text(surface, "TECNOLOGIA", fs["small"], CYAN, (944, 552))
-    tool_text = ", ".join(tools) if tools else "Poder despertando..."
-    draw_wrapped(surface, tool_text, fs["small"], INK, 944, 575, 245, 19)
+    text(surface, "ALIADOS", fs["small"], GOLD, (642, 187))
+    ally_text = ", ".join(allies) if allies else "Nenhum ainda"
+    if len(ally_text) > 42:
+        ally_text = ally_text[:39] + "..."
+    text(surface, ally_text, fs["small"], INK, (642, 214))
+
+    text(surface, "TECNOLOGIA", fs["small"], CYAN, (930, 187))
+    tool_count = len(tools)
+    tool_text = (
+        f"{tool_count} instrumentos ativos"
+        if tools
+        else "Poder despertando..."
+    )
+    text(surface, tool_text, fs["small"], INK, (930, 214))
 
 
 def draw_progress(surface, fs, current, total, accent):
-    pygame.draw.rect(surface, (31, 43, 57), (58, 682, 1164, 6), border_radius=3)
+    pygame.draw.rect(surface, (31, 43, 57), (58, 696, 1164, 6), border_radius=3)
     progress = 0 if total <= 0 else current / total
     width = int(1164 * max(0.0, min(1.0, progress)))
-    pygame.draw.rect(surface, accent, (58, 682, width, 6), border_radius=3)
+    pygame.draw.rect(surface, accent, (58, 696, width, 6), border_radius=3)
     text(
         surface,
         f"{current}/{total}",
         fs["small"],
         MUTED,
-        (1220, 657),
+        (1220, 670),
         "topright",
     )
