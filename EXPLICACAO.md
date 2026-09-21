@@ -363,3 +363,41 @@ A versão atual possui:
 - CI no GitHub Actions.
 
 Mesmo com as melhorias, o projeto continua usando conceitos acessíveis para quem está aprendendo programação em Python.
+
+## 19. V2 gráfica com Pygame
+
+A branch `v2-interface-grafica` adiciona uma segunda forma de jogar sem remover a versão de terminal.
+
+O arquivo principal da interface é:
+
+```text
+app_pygame.py
+```
+
+A V2 reaproveita as regras e o progresso de `main.py`. Dessa forma, pontuação, dificuldades, ranking, conquistas e arquivo JSON continuam seguindo as mesmas regras.
+
+A interface trabalha com um dicionário chamado `estado`, que guarda informações como:
+
+- tela atual;
+- nome do jogador;
+- dificuldade;
+- número secreto;
+- tentativa;
+- faixa possível;
+- palpites usados;
+- uso da dica;
+- mensagem mostrada na tela.
+
+O loop principal do Pygame executa continuamente três tarefas:
+
+1. recebe teclado, mouse e fechamento da janela;
+2. atualiza o estado do jogo;
+3. redesenha a tela.
+
+Para permitir testes no GitHub Actions, a V2 também possui um modo de smoke test:
+
+```bash
+python app_pygame.py --smoke
+```
+
+Esse modo inicializa o Pygame sem abrir uma janela real, renderiza as principais telas e encerra automaticamente.

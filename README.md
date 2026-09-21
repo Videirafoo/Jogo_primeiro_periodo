@@ -90,7 +90,55 @@ No Windows também pode funcionar com:
 py main.py
 ```
 
-Não existem bibliotecas externas para instalar.
+A versão de terminal não precisa de bibliotecas externas.
+
+## V2 gráfica com Pygame
+
+A V2 fica na branch `v2-interface-grafica` e preserva a versão estável de terminal na branch `main`.
+
+Ela adiciona:
+
+- tela de perfil;
+- menu visual;
+- seleção de dificuldade;
+- HUD de tentativas e faixa atual;
+- campo de palpite;
+- botão e atalho de dica;
+- estatísticas;
+- ranking;
+- conquistas;
+- regras;
+- persistência no mesmo `dados_jogador.json`.
+
+### Rodar a V2 no VS Code
+
+No terminal do projeto:
+
+```bash
+python -m venv .venv
+```
+
+No Windows:
+
+```bash
+.venv\Scripts\activate
+pip install -r requirements.txt
+python app_pygame.py
+```
+
+No Linux/macOS:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+python app_pygame.py
+```
+
+A V1 de terminal continua disponível com:
+
+```bash
+python main.py
+```
 
 ## Executar os testes
 
@@ -141,7 +189,10 @@ A suíte cobre as principais regras do jogo, incluindo:
 ```text
 Jogo_primeiro_periodo/
 ├── main.py
+├── app_pygame.py
 ├── test_main.py
+├── test_v2_pygame.py
+├── requirements.txt
 ├── README.md
 ├── EXPLICACAO.md
 ├── .gitignore
