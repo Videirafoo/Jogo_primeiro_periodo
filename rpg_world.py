@@ -3,6 +3,7 @@ import random
 
 import pygame
 
+from character_visuals import ALLY_STYLES, draw_ally, draw_dialogue_box
 from rpg_entities import EnemyActor, Loot, NPC
 
 
@@ -531,6 +532,13 @@ class RPGWorld:
         self.selected_choice = None
         self.notice = ""
         self.notice_timer = 0.0
+        self.dialogue = None
+        self.inventory_open = False
+        self.shake_timer = 0.0
+        self.shake_strength = 0.0
+        self.hit_stop = 0.0
+        self.flash_timer = 0.0
+        self.ally_cooldown = 0.8
 
         self.obstacles = self._build_obstacles()
         self.shrines = self._build_shrines()
@@ -643,12 +651,19 @@ class RPGWorld:
         return values
 
     def handle_key(self, event):
+        if event.key in (pygame.K_i, pygame.K_TAB):
+            self.inventory_open = not self.inventory_open
+            self.events.append("choice")
+            return
+
         if event.key == pygame.K_e:
             if (
                 self.npc
                 and self.player.pos.distance_to(self.npc.pos) <= 100
             ):
-                self.notice = f"{self.npc.name}: {self.npc.talk()}"
+                line = self.npc.talk()
+                self.notice = f"{self.npc.name}: {line}"
+                self.dialogue = (self.npc.name, line)
                 self.notice_timer = 4.2
                 self.events.append("rune")
 
@@ -657,6 +672,10 @@ class RPGWorld:
                     self.profile["npc_flags"][flag] = True
                     self.profile["inventory"]["essencia"] += 1
                     self.notice += " • recebeu 1 Essência"
+                    self.dialogue = (
+                        self.npc.name,
+                        line + " Receba também uma Essência Rúnica.",
+                    )
                 return
 
             shrine = self.nearest_shrine()
@@ -695,8 +714,33 @@ class RPGWorld:
         if event.key in (pygame.K_LSHIFT, pygame.K_RSHIFT):
             self.dash()
     def handle_click(self, point):
+        if self.inventory_open:
+            return
         world_point = pygame.Vector2(point) + self.camera
         self.player.auto_target = world_point
+
+    def impact_feedback(
+        self,
+        strength=6.0,
+        stop=0.045,
+        flash=0.08,
+    ):
+        self.shake_strength = max(
+            self.shake_strength,
+            strength,
+        )
+        self.shake_timer = max(
+            self.shake_timer,
+            0.18,
+        )
+        self.hit_stop = max(
+            self.hit_stop,
+            stop,
+        )
+        self.flash_timer = max(
+            self.flash_timer,
+            flash,
+        )
 
     def use_item(self, kind):
         inventory = self.profile["inventory"]
@@ -752,6 +796,11 @@ class RPGWorld:
             if enemy.pos.distance_to(attack_center) <= 90:
                 died = enemy.hit(22 + self.profile["level"] * 2)
                 self._burst(enemy.pos, GOLD, 10)
+                self.impact_feedback(
+                    strength=11 if enemy.boss else 6,
+                    stop=0.075 if enemy.boss else 0.045,
+                    flash=0.11,
+                )
                 if died:
                     self._enemy_defeated(enemy)
 
@@ -773,6 +822,11 @@ class RPGWorld:
             if enemy.pos.distance_to(self.player.pos) <= 155:
                 died = enemy.hit(30 + self.profile["level"] * 3)
                 self._burst(enemy.pos, CYAN, 12)
+                self.impact_feedback(
+                    strength=13 if enemy.boss else 8,
+                    stop=0.085 if enemy.boss else 0.055,
+                    flash=0.13,
+                )
                 if died:
                     self._enemy_defeated(enemy)
 
@@ -851,9 +905,87 @@ class RPGWorld:
             key=lambda shrine: self.player.pos.distance_to(shrine.pos),
         )
 
+    def _ally_assist(self):
+        allies = self.engine.ally_names()
+        if not allies:
+            return
+
+        targets = [
+            enemy
+            for enemy in self.enemies
+            if (
+                not enemy.dead
+                and enemy.pos.distance_to(self.player.pos) <= 300
+            )
+        ]
+        if not targets:
+            return
+
+        target = min(
+            targets,
+            key=lambda enemy: enemy.pos.distance_to(self.player.pos),
+        )
+        ally_name = allies[
+            self.profile["kills"] % len(allies)
+        ]
+        style = ALLY_STYLES.get(ally_name, {})
+        power = style.get("power", "Poder Desperto")
+        color = style.get("color", CYAN)
+
+        damage = 10 + self.profile["level"] * 2
+        died = target.hit(damage)
+        self._burst(target.pos, color, 9)
+        self.notice = f"{ally_name}: {power}"
+        self.notice_timer = 1.0
+
+        sfx = {
+            "Thorvald": "thunder",
+            "Aurel": "lightning",
+            "Kaion": "sword",
+            "Brenor": "fire",
+            "Eiran": "heal",
+            "Noctar": "shadow",
+        }.get(ally_name, "rune")
+        self.events.append(sfx)
+        self.impact_feedback(
+            strength=5 if not target.boss else 8,
+            stop=0.035,
+            flash=0.06,
+        )
+
+        if ally_name == "Eiran":
+            self.player.health = min(
+                self.profile["max_health"],
+                self.player.health + 4,
+            )
+
+        if died:
+            self._enemy_defeated(target)
+
     def update(self, dt, keys):
         self.notice_timer = max(0.0, self.notice_timer - dt)
+        self.shake_timer = max(0.0, self.shake_timer - dt)
+        self.flash_timer = max(0.0, self.flash_timer - dt)
+
+        if self.hit_stop > 0:
+            self.hit_stop = max(0.0, self.hit_stop - dt)
+            for particle in self.particles:
+                particle.update(dt * 0.18)
+            return
+
+        if self.inventory_open:
+            return
+
         self.player.update(dt, keys, self.obstacles)
+
+        self.ally_cooldown = max(
+            0.0,
+            self.ally_cooldown - dt,
+        )
+        if self.ally_cooldown <= 0:
+            self._ally_assist()
+            self.ally_cooldown = 2.4
+
         for enemy in self.enemies:
             enemy.update(dt, self.player.pos)
             if enemy.dead:
@@ -865,6 +997,11 @@ class RPGWorld:
                     enemy.attack_cd = 0.9
                     self.events.append("wolf")
                     self._burst(self.player.pos, RED, 9)
+                    self.impact_feedback(
+                        strength=12 if enemy.boss else 7,
+                        stop=0.065,
+                        flash=0.12,
+                    )
 
         if self.player.health <= 0:
             self.engine.state["caos"] = self.engine.state.get("caos", 0) + 1
@@ -976,12 +1113,13 @@ class RPGWorld:
             elif kind == "player":
                 item.draw(surface, self.camera, theme["accent"])
             else:
-                self._draw_ally(
+                draw_ally(
                     surface,
                     item[0],
                     item[1],
+                    self.camera,
+                    seconds,
                     item[2],
-                    theme["accent"],
                 )
 
         for loot in self.loots:
@@ -990,7 +1128,41 @@ class RPGWorld:
         for particle in self.particles:
             particle.draw(surface, self.camera)
 
+        if self.shake_timer > 0:
+            power = self.shake_strength * (
+                self.shake_timer / 0.18
+            )
+            dx = int(math.sin(seconds * 73) * power)
+            dy = int(math.cos(seconds * 61) * power * 0.65)
+            frame = surface.copy()
+            surface.fill(theme["ground"])
+            surface.blit(frame, (dx, dy))
+
         self._draw_hud(surface, fonts, theme)
+
+        if self.dialogue and self.notice_timer > 0:
+            speaker, body = self.dialogue
+            draw_dialogue_box(
+                surface,
+                fonts,
+                speaker,
+                body,
+                theme["accent"],
+            )
+
+        if self.inventory_open:
+            self._draw_inventory(surface, fonts, theme)
+
+        if self.flash_timer > 0:
+            alpha = int(
+                85 * min(1.0, self.flash_timer / 0.13)
+            )
+            flash = pygame.Surface(
+                (1280, 720),
+                pygame.SRCALPHA,
+            )
+            flash.fill((255, 255, 255, alpha))
+            surface.blit(flash, (0, 0))
 
     def _draw_ground(self, surface, theme, seconds):
         offset_x = int(self.camera.x) % 64
@@ -1262,6 +1434,150 @@ class RPGWorld:
                 notice,
                 notice.get_rect(topright=(1235, 69)),
             )
+
+    def _draw_inventory(self, surface, fonts, theme):
+        veil = pygame.Surface(
+            (1280, 720),
+            pygame.SRCALPHA,
+        )
+        veil.fill((0, 0, 0, 165))
+        surface.blit(veil, (0, 0))
+
+        panel = pygame.Rect(250, 130, 780, 470)
+        pygame.draw.rect(
+            surface,
+            (8, 14, 22),
+            panel,
+            border_radius=24,
+        )
+        pygame.draw.rect(
+            surface,
+            theme["accent"],
+            panel,
+            2,
+            border_radius=24,
+        )
+
+        surface.blit(
+            fonts["title"].render(
+                "INVENTÁRIO DE VALDRAK",
+                True,
+                INK,
+            ),
+            (292, 166),
+        )
+        surface.blit(
+            fonts["small"].render(
+                "I/TAB para fechar • 1 e 2 usam itens durante exploração",
+                True,
+                MUTED,
+            ),
+            (294, 208),
+        )
+
+        inventory = self.profile["inventory"]
+        cards = [
+            (
+                "Poção Nórdica",
+                inventory["pocao"],
+                RED,
+                "+35 Vida",
+            ),
+            (
+                "Essência Rúnica",
+                inventory["essencia"],
+                CYAN,
+                "+45 Energia",
+            ),
+            (
+                "Fragmento de Valdrak",
+                inventory["fragmento"],
+                GOLD,
+                "Relíquia rara",
+            ),
+        ]
+
+        for index, (name, count, color, effect) in enumerate(cards):
+            rect = pygame.Rect(
+                292,
+                254 + index * 82,
+                690,
+                66,
+            )
+            pygame.draw.rect(
+                surface,
+                (18, 28, 40),
+                rect,
+                border_radius=14,
+            )
+            pygame.draw.rect(
+                surface,
+                color,
+                rect,
+                1,
+                border_radius=14,
+            )
+            pygame.draw.circle(
+                surface,
+                color,
+                (rect.x + 34, rect.centery),
+                13,
+            )
+            surface.blit(
+                fonts["body"].render(
+                    name,
+                    True,
+                    INK,
+                ),
+                (rect.x + 62, rect.y + 12),
+            )
+            surface.blit(
+                fonts["small"].render(
+                    effect,
+                    True,
+                    MUTED,
+                ),
+                (rect.x + 62, rect.y + 38),
+            )
+            count_text = fonts["heading"].render(
+                str(count),
+                True,
+                color,
+            )
+            surface.blit(
+                count_text,
+                count_text.get_rect(
+                    center=(rect.right - 42, rect.centery)
+                ),
+            )
+
+        allies = self.engine.ally_names()
+        ally_text = (
+            " • ".join(allies)
+            if allies
+            else "Nenhum Eterno encontrado ainda"
+        )
+        surface.blit(
+            fonts["small"].render(
+                f"Eternos: {ally_text}",
+                True,
+                theme["accent"],
+            ),
+            (294, 518),
+        )
+        surface.blit(
+            fonts["small"].render(
+                (
+                    f"Nível {self.profile['level']} • "
+                    f"XP {self.profile['xp']}/{self.profile['xp_next']} • "
+                    f"Abates {self.profile['kills']}"
+                ),
+                True,
+                MUTED,
+            ),
+            (294, 548),
+        )
+
     @staticmethod
     def _bar(
         surface,

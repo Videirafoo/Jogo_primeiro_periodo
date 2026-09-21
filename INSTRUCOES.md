@@ -40,6 +40,7 @@ Não use `app_pygame.py`. Esse arquivo pertencia ao protótipo de adivinhação 
 - `Shift`: dash;
 - `1`: usar Poção Nórdica na exploração;
 - `2`: usar Essência Rúnica na exploração;
+- `I` / `Tab`: abrir ou fechar o inventário visual;
 - `M`: ligar/desligar áudio;
 - `-` / `+`: ajustar volume;
 - `F5`: salvar;

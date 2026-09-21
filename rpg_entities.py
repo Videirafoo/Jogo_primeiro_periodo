@@ -3,6 +3,8 @@ import random
 
 import pygame
 
+from character_visuals import draw_boss_aura
+
 
 INK = (236, 242, 248)
 MUTED = (158, 174, 190)
@@ -188,6 +190,15 @@ class EnemyActor:
         y = int(self.pos.y - offset.y)
         color = INK if self.hit_flash > 0 else self.color
         scale = 1.35 if self.boss else 1.0
+
+        if self.boss:
+            draw_boss_aura(
+                surface,
+                self.chapter,
+                (x, y),
+                pygame.time.get_ticks() / 1000,
+                scale=1.0,
+            )
 
         if self.archetype == "wolf":
             self._draw_wolf(surface, x, y, color, scale)

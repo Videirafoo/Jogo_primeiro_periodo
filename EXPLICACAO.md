@@ -96,7 +96,12 @@ Nela o jogador pode:
 - enfrentar lobos, saqueadores e corvos sombrios;
 - derrotar um Guardião/Boss por capítulo;
 - coletar poções, essências e fragmentos;
-- usar inventário simples durante a exploração;
+- abrir um inventário visual com `I`/`TAB`;
+- receber assistência automática dos Eternos já encontrados;
+- ver poderes próprios de Thorvald, Aurel, Kaion, Brenor, Eiran e Noctar;
+- receber hit-stop, screen shake e flashes em impactos;
+- conversar com NPCs usando retratos e caixa de diálogo;
+- enfrentar bosses com aura visual própria;
 - escolher o caminho chegando fisicamente a um santuário e pressionando `E`.
 
 O módulo `gameplay.py` mantém três famílias de desafio:

@@ -44,7 +44,12 @@ A campanha possui:
 - três arquétipos de inimigo: lobo, saqueador e corvo sombrio;
 - um Guardião/Boss único por capítulo;
 - loot de poção, essência e fragmentos;
-- inventário simples durante a exploração;
+- inventário visual pausável com `I`/`TAB`;
+- identidade visual própria para Thorvald, Aurel, Kaion, Brenor, Eiran e Noctar;
+- aliados usando seus poderes automaticamente durante o combate;
+- retrato e caixa de diálogo para NPCs;
+- hit-stop, screen shake e flash de impacto;
+- aura visual própria para os Guardiões;
 - três santuários físicos para escolher caminhos;
 - exploração de runas com WASD/setas;
 - desafios de timing para combate, portões e tecnologia;
@@ -72,6 +77,7 @@ A campanha possui:
 | Shift | Dash |
 | 1 | Usar Poção Nórdica durante exploração |
 | 2 | Usar Essência Rúnica durante exploração |
+| I / Tab | Abrir/fechar inventário visual |
 | M | Ligar/desligar áudio |
 | - / + | Ajustar volume |
 | F5 | Salvar |
@@ -138,6 +144,7 @@ Jogo_primeiro_periodo/
 ├── gameplay.py
 ├── rpg_world.py
 ├── rpg_entities.py
+├── character_visuals.py
 ├── savegame.py
 ├── story_data.py
 ├── ui.py
@@ -145,6 +152,7 @@ Jogo_primeiro_periodo/
 ├── test_engine.py
 ├── test_gameplay.py
 ├── test_rpg_world.py
+├── test_visual_rpg.py
 ├── test_savegame.py
 ├── test_audio.py
 ├── REFERENCIAS_RPG.md
