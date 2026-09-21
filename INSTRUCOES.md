@@ -34,10 +34,12 @@ Não use `app_pygame.py`. Esse arquivo pertencia ao protótipo de adivinhação 
 - `Enter` / `Espaço`: continuar narrativa;
 - `1`, `2`, `3`: escolher caminhos;
 - `WASD` / setas: mover na exploração, scanner e esquiva;
-- `E`: interagir com santuários e escolher caminhos;
+- `E`: conversar com NPCs, interagir com santuários e escolher caminhos;
 - `Espaço`: ataque corpo a corpo na exploração ou timing nos desafios;
 - `Q`: Pulso de Código;
 - `Shift`: dash;
+- `1`: usar Poção Nórdica na exploração;
+- `2`: usar Essência Rúnica na exploração;
 - `M`: ligar/desligar áudio;
 - `-` / `+`: ajustar volume;
 - `F5`: salvar;

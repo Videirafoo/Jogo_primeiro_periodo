@@ -92,6 +92,11 @@ Nela o jogador pode:
 - executar dash;
 - ganhar XP e subir de nível;
 - ver aliados acompanhando o personagem;
+- conversar com um NPC em cada capítulo;
+- enfrentar lobos, saqueadores e corvos sombrios;
+- derrotar um Guardião/Boss por capítulo;
+- coletar poções, essências e fragmentos;
+- usar inventário simples durante a exploração;
 - escolher o caminho chegando fisicamente a um santuário e pressionando `E`.
 
 O módulo `gameplay.py` mantém três famílias de desafio:

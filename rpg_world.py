@@ -3,6 +3,8 @@ import random
 
 import pygame
 
+from rpg_entities import EnemyActor, Loot, NPC
+
 
 WORLD_W = 1800
 WORLD_H = 1080
@@ -220,6 +222,8 @@ class Player:
         self.invulnerable = 0.0
         self.anim_time = 0.0
         self.auto_target = None
+        self.state = "idle"
+        self.is_moving = False
 
         self.profile.setdefault("level", 1)
         self.profile.setdefault("xp", 0)
@@ -229,6 +233,15 @@ class Player:
         self.profile.setdefault("max_energy", 100)
         self.profile.setdefault("energy", self.profile["max_energy"])
         self.profile.setdefault("kills", 0)
+        self.profile.setdefault(
+            "inventory",
+            {
+                "pocao": 1,
+                "essencia": 1,
+                "fragmento": 0,
+            },
+        )
+        self.profile.setdefault("npc_flags", {})
 
     @property
     def health(self):
@@ -284,12 +297,34 @@ class Player:
             else:
                 self.auto_target = None
 
+        self.is_moving = bool(direction.length_squared())
+
         if direction.length_squared():
             direction = direction.normalize()
             self.facing = direction
             self._move(direction * self.speed * dt, obstacles)
         else:
-            self.auto_target = None if self.auto_target and self.pos.distance_to(self.auto_target) < 8 else self.auto_target
+            self.auto_target = (
+                None
+                if (
+                    self.auto_target
+                    and self.pos.distance_to(self.auto_target) < 8
+                )
+                else self.auto_target
+            )
+
+        if self.invulnerable > 0:
+            self.state = "hurt"
+        elif self.pulse_timer > 0:
+            self.state = "pulse"
+        elif self.attack_timer > 0:
+            self.state = "attack"
+        elif self.dash_timer > 0.35:
+            self.state = "dash"
+        elif self.is_moving:
+            self.state = "walk"
+        else:
+            self.state = "idle"
 
     def _move(self, delta, obstacles):
         test = self.pos.copy()
@@ -334,36 +369,117 @@ class Player:
     def draw(self, surface, offset, accent):
         x = int(self.pos.x - offset.x)
         y = int(self.pos.y - offset.y)
-        bob = int(math.sin(self.anim_time * 8) * 2)
 
-        body_color = (52, 87, 118) if self.invulnerable <= 0 else (150, 180, 210)
-        pygame.draw.circle(surface, (30, 34, 40), (x, y + 14), 24)
-        pygame.draw.rect(surface, body_color, (x - 16, y - 12 + bob, 32, 39), border_radius=10)
-        pygame.draw.circle(surface, (208, 173, 145), (x, y - 22 + bob), 14)
+        walk_wave = math.sin(self.anim_time * 11)
+        bob = int(walk_wave * 3) if self.state == "walk" else 0
+        lean = 6 if self.state == "dash" else 0
+
+        body_color = {
+            "hurt": (164, 180, 198),
+            "pulse": (49, 111, 134),
+            "dash": (49, 90, 126),
+        }.get(self.state, (52, 87, 118))
+
+        shadow_w = 26 if self.state == "dash" else 22
+        pygame.draw.ellipse(
+            surface,
+            (18, 23, 30),
+            (x - shadow_w, y + 16, shadow_w * 2, 14),
+        )
+
+        leg_offset = int(walk_wave * 5) if self.state == "walk" else 0
+        pygame.draw.line(
+            surface,
+            (31, 44, 58),
+            (x - 7, y + 18),
+            (x - 8 - leg_offset, y + 35),
+            5,
+        )
+        pygame.draw.line(
+            surface,
+            (31, 44, 58),
+            (x + 7, y + 18),
+            (x + 8 + leg_offset, y + 35),
+            5,
+        )
+
+        pygame.draw.rect(
+            surface,
+            body_color,
+            (x - 16 + lean, y - 12 + bob, 32, 39),
+            border_radius=10,
+        )
+        pygame.draw.circle(
+            surface,
+            (208, 173, 145),
+            (x + lean, y - 22 + bob),
+            14,
+        )
 
         hood = [
-            (x - 16, y - 26 + bob),
-            (x, y - 43 + bob),
-            (x + 16, y - 26 + bob),
+            (x - 16 + lean, y - 26 + bob),
+            (x + lean, y - 43 + bob),
+            (x + 16 + lean, y - 26 + bob),
         ]
         pygame.draw.polygon(surface, (35, 57, 78), hood)
 
-        end = pygame.Vector2(x, y) + self.facing * 30
-        pygame.draw.line(surface, accent, (x, y + 2), end, 4)
+        end = pygame.Vector2(x + lean, y) + self.facing * 31
+        pygame.draw.line(
+            surface,
+            accent,
+            (x + lean, y + 2),
+            end,
+            4,
+        )
 
-        if self.attack_timer > 0.24:
+        if self.state == "attack":
             pygame.draw.arc(
                 surface,
                 GOLD,
-                pygame.Rect(x - 55, y - 55, 110, 110),
-                -0.8,
-                0.8,
-                5,
+                pygame.Rect(x - 62, y - 62, 124, 124),
+                -0.95,
+                0.95,
+                7,
+            )
+            pygame.draw.arc(
+                surface,
+                INK,
+                pygame.Rect(x - 49, y - 49, 98, 98),
+                -0.85,
+                0.85,
+                2,
             )
 
-        if self.pulse_timer > 0.52:
-            radius = int(55 + (0.8 - self.pulse_timer) * 180)
-            pygame.draw.circle(surface, CYAN, (x, y), max(10, radius), 3)
+        if self.state == "pulse":
+            radius = int(50 + (0.8 - self.pulse_timer) * 185)
+            pygame.draw.circle(
+                surface,
+                CYAN,
+                (x, y),
+                max(10, radius),
+                4,
+            )
+            for index in range(8):
+                angle = self.anim_time * 5 + index * math.tau / 8
+                px = x + math.cos(angle) * 34
+                py = y + math.sin(angle) * 34
+                pygame.draw.circle(
+                    surface,
+                    CYAN,
+                    (int(px), int(py)),
+                    3,
+                )
+
+        if self.state == "dash":
+            for index in range(3):
+                trail = pygame.Vector2(x, y) - self.facing * (22 + index * 16)
+                pygame.draw.circle(
+                    surface,
+                    (*accent,),
+                    (int(trail.x), int(trail.y)),
+                    8 - index * 2,
+                    2,
+                )
 
 
 class Shrine:
@@ -419,6 +535,11 @@ class RPGWorld:
         self.obstacles = self._build_obstacles()
         self.shrines = self._build_shrines()
         self.enemies = self._build_enemies()
+        self.loots = []
+        self.npc = NPC(
+            chapter["number"],
+            (WORLD_W / 2 + 185, WORLD_H / 2 - 105),
+        )
 
         self.chapter_kills_start = profile.get("kills", 0)
 
@@ -465,20 +586,56 @@ class RPGWorld:
         return shrines
 
     def _build_enemies(self):
-        count = 2 + self.chapter["number"] // 2
+        chapter_number = self.chapter["number"]
+        count = 2 + chapter_number // 2
         enemies = []
+        archetypes = ["wolf", "raider", "raven"]
 
-        for _ in range(count):
+        for index in range(count):
             for _attempt in range(30):
                 pos = pygame.Vector2(
                     self.rng.randint(180, WORLD_W - 180),
                     self.rng.randint(180, WORLD_H - 180),
                 )
                 if pos.distance_to(self.player.pos) > 280:
-                    enemies.append(Enemy(pos, self.chapter["number"], self.rng))
+                    archetype = archetypes[
+                        (index + chapter_number) % len(archetypes)
+                    ]
+                    enemies.append(
+                        EnemyActor(
+                            pos,
+                            chapter_number,
+                            self.rng,
+                            archetype=archetype,
+                        )
+                    )
                     break
 
+        boss_archetype = archetypes[(chapter_number - 1) % 3]
+        boss_pos = pygame.Vector2(
+            WORLD_W / 2,
+            175 if chapter_number % 2 else WORLD_H - 175,
+        )
+        enemies.append(
+            EnemyActor(
+                boss_pos,
+                chapter_number,
+                self.rng,
+                archetype=boss_archetype,
+                boss=True,
+            )
+        )
         return enemies
+
+    def boss(self):
+        for enemy in self.enemies:
+            if enemy.boss:
+                return enemy
+        return None
+
+    def boss_alive(self):
+        boss = self.boss()
+        return bool(boss and not boss.dead)
 
     def pop_events(self):
         values = list(self.events)
@@ -487,15 +644,44 @@ class RPGWorld:
 
     def handle_key(self, event):
         if event.key == pygame.K_e:
+            if (
+                self.npc
+                and self.player.pos.distance_to(self.npc.pos) <= 100
+            ):
+                self.notice = f"{self.npc.name}: {self.npc.talk()}"
+                self.notice_timer = 4.2
+                self.events.append("rune")
+
+                flag = f"npc_gift_{self.chapter['number']}"
+                if not self.profile["npc_flags"].get(flag):
+                    self.profile["npc_flags"][flag] = True
+                    self.profile["inventory"]["essencia"] += 1
+                    self.notice += " • recebeu 1 Essência"
+                return
+
             shrine = self.nearest_shrine()
             if shrine and self.player.pos.distance_to(shrine.pos) <= 95:
-                if shrine.available:
+                if self.boss_alive():
+                    self.notice = (
+                        "O Guardião de Valdrak ainda protege os caminhos"
+                    )
+                    self.notice_timer = 2.4
+                    self.events.append("error")
+                elif shrine.available:
                     self.selected_choice = shrine.index
                     self.events.append("rune")
                 else:
                     self.notice = shrine.reason or "Caminho bloqueado"
                     self.notice_timer = 2.0
                     self.events.append("error")
+            return
+
+        if event.key == pygame.K_1:
+            self.use_item("pocao")
+            return
+
+        if event.key == pygame.K_2:
+            self.use_item("essencia")
             return
 
         if event.key == pygame.K_SPACE:
@@ -511,6 +697,46 @@ class RPGWorld:
     def handle_click(self, point):
         world_point = pygame.Vector2(point) + self.camera
         self.player.auto_target = world_point
+
+    def use_item(self, kind):
+        inventory = self.profile["inventory"]
+        if inventory.get(kind, 0) <= 0:
+            self.notice = "Item indisponível"
+            self.notice_timer = 1.4
+            self.events.append("error")
+            return False
+
+        if kind == "pocao":
+            if self.player.health >= self.profile["max_health"]:
+                self.notice = "Vida já está cheia"
+                self.notice_timer = 1.3
+                return False
+            inventory[kind] -= 1
+            self.player.health = min(
+                self.profile["max_health"],
+                self.player.health + 35,
+            )
+            self.notice = "Poção Nórdica • +35 Vida"
+            self.notice_timer = 1.8
+            self.events.append("heal")
+            return True
+
+        if kind == "essencia":
+            if self.player.energy >= self.profile["max_energy"]:
+                self.notice = "Energia já está cheia"
+                self.notice_timer = 1.3
+                return False
+            inventory[kind] -= 1
+            self.player.energy = min(
+                self.profile["max_energy"],
+                self.player.energy + 45,
+            )
+            self.notice = "Essência Rúnica • +45 Energia"
+            self.notice_timer = 1.8
+            self.events.append("tech")
+            return True
+
+        return False
 
     def attack(self):
         if self.player.attack_timer > 0:
@@ -569,9 +795,42 @@ class RPGWorld:
             )
     def _enemy_defeated(self, enemy):
         self.profile["kills"] += 1
-        leveled = self.player.gain_xp(1)
+        xp_gain = 3 if enemy.boss else 1
+        leveled = self.player.gain_xp(xp_gain)
         self.events.append("victory")
-        self._burst(enemy.pos, self.theme["accent"], 18)
+        self._burst(
+            enemy.pos,
+            GOLD if enemy.boss else self.theme["accent"],
+            30 if enemy.boss else 18,
+        )
+
+        if enemy.boss:
+            self.notice = (
+                f"{enemy.name} derrotado • caminhos liberados"
+            )
+            self.notice_timer = 3.2
+            self.engine.state["coragem"] = (
+                self.engine.state.get("coragem", 0) + 1
+            )
+            self.loots.append(
+                Loot(enemy.pos + pygame.Vector2(25, 0), "fragmento")
+            )
+            self.loots.append(
+                Loot(enemy.pos + pygame.Vector2(-25, 0), "pocao")
+            )
+            self.loots.append(
+                Loot(enemy.pos + pygame.Vector2(0, 25), "essencia")
+            )
+            self.events.append("thunder")
+        else:
+            roll = self.rng.random()
+            if roll < 0.28:
+                kind = "pocao"
+            elif roll < 0.58:
+                kind = "essencia"
+            else:
+                kind = "fragmento"
+            self.loots.append(Loot(enemy.pos, kind))
 
         if leveled:
             self.notice = f"Nível {self.profile['level']} alcançado"
@@ -616,6 +875,21 @@ class RPGWorld:
             self.notice_timer = 2.8
             self.events.append("wake")
 
+        for loot in self.loots:
+            if loot.picked:
+                continue
+            if loot.pos.distance_to(self.player.pos) <= 36:
+                loot.picked = True
+                self.profile["inventory"][loot.kind] += 1
+                label = {
+                    "pocao": "Poção Nórdica",
+                    "essencia": "Essência Rúnica",
+                    "fragmento": "Fragmento de Valdrak",
+                }[loot.kind]
+                self.notice = f"Coletou: {label}"
+                self.notice_timer = 1.8
+                self.events.append("scanner")
+
         for particle in self.particles:
             particle.update(dt)
         self.particles = [
@@ -656,6 +930,8 @@ class RPGWorld:
             items.append((rect.bottom, "obstacle", rect))
         for shrine in self.shrines:
             items.append((shrine.pos.y, "shrine", shrine))
+        if self.npc:
+            items.append((self.npc.pos.y, "npc", self.npc))
         for enemy in self.enemies:
             if not enemy.dead:
                 items.append((enemy.pos.y, "enemy", enemy))
@@ -685,6 +961,16 @@ class RPGWorld:
                     seconds,
                     near,
                 )
+            elif kind == "npc":
+                near_npc = (
+                    self.player.pos.distance_to(item.pos) <= 100
+                )
+                item.draw(
+                    surface,
+                    self.camera,
+                    theme["accent"],
+                    near=near_npc,
+                )
             elif kind == "enemy":
                 item.draw(surface, self.camera)
             elif kind == "player":
@@ -697,6 +983,9 @@ class RPGWorld:
                     item[2],
                     theme["accent"],
                 )
+
+        for loot in self.loots:
+            loot.draw(surface, self.camera, seconds)
 
         for particle in self.particles:
             particle.draw(surface, self.camera)
@@ -882,14 +1171,22 @@ class RPGWorld:
 
         nearest = self.nearest_shrine()
         hint = (
-            "Explore • ESPAÇO atacar • Q Pulso • "
+            "WASD mover • ESPAÇO atacar • Q Pulso • "
             "SHIFT dash • E interagir"
         )
+
         if (
+            self.npc
+            and self.player.pos.distance_to(self.npc.pos) <= 100
+        ):
+            hint = f"E — falar com {self.npc.name}"
+        elif (
             nearest
             and self.player.pos.distance_to(nearest.pos) <= 95
         ):
-            if nearest.available:
+            if self.boss_alive():
+                hint = "Derrote o Guardião para liberar os caminhos"
+            elif nearest.available:
                 hint = (
                     f"E — escolher Caminho "
                     f"{nearest.index + 1}"
@@ -906,6 +1203,54 @@ class RPGWorld:
             hint_surf,
             hint_surf.get_rect(topright=(1235, 35)),
         )
+
+        inventory = self.profile["inventory"]
+        item_text = (
+            f"[1] Poção {inventory['pocao']}  •  "
+            f"[2] Essência {inventory['essencia']}  •  "
+            f"Fragmentos {inventory['fragmento']}"
+        )
+        surface.blit(
+            fonts["small"].render(
+                item_text,
+                True,
+                MUTED,
+            ),
+            (820, 82),
+        )
+
+        boss = self.boss()
+        if boss and not boss.dead:
+            ratio = max(0, boss.hp) / boss.max_hp
+            boss_rect = pygame.Rect(390, 116, 500, 12)
+            pygame.draw.rect(
+                surface,
+                (37, 29, 29),
+                boss_rect,
+                border_radius=6,
+            )
+            pygame.draw.rect(
+                surface,
+                GOLD,
+                (
+                    boss_rect.x,
+                    boss_rect.y,
+                    int(boss_rect.width * ratio),
+                    boss_rect.height,
+                ),
+                border_radius=6,
+            )
+            boss_label = fonts["small"].render(
+                f"GUARDIÃO — {boss.name}",
+                True,
+                GOLD,
+            )
+            surface.blit(
+                boss_label,
+                boss_label.get_rect(
+                    center=(640, 106)
+                ),
+            )
 
         if self.notice_timer > 0 and self.notice:
             notice = fonts["small"].render(

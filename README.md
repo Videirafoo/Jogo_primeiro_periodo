@@ -40,6 +40,11 @@ A campanha possui:
 - dash;
 - XP e níveis;
 - aliados acompanhando o protagonista;
+- NPC próprio em cada capítulo com diálogo e presente;
+- três arquétipos de inimigo: lobo, saqueador e corvo sombrio;
+- um Guardião/Boss único por capítulo;
+- loot de poção, essência e fragmentos;
+- inventário simples durante a exploração;
 - três santuários físicos para escolher caminhos;
 - exploração de runas com WASD/setas;
 - desafios de timing para combate, portões e tecnologia;
@@ -58,13 +63,15 @@ A campanha possui:
 | Tecla | Ação |
 |---|---|
 | Enter / Espaço | Revelar/continuar narrativa ou acertar desafios de timing |
-| 1 / 2 / 3 | Escolher uma ação |
-| WASD / Setas | Mover no scanner de runas e nas esquivas |
-| Clique | Escolher ações e interagir em desafios |
-| E | Interagir com santuários/caminhos |
+| 1 / 2 / 3 | Escolher uma ação fora da exploração |
+| WASD / Setas | Mover no mundo, scanner e esquivas |
+| Clique | Caminhar até um ponto / interagir em desafios |
+| E | Conversar com NPC / interagir com santuário |
 | Espaço | Ataque corpo a corpo durante exploração |
 | Q | Pulso de Código |
 | Shift | Dash |
+| 1 | Usar Poção Nórdica durante exploração |
+| 2 | Usar Essência Rúnica durante exploração |
 | M | Ligar/desligar áudio |
 | - / + | Ajustar volume |
 | F5 | Salvar |
@@ -130,6 +137,7 @@ Jogo_primeiro_periodo/
 ├── engine.py
 ├── gameplay.py
 ├── rpg_world.py
+├── rpg_entities.py
 ├── savegame.py
 ├── story_data.py
 ├── ui.py
