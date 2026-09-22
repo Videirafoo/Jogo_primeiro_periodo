@@ -159,20 +159,69 @@ class CombatPresentationV27:
         px = int(player.pos.x - camera.x)
         py = int(player.pos.y - camera.y)
         if self.parry_timer > 0:
-            radius = 38 + int((self.parry_timer / 0.34) * 20)
+            progress = 1.0 - self.parry_timer / 0.34
+            radius = 34 + int(progress * 34)
+            alpha = int(245 * (1.0 - progress))
+            guard = pygame.Surface((160, 160), pygame.SRCALPHA)
+            center = (80, 80)
             pygame.draw.arc(
-                surface,
-                (174, 224, 255),
-                (px - radius, py - radius, radius * 2, radius * 2),
+                guard,
+                (174, 224, 255, alpha),
+                (
+                    80 - radius,
+                    80 - radius,
+                    radius * 2,
+                    radius * 2,
+                ),
                 -0.8,
                 2.4,
-                5,
+                6,
             )
+            pygame.draw.circle(
+                guard,
+                (238, 249, 255, alpha // 2),
+                center,
+                max(8, int(radius * 0.42)),
+                2,
+            )
+            for angle in (-0.55, 0.0, 0.55):
+                end = pygame.Vector2(center) + pygame.Vector2(
+                    math.cos(angle),
+                    math.sin(angle),
+                ) * (radius + 12)
+                pygame.draw.line(
+                    guard,
+                    (238, 249, 255, alpha),
+                    center,
+                    end,
+                    2,
+                )
+            surface.blit(guard, (px - 80, py - 80))
         if self.dodge_timer > 0:
-            alpha = int(130 * (self.dodge_timer / 0.30))
-            ghost = pygame.Surface((74, 44), pygame.SRCALPHA)
-            pygame.draw.ellipse(ghost, (*accent, alpha), (5, 8, 64, 24), 3)
-            surface.blit(ghost, (px - 37, py - 22))
+            progress = 1.0 - self.dodge_timer / 0.30
+            alpha = int(150 * (1.0 - progress))
+            facing = (
+                player.facing.normalize()
+                if player.facing.length_squared()
+                else pygame.Vector2(0, 1)
+            )
+            for echo in range(3):
+                ghost = pygame.Surface((82, 52), pygame.SRCALPHA)
+                echo_alpha = max(0, alpha - echo * 38)
+                pygame.draw.ellipse(
+                    ghost,
+                    (*accent, echo_alpha),
+                    (6, 10, 70, 26),
+                    3,
+                )
+                offset = facing * (-echo * 16 - progress * 12)
+                surface.blit(
+                    ghost,
+                    (
+                        px - 41 + int(offset.x),
+                        py - 26 + int(offset.y),
+                    ),
+                )
 
     def draw_screen_fx(self, surface, fonts, accent):
         if self.hit_timer > 0:

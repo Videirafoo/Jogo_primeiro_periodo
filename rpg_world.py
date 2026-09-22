@@ -3402,19 +3402,64 @@ class RPGWorld:
             (radius * 2 + 8, radius * 2 + 8),
             pygame.SRCALPHA,
         )
+        center = (radius + 4, radius + 4)
+        # Layered danger field: the shrinking outer ring communicates
+        # timing while radial marks make the attack readable in motion.
+        pulse = 0.5 + 0.5 * math.sin(
+            pygame.time.get_ticks() / 1000 * 10
+        )
         pygame.draw.circle(
             warning,
-            (225, 82, 92, 42),
-            (radius + 4, radius + 4),
+            (225, 82, 92, 32 + int(28 * pulse)),
+            center,
             radius,
         )
         pygame.draw.circle(
             warning,
-            (255, 118, 92, 205),
-            (radius + 4, radius + 4),
+            (255, 118, 92, 220),
+            center,
             radius,
             3,
         )
+        inner = max(18, int(radius * (0.42 + 0.08 * pulse)))
+        pygame.draw.circle(
+            warning,
+            (255, 196, 112, 165),
+            center,
+            inner,
+            2,
+        )
+        for i in range(8):
+            angle = i * math.tau / 8
+            start = pygame.Vector2(center) + pygame.Vector2(
+                math.cos(angle),
+                math.sin(angle),
+            ) * (radius * 0.72)
+            end = pygame.Vector2(center) + pygame.Vector2(
+                math.cos(angle),
+                math.sin(angle),
+            ) * (radius * 0.94)
+            pygame.draw.line(
+                warning,
+                (255, 152, 104, 205),
+                start,
+                end,
+                3,
+            )
+        facing = self.player.pos - boss.pos
+        if facing.length_squared() > 0:
+            facing = facing.normalize()
+            tip = pygame.Vector2(center) + facing * radius * 0.82
+            left = pygame.Vector2(-facing.y, facing.x)
+            pygame.draw.polygon(
+                warning,
+                (255, 216, 140, 225),
+                [
+                    tip + facing * 14,
+                    tip - facing * 10 + left * 8,
+                    tip - facing * 10 - left * 8,
+                ],
+            )
         surface.blit(
             warning,
             (x - radius - 4, y - radius - 4),
