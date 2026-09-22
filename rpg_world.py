@@ -9,6 +9,12 @@ from world_art import WorldArt
 from sprite_animator import draw_actor
 from hud import RPGHUD
 from map_loader import MapScene
+from world_expansion import (
+    build_region_places,
+    interact_with_place,
+    region_progress,
+    region_quest_name,
+)
 
 
 WORLD_W = 1800
@@ -247,6 +253,10 @@ class Player:
             },
         )
         self.profile.setdefault("npc_flags", {})
+        self.profile.setdefault("discoveries", [])
+        self.profile.setdefault("completed_region_quests", [])
+        self.profile["inventory"].setdefault("reliquia", 0)
+        self.profile["inventory"].setdefault("chave", 0)
 
     @property
     def health(self):
@@ -519,6 +529,10 @@ class RPGWorld:
         )
         self.shrines = self._build_shrines()
         self.enemies = self._build_enemies()
+        self.places = build_region_places(
+            chapter["number"],
+            self.profile,
+        )
         self.loots = []
         self.npc = NPC(
             chapter["number"],
@@ -674,6 +688,26 @@ class RPGWorld:
                     self.notice = shrine.reason or "Caminho bloqueado"
                     self.notice_timer = 2.0
                     self.events.append("error")
+                return
+
+            place = self.nearest_place()
+            if (
+                place
+                and self.player.pos.distance_to(place.pos) <= 86
+            ):
+                result = interact_with_place(
+                    place,
+                    self,
+                )
+                self.notice = result["title"]
+                self.dialogue = (
+                    result["title"],
+                    result["text"],
+                )
+                self.notice_timer = 5.2
+                self.events.append(result["sfx"])
+                return
+
             return
 
         if event.key == pygame.K_1:
@@ -886,6 +920,25 @@ class RPGWorld:
             key=lambda shrine: self.player.pos.distance_to(shrine.pos),
         )
 
+    def nearest_place(self):
+        if not self.places:
+            return None
+        return min(
+            self.places,
+            key=lambda place: self.player.pos.distance_to(place.pos),
+        )
+
+    def exploration_progress(self):
+        return region_progress(
+            self.chapter["number"],
+            self.profile,
+        )
+
+    def exploration_quest_name(self):
+        return region_quest_name(
+            self.chapter["number"]
+        )
+
     def _ally_assist(self):
         allies = self.engine.ally_names()
         if not allies:
@@ -1075,10 +1128,22 @@ class RPGWorld:
                 seconds,
             )
         items = []
-        for rect in self.obstacles[4:]:
-            items.append((rect.bottom, "obstacle", rect))
+
+        if not self.map_scene.available:
+            for rect in self.obstacles[4:]:
+                items.append(
+                    (rect.bottom, "obstacle", rect)
+                )
+
         for shrine in self.shrines:
-            items.append((shrine.pos.y, "shrine", shrine))
+            items.append(
+                (shrine.pos.y, "shrine", shrine)
+            )
+
+        for place in self.places:
+            items.append(
+                (place.pos.y, "place", place)
+            )
         if self.npc:
             items.append((self.npc.pos.y, "npc", self.npc))
         for enemy in self.enemies:
@@ -1109,6 +1174,17 @@ class RPGWorld:
                     theme["accent"],
                     seconds,
                     near,
+                )
+            elif kind == "place":
+                near_place = (
+                    self.player.pos.distance_to(item.pos) <= 100
+                )
+                item.draw(
+                    surface,
+                    self.camera,
+                    fonts["small"],
+                    seconds,
+                    near=near_place,
                 )
             elif kind == "npc":
                 near_npc = (
@@ -1268,6 +1344,7 @@ class RPGWorld:
         )
     def interaction_hint(self):
         nearest = self.nearest_shrine()
+        place = self.nearest_place()
 
         if (
             self.npc
@@ -1298,6 +1375,20 @@ class RPGWorld:
                 )
 
             return f"Bloqueado: {nearest.reason}"
+
+        if (
+            place
+            and self.player.pos.distance_to(
+                place.pos
+            )
+            <= 86
+        ):
+            status = (
+                "revisitar"
+                if place.discovered
+                else "descobrir"
+            )
+            return f"E — {status}: {place.name}"
 
         return ""
 
@@ -1367,16 +1458,28 @@ class RPGWorld:
                 "Fragmento de Valdrak",
                 inventory["fragmento"],
                 GOLD,
-                "Relíquia rara",
+                "Fragmento antigo",
+            ),
+            (
+                "Relíquia de Memória",
+                inventory.get("reliquia", 0),
+                VIOLET,
+                "Microconto descoberto",
+            ),
+            (
+                "Chave Rúnica",
+                inventory.get("chave", 0),
+                GREEN,
+                "Recompensa de exploração",
             ),
         ]
 
         for index, (name, count, color, effect) in enumerate(cards):
             rect = pygame.Rect(
                 292,
-                254 + index * 82,
+                244 + index * 58,
                 690,
-                66,
+                50,
             )
             pygame.draw.rect(
                 surface,
@@ -1403,7 +1506,7 @@ class RPGWorld:
                     True,
                     INK,
                 ),
-                (rect.x + 62, rect.y + 12),
+                (rect.x + 62, rect.y + 6),
             )
             surface.blit(
                 fonts["small"].render(
@@ -1411,7 +1514,7 @@ class RPGWorld:
                     True,
                     MUTED,
                 ),
-                (rect.x + 62, rect.y + 38),
+                (rect.x + 62, rect.y + 27),
             )
             count_text = fonts["heading"].render(
                 str(count),
@@ -1437,7 +1540,7 @@ class RPGWorld:
                 True,
                 theme["accent"],
             ),
-            (294, 518),
+            (294, 548),
         )
         surface.blit(
             fonts["small"].render(
@@ -1449,7 +1552,7 @@ class RPGWorld:
                 True,
                 MUTED,
             ),
-            (294, 548),
+            (294, 574),
         )
 
     @staticmethod

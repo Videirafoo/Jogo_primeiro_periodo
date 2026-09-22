@@ -116,26 +116,21 @@ class WorldArt:
         self._vignette(surface)
 
     def draw_overlay(self, surface, camera, seconds):
-        self._landmark(surface, camera, seconds)
-
-        for kind, wx, wy, scale in sorted(
-            self.decor,
-            key=lambda item: item[2],
-        ):
-            x = int(wx - camera.x)
-            y = int(wy - camera.y)
-            if -100 < x < 1380 and -120 < y < 820:
-                self._decor(
-                    surface,
-                    kind,
-                    x,
-                    y,
-                    scale,
-                    seconds,
-                )
-
-        self._weather(surface, seconds)
-        self._vignette(surface)
+        # Quando existe tilemap real, o procedural entra apenas como
+        # camada cinematográfica. Isso evita árvores e pedras vetoriais
+        # gigantes competindo com os tiles.
+        self._landmark(
+            surface,
+            camera,
+            seconds,
+        )
+        self._weather(
+            surface,
+            seconds,
+        )
+        self._vignette(
+            surface
+        )
 
     def draw_obstacle(self, surface, rect, camera):
         x = int(rect.centerx - camera.x)

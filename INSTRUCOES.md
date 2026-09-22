@@ -56,3 +56,9 @@ A chuva e outros ambientes ficam tocando continuamente quando a cena pede. Os ac
 A V2 usa mapas TMX via PyTMX, tiles e sprites CC0 da Kenney, HUD própria, galeria de finais e pipeline PyInstaller para Windows.
 
 Para rodar, use apenas comandos no PowerShell. Código Python deve permanecer nos arquivos .py e nunca deve ser colado linha por linha no PowerShell.
+
+## World Expansion V2.1
+
+A nova etapa amplia Valdrak com 28 pontos especiais distribuídos nas sete regiões: ruínas, acampamentos, microcontos e sete passagens secretas. O jogador registra descobertas, Relíquias de Memória e Chaves Rúnicas, e cada região possui uma missão secundária concluída após três descobertas.
+
+O tilemap também foi revisto com macrotiles de 48 px, menos ruído visual, tint própria por região, sprites mais proporcionais e HUD escura/compacta.

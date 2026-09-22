@@ -73,7 +73,7 @@ def draw_actor(
     if image is None:
         return False
 
-    scale = 5 if boss else 4
+    scale = 4 if boss else 3
     size = TILE_SIZE * scale
     image = pygame.transform.scale(image, (size, size))
 

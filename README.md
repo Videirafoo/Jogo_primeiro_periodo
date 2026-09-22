@@ -274,3 +274,102 @@ A base técnica fica preparada para:
 10. release candidata.
 
 O motor foi separado dos assets para que o gráfico possa evoluir sem desmontar os sistemas de gameplay.
+
+## V2.1 — World Expansion
+
+A V2.1 transforma as sete regiões de Valdrak em espaços com exploração opcional, histórias próprias e atalhos secretos, além do caminho principal.
+
+### 28 lugares exploráveis
+
+Cada região recebeu quatro pontos especiais:
+
+- uma ruína;
+- um ponto de lore/microconto;
+- um acampamento;
+- uma passagem secreta.
+
+São **28 lugares novos**, incluindo **7 passagens secretas**.
+
+Entre eles:
+
+- Ponte do Corvo Quebrado;
+- Pântano dos Sussurros;
+- Cripta das Três Chaves;
+- Mercado dos Ossos;
+- Taverna do Martelo Torto;
+- Catacumbas do Campeão;
+- Lago dos Nomes;
+- Casa da Bruxa de Musgo;
+- Torre da Matilha;
+- Mina de Ferro Azul;
+- Rio de Lava Negra;
+- Arquivo dos Ferreiros;
+- Biblioteca Impossível;
+- Sala dos Espelhos;
+- Jardim do Despertar.
+
+### Novos contos e mistérios
+
+Cada ponto possui um microconto conectado ao mistério central. As novas histórias introduzem:
+
+- outros sonhadores que podem ter passado por Valdrak;
+- memórias perdidas e vendidas;
+- referências à faculdade dentro do sonho;
+- versões alternativas dos acontecimentos;
+- a origem dos Lobos de Ferro;
+- projetos escondidos na Forja;
+- diferentes possibilidades para o despertar;
+- pistas de que Valdrak pode existir antes de Os Eternos.
+
+### Passagens secretas
+
+Cada região possui uma passagem própria. Ela só desperta depois que o jogador encontra outros pontos daquela região.
+
+As passagens funcionam como atalhos físicos e narrativos: túneis, raízes, pontes invertidas, elevadores rúnicos e espaços que dobram o mapa.
+
+### Missões regionais
+
+Cada região ganhou uma missão secundária de exploração:
+
+1. Os Marcos da Estrada;
+2. As Três Chaves do Portão;
+3. Juramentos da Vila;
+4. Vozes Entre as Raízes;
+5. A Trilha da Matilha;
+6. Segredos da Forja Morta;
+7. Fragmentos do Despertar.
+
+Ao descobrir três pontos de uma região, a missão regional é concluída e concede XP extra e uma **Chave Rúnica**.
+
+### Novos itens e recompensas
+
+O inventário agora também registra:
+
+- Relíquia de Memória;
+- Chave Rúnica.
+
+Descobertas podem entregar XP, fragmentos, relíquias, poções, cura, energia e chaves.
+
+### Graphic Overhaul V2.1
+
+A captura real da V2 Beta mostrou excesso de microtiles, contraste muito claro no HUD e elementos procedurais fora de escala. A V2.1 corrige essa direção:
+
+- macrotiles visuais de 48 px;
+- menos mosaico aleatório e ruído;
+- tint própria para cada uma das sete regiões;
+- remoção de árvores/pedras procedurais gigantes quando o TMX está ativo;
+- sprites menores e mais proporcionais;
+- HUD escura, compacta e com maior área livre para o mundo;
+- HUD com descobertas, missão regional, relíquias e chaves;
+- colisões centrais removidas dos mapas gerados para evitar paredes invisíveis;
+- atmosfera procedural preservada apenas como camada cinematográfica.
+
+Arquivos principais desta etapa:
+
+- `world_expansion.py`
+- `map_loader.py`
+- `hud.py`
+- `rpg_world.py`
+- `test_world_expansion.py`
+
+A próxima evolução visual continua preparada para substituir gradualmente os assets CC0 por arte autoral de Valdrak, sem reescrever os sistemas de exploração e narrativa.
