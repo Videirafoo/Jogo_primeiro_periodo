@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - "v2-interface-grafica"
       - "v2.8.1-beta2"
     tags:
       - "v2-beta-*"

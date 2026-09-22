@@ -258,6 +258,19 @@ Windows V2 Beta
 
 Ele instala dependências, roda testes, cria o EXE e publica o artefato `OsEternosV2-Windows`.
 
+### Jogar e testar a Beta
+
+A forma recomendada para jogadores é baixar o executável publicado em **Releases**:
+
+- página de versões: https://github.com/Videirafoo/Jogo_primeiro_periodo/releases
+- release mais recente: https://github.com/Videirafoo/Jogo_primeiro_periodo/releases/latest
+- arquivo do jogo: `OsEternosV2.exe`
+
+Não é necessário instalar Python para executar o EXE publicado. O workflow
+`Windows V2 Beta` também gera uma build testável a cada push na branch
+`v2-interface-grafica`, permitindo validar continuamente a versão em
+desenvolvimento antes de promovê-la para Release.
+
 ## Evolução depois da Beta
 
 A base técnica fica preparada para:
