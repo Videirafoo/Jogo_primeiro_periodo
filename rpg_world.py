@@ -2751,11 +2751,40 @@ class RPGWorld:
             particle for particle in self.particles
             if particle.life > 0
         ]
-        target = self.player.pos - pygame.Vector2(640, 360)
-        self.camera.x += (target.x - self.camera.x) * min(1.0, dt * 7)
-        self.camera.y += (target.y - self.camera.y) * min(1.0, dt * 7)
-        self.camera.x = clamp(self.camera.x, 0, WORLD_W - 1280)
-        self.camera.y = clamp(self.camera.y, 0, WORLD_H - 720)
+        # Cinematic follow camera. A small directional look-ahead keeps
+        # more world visible in front of the player while the dead-zone
+        # prevents micro-jitter when the character barely changes direction.
+        facing = pygame.Vector2(
+            getattr(self.player, "facing", pygame.Vector2(0, 1))
+        )
+        if facing.length_squared() > 0:
+            facing = facing.normalize()
+        look_ahead = pygame.Vector2(
+            facing.x * 92,
+            facing.y * 54,
+        )
+        desired = (
+            self.player.pos
+            + look_ahead
+            - pygame.Vector2(640, 378)
+        )
+        delta = desired - self.camera
+        if abs(delta.x) < 10:
+            delta.x = 0
+        if abs(delta.y) < 8:
+            delta.y = 0
+        follow = min(1.0, dt * 5.2)
+        self.camera += delta * follow
+        self.camera.x = clamp(
+            self.camera.x,
+            0,
+            WORLD_W - 1280,
+        )
+        self.camera.y = clamp(
+            self.camera.y,
+            0,
+            WORLD_H - 720,
+        )
 
     def apply_rewards(self):
         chapter_kills = self.profile["kills"] - self.chapter_kills_start
