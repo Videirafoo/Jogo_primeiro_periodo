@@ -2060,6 +2060,10 @@ class RPGWorld:
                     self.notice = "ACERTO CRÍTICO"
                     self.notice_timer = 0.9
                 died = enemy.hit(damage)
+                self.combat_v27.on_hit(
+                    heavy=enemy.boss or crit,
+                    point=enemy.pos,
+                )
                 if not died:
                     delta = enemy.pos - self.player.pos
                     if delta.length_squared():
@@ -2109,6 +2113,10 @@ class RPGWorld:
                 continue
             if enemy.pos.distance_to(self.player.pos) <= 155:
                 died = enemy.hit(30 + self.profile["level"] * 3)
+                self.combat_v27.on_hit(
+                    heavy=enemy.boss,
+                    point=enemy.pos,
+                )
                 self._burst(enemy.pos, CYAN, 12)
                 self.impact_feedback(
                     strength=13 if enemy.boss else 8,
