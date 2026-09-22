@@ -456,7 +456,7 @@ def draw_ally(surface, name, pos, offset, seconds, index=0):
         facing,
         "walk",
         seconds + index * 0.11,
-        scale=1.10,
+        scale=1.20,
     )
     if not rendered:
         draw_eterno_character(

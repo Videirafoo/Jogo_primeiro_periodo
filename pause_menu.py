@@ -157,6 +157,7 @@ class PauseMenu:
             ("X / R3", "Execução em Guardião atordoado"),
             ("E", "Interagir"),
             ("M / J / C / G", "Mapa / Quests / Codex / Equipamentos"),
+            ("H", "Contratos / caçadas"),
             ("K / T / U", "Craft / Talentos / Upgrade"),
             ("O", "Acessibilidade / dificuldade"),
             ("F5 / F9 / F6", "Salvar / carregar / trocar slot"),

@@ -460,3 +460,50 @@ Combat 2.0 adiciona stamina, parry, perfect dodge, combo de três passos, ataque
 Loot 2.0 adiciona materiais, crafting, upgrade de arma, talentos, pontos de talento, vendedores, moedas e quests encadeadas de NPC.
 
 A plataforma passa a oferecer três save slots, gamepad, acessibilidade, redução de flash, screen shake configurável e três dificuldades.
+
+## V2.6 — World & Quest Quality Pass
+
+A V2.6 faz Valdrak reagir ao jogador em vez de funcionar apenas como um mapa de combate.
+
+### Mundo vivo
+- sete vilas povoadas;
+- sete moradores por região;
+- NPCs caminham entre casa, trabalho e mercado;
+- ciclo de horário persistente;
+- diálogos condicionais por horário, Guardião e consequências;
+- eventos raros por região;
+- um encontro único por região;
+- dois segredos de lore por região;
+- mini-histórias regionais.
+
+### Quest Quality
+Cada região recebe uma quest multi-etapa com objetivo, retorno ao NPC, decisão entre dois caminhos, consequência persistente, descoberta de segredo e recompensa. Também existem três contratos/caçadas por região.
+
+### Art Quality Pass IV / World Art II
+- personagens maiores;
+- seis Eternos simultâneos;
+- partículas de poder;
+- impactos estilizados;
+- vilas nórdicas;
+- montanhas;
+- rios;
+- cachoeira;
+- lava dinâmica;
+- castelos;
+- templos;
+- cidade/arena;
+- landmarks;
+- mudanças visuais conforme escolhas.
+
+### Cinemáticas / áudio
+- entrada de região;
+- primeira aproximação do Guardião;
+- decisões de quest;
+- eventos raros;
+- derrota de Guardião;
+- cues pseudo-vocais;
+- SFX de segredo, contrato e conclusão;
+- trilha procedural diferente para cada região;
+- perigo, interiores e boss por região.
+
+Nenhuma dependência nova foi adicionada ao requirements.txt.

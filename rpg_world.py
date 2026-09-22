@@ -31,6 +31,9 @@ from meta_v25 import (
     vendor_stock,
 )
 from visual_v25 import VisualRPGPass
+from art_v26 import WorldArtII
+from cinematic_v26 import CinematicDirector
+from world_v26 import WorldQuestDirector
 
 from progression_v24 import (
     add_and_auto_equip,
@@ -633,6 +636,20 @@ class RPGWorld:
             chapter["number"],
             (WORLD_W, WORLD_H),
         )
+        self.art_v26 = WorldArtII(
+            chapter["number"],
+            self.profile,
+            (WORLD_W, WORLD_H),
+        )
+        self.v26 = WorldQuestDirector(
+            chapter["number"],
+            self.profile,
+            seed=chapter["number"] * 101,
+        )
+        self.cinematic_v26 = CinematicDirector(
+            chapter["number"],
+            self.profile,
+        )
         self.vendor_items = vendor_stock(
             chapter["number"],
             self.rng,
@@ -790,8 +807,9 @@ class RPGWorld:
         )
 
     def _update_music_state(self):
+        chapter = self.chapter["number"]
         if self.living.interior:
-            self.music_state = "music_interior"
+            self.music_state = f"music_interior_{chapter}"
             return
         boss = self.boss()
         if (
@@ -799,14 +817,18 @@ class RPGWorld:
             and not boss.dead
             and boss.pos.distance_to(self.player.pos) < 520
         ):
-            self.music_state = "music_boss"
+            self.music_state = f"music_boss_{chapter}"
             return
         danger = any(
             not enemy.dead
             and enemy.pos.distance_to(self.player.pos) < 280
             for enemy in self.enemies
         )
-        self.music_state = "music_danger" if danger else "music_explore"
+        self.music_state = (
+            f"music_danger_{chapter}"
+            if danger
+            else f"music_region_{chapter}"
+        )
 
     def _damage_player(self, amount):
         difficulty = balance(self.profile)
@@ -936,6 +958,35 @@ class RPGWorld:
                     self._enemy_defeated(enemy)
 
     def handle_key(self, event):
+        if self.v26.pending_choice:
+            choice_keys = {
+                pygame.K_1: 1,
+                pygame.K_2: 2,
+                pygame.K_KP1: 1,
+                pygame.K_KP2: 2,
+            }
+            if event.key in choice_keys:
+                message = self.v26.choose_quest(
+                    choice_keys[event.key]
+                )
+                if message:
+                    self.notice = message
+                    self.dialogue = (
+                        "ESCOLHA DE VALDRAK",
+                        message,
+                    )
+                    self.notice_timer = 5.0
+                    self.events.extend(
+                        ["choice", "quest_complete"]
+                    )
+                    self.cinematic_v26.start(
+                        "VALDRAK MUDOU",
+                        message,
+                        duration=3.1,
+                        kind="choice",
+                    )
+                return
+
         if self.inventory_open and event.key == pygame.K_ESCAPE:
             self.inventory_open = False
             return
@@ -961,6 +1012,7 @@ class RPGWorld:
                 pygame.K_k,
                 pygame.K_t,
                 pygame.K_o,
+                pygame.K_h,
             }
             if event.key in close_keys:
                 self.overlay_screen = None
@@ -1027,6 +1079,16 @@ class RPGWorld:
                     self.notice = f"Dificuldade: {mode}"
                     self.notice_timer = 1.4
                     return
+            if self.overlay_screen == "contracts":
+                if event.key in number_map:
+                    message = self.v26.accept_contract(
+                        number_map[event.key]
+                    )
+                    self.notice = message
+                    self.notice_timer = 2.2
+                    self.events.append("contract")
+                return
+
             if self.overlay_screen == "map":
                 if event.key in {pygame.K_UP, pygame.K_w}:
                     self.map_selection = max(1, self.map_selection - 1)
@@ -1076,6 +1138,11 @@ class RPGWorld:
             self.events.append("choice")
             return
 
+        if event.key == pygame.K_h:
+            self.overlay_screen = "contracts"
+            self.events.append("contract")
+            return
+
         if event.key == pygame.K_m:
             self.overlay_screen = "map"
             self.map_selection = self.chapter["number"]
@@ -1112,6 +1179,27 @@ class RPGWorld:
             return
 
         if event.key == pygame.K_e:
+            v26_result = self.v26.interact(self)
+            if v26_result:
+                self.notice = (
+                    f"{v26_result['speaker']}: "
+                    f"{v26_result['text']}"
+                )
+                self.dialogue = (
+                    v26_result["speaker"],
+                    v26_result["text"],
+                )
+                self.notice_timer = 5.0
+                self.events.append(
+                    v26_result.get("sfx", "voice_low")
+                )
+                if self.tutorial_active:
+                    self._tutorial_advance(
+                        4,
+                        "Vila encontrada • tutorial concluído",
+                    )
+                return
+
             if (
                 self.npc
                 and self.player.pos.distance_to(self.npc.pos) <= 100
@@ -1362,6 +1450,11 @@ class RPGWorld:
                             status,
                         )
                 self._burst(enemy.pos, GOLD, 10)
+                self._burst(
+                    enemy.pos,
+                    RED,
+                    4 if not enemy.boss else 7,
+                )
                 self.impact_feedback(
                     strength=11 if enemy.boss else 6,
                     stop=0.075 if enemy.boss else 0.045,
@@ -1443,6 +1536,13 @@ class RPGWorld:
         )
         if self.profile["kills"] % 8 == 0:
             self.profile["skill_points"] += 1
+        for message in self.v26.on_enemy_defeated(
+            enemy.archetype
+        ):
+            self.notice = message
+            self.notice_timer = 3.0
+            self.events.append("contract")
+
         if self.profile["kills"] % 2 == 0:
             self.advance_story_echo()
         xp_gain = 3 if enemy.boss else 1
@@ -1455,6 +1555,13 @@ class RPGWorld:
         )
 
         if enemy.boss:
+            self.cinematic_v26.start(
+                "GUARDIÃO DERROTADO",
+                f"{enemy.name} caiu. A região reage à vitória.",
+                duration=3.4,
+                kind="boss_defeat",
+            )
+            self.events.append("boss_defeat")
             unlock_codex(self.profile, "guardioes")
             item = roll_equipment(
                 self.chapter["number"],
@@ -1681,6 +1788,7 @@ class RPGWorld:
 
     def update(self, dt, keys):
         self.notice_timer = max(0.0, self.notice_timer - dt)
+        self.cinematic_v26.update(dt)
         self.combat_v25.update(
             dt,
             moving=self.player.is_moving,
@@ -1752,6 +1860,49 @@ class RPGWorld:
                 self.notice = living_event["text"]
                 self.notice_timer = 2.8
                 self.events.append(living_event.get("sfx", "wind"))
+
+        v26_event = self.v26.update(dt, self)
+        if v26_event:
+            self.notice = (
+                f"{v26_event['title']}: "
+                f"{v26_event['text']}"
+            )
+            self.dialogue = (
+                v26_event["title"],
+                v26_event["text"],
+            )
+            self.notice_timer = 5.0
+            self.events.append(
+                v26_event.get("sfx", "rare_event")
+            )
+            self.cinematic_v26.start(
+                v26_event["title"],
+                v26_event["text"],
+                duration=3.0,
+                kind="rare",
+            )
+
+        boss = self.boss()
+        boss_cinematic_id = (
+            f"boss_intro_{self.chapter['number']}"
+        )
+        if (
+            boss
+            and not boss.dead
+            and boss.pos.distance_to(self.player.pos) < 460
+            and boss_cinematic_id
+            not in self.profile["v26_cinematics"]
+        ):
+            self.profile["v26_cinematics"].append(
+                boss_cinematic_id
+            )
+            self.cinematic_v26.start(
+                f"GUARDIÃO — {boss.name}",
+                "Observe o telegraph, preserve stamina e procure a janela de stagger.",
+                duration=3.2,
+                kind="boss",
+            )
+            self.events.append("voice_warrior")
 
         boss_event = self.boss_combat.update(
             dt,
@@ -1881,6 +2032,11 @@ class RPGWorld:
                 self.camera,
                 seconds,
             )
+        self.art_v26.draw_world(
+            surface,
+            self.camera,
+            seconds,
+        )
         self.visual_v25.draw_environment(
             surface,
             self.camera,
@@ -1917,9 +2073,14 @@ class RPGWorld:
         items.append((self.player.pos.y, "player", self.player))
 
         ally_names = self.engine.ally_names()
-        for index, ally_name in enumerate(ally_names[:4]):
+        for index, ally_name in enumerate(ally_names[:6]):
             pos = self._ally_pos(index)
             items.append((pos.y, "ally", (ally_name, pos, index)))
+
+        for villager in self.v26.villagers:
+            items.append(
+                (villager.pos.y, "v26_npc", villager)
+            )
 
         nearest = self.nearest_shrine()
 
@@ -1973,6 +2134,17 @@ class RPGWorld:
                     theme["accent"],
                     near=near_npc,
                 )
+            elif kind == "v26_npc":
+                item.draw(
+                    surface,
+                    self.camera,
+                    fonts,
+                    seconds,
+                    near=(
+                        self.player.pos.distance_to(item.pos)
+                        <= 95
+                    ),
+                )
             elif kind == "enemy":
                 item.draw(surface, self.camera)
             elif kind == "player":
@@ -1994,6 +2166,13 @@ class RPGWorld:
             seconds,
             self.player.pos,
         )
+        self.v26.draw(
+            surface,
+            self.camera,
+            fonts,
+            seconds,
+            self.player.pos,
+        )
 
         for loot in self.loots:
             loot.draw(surface, self.camera, seconds)
@@ -2002,6 +2181,11 @@ class RPGWorld:
             particle.draw(surface, self.camera)
 
         self.visual_v25.draw_lighting(
+            surface,
+            self,
+            seconds,
+        )
+        self.art_v26.draw_foreground(
             surface,
             self,
             seconds,
@@ -2042,7 +2226,13 @@ class RPGWorld:
             self._draw_inventory(surface, fonts, theme)
 
         if self.overlay_screen:
-            if self.overlay_screen in {
+            if self.overlay_screen == "contracts":
+                self.v26.draw_contracts(
+                    surface,
+                    fonts,
+                    theme["accent"],
+                )
+            elif self.overlay_screen in {
                 "craft",
                 "talents",
                 "vendor",
@@ -2059,6 +2249,12 @@ class RPGWorld:
                     fonts,
                     theme,
                 )
+
+        self.cinematic_v26.draw(
+            surface,
+            fonts,
+            theme["accent"],
+        )
 
         if self.flash_timer > 0:
             alpha = int(
@@ -2174,6 +2370,17 @@ class RPGWorld:
             1,
         )
     def interaction_hint(self):
+        v26_nearest = self.v26.nearest(
+            self.player.pos
+        )
+        if v26_nearest:
+            kind, obj = v26_nearest
+            if kind == "npc":
+                return f"E — falar com {obj.name}"
+            if kind == "secret":
+                return "E — investigar segredo"
+            return f"E — encontro: {obj.name}"
+
         nearest = self.nearest_shrine()
         place = self.nearest_place()
         chest = self.nearest_chest()
@@ -2576,7 +2783,18 @@ class RPGWorld:
                     (240, y),
                 )
                 y += 58
-            hint = "J ou Esc fecha o Quest Log"
+            y += 10
+            for line in self.v26.journal_lines():
+                surface.blit(
+                    fonts["small"].render(
+                        line,
+                        True,
+                        theme["accent"],
+                    ),
+                    (240, y),
+                )
+                y += 28
+            hint = "J ou Esc fecha o Quest Log • H contratos"
         elif self.overlay_screen == "codex":
             for title, body in codex_lines(self.profile)[:7]:
                 surface.blit(

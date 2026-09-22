@@ -96,3 +96,10 @@ Após atualizar a branch, execute python eternos.py. A aventura começa imediata
 - O: acessibilidade e dificuldade;
 - F6: alternar save slot;
 - gamepad: A ataque, B dash, X pulso, Y Eterno, LB parry, RB pesado, Start pausa.
+
+## Controles V2.6
+
+- H: contratos e caçadas;
+- 1/2: decisões de quests quando solicitado;
+- E: conversar, investigar segredos e ativar encontros únicos;
+- os demais controles V2.5 continuam válidos.

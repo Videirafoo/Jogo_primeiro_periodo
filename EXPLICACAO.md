@@ -171,3 +171,7 @@ A V2.4 adiciona mundo vivo, eventos aleatórios, interiores, puzzles, oito famí
 ## Visual RPG & Systems Pass V2.5
 
 A V2.5 é o maior passe de RPG da linha V2: sprite-sheets autorais com oito direções, frame-a-frame, iluminação dinâmica, dungeons multi-sala, Combat 2.0, Loot 2.0, crafting, upgrades, talentos, vendedores, save slots, gamepad e acessibilidade.
+
+## World & Quest Quality Pass V2.6
+
+A V2.6 adiciona vilas com rotinas, horário persistente, diálogos condicionais, quests multi-etapa com escolhas e consequências, contratos, caçadas, segredos, lore e encontros únicos. O World Art II acrescenta rios, montanhas, cachoeira, lava, cidades, castelos, templos e landmarks. Cinemáticas in-engine e trilhas regionais/boss completam o passe.

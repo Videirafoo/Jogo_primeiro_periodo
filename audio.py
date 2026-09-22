@@ -163,6 +163,14 @@ class Audio:
                 "music_boss": 0.34,
                 "music_interior": 0.22,
             }.get(self.current_ambience, 0.20)
+            if self.current_ambience.startswith("music_boss_"):
+                base = 0.34
+            elif self.current_ambience.startswith("music_danger_"):
+                base = 0.29
+            elif self.current_ambience.startswith("music_region_"):
+                base = 0.25
+            elif self.current_ambience.startswith("music_interior_"):
+                base = 0.22
             self.ambience_channel.set_volume(
                 base * self.ambience_mix * self.master_volume
             )
@@ -203,6 +211,14 @@ class Audio:
             "music_interior": 0.22,
         }.get(ambience, 0.20)
 
+        if ambience.startswith("music_boss_"):
+            volume = 0.34
+        elif ambience.startswith("music_danger_"):
+            volume = 0.29
+        elif ambience.startswith("music_region_"):
+            volume = 0.25
+        elif ambience.startswith("music_interior_"):
+            volume = 0.22
         self.ambience_channel.set_volume(
             volume * self.ambience_mix * self.master_volume
         )
@@ -299,6 +315,13 @@ class Audio:
             "error": (145, 0.22, "pulse"),
             "ending_good": (660, 0.72, "tone"),
             "victory": (760, 0.64, "victory"),
+            "voice_low": (132, 0.42, "voice"),
+            "voice_mystic": (186, 0.52, "voice"),
+            "voice_warrior": (108, 0.44, "voice"),
+            "secret": (610, 0.48, "scanner"),
+            "rare_event": (248, 0.62, "sweep"),
+            "contract": (430, 0.32, "tone"),
+            "quest_complete": (820, 0.72, "victory"),
         }
 
         frequency, duration, kind = profiles.get(
@@ -314,6 +337,28 @@ class Audio:
         count = int(sample_rate * duration)
         data = array("h")
         rng = random.Random(f"ambience-{name}")
+
+        music_kind = None
+        music_region = 1
+        for prefix, kind in (
+            ("music_region_", "region"),
+            ("music_danger_", "danger"),
+            ("music_boss_", "boss"),
+            ("music_interior_", "interior"),
+        ):
+            if name.startswith(prefix):
+                music_kind = kind
+                try:
+                    music_region = max(
+                        1,
+                        min(
+                            7,
+                            int(name[len(prefix):]),
+                        ),
+                    )
+                except ValueError:
+                    music_region = 1
+                break
 
         rain_signal = None
         if name == "rain":
@@ -365,6 +410,100 @@ class Audio:
                     math.sin(2 * math.pi * 68 * mod * t) * 0.065
                     + math.sin(2 * math.pi * 136 * t) * 0.025
                 )
+            elif music_kind:
+                roots = (
+                    55.0,
+                    58.3,
+                    65.4,
+                    49.0,
+                    73.4,
+                    41.2,
+                    46.2,
+                )
+                root_note = roots[music_region - 1]
+                if music_kind == "boss":
+                    beat = 3.6 + music_region * 0.11
+                    gain = 0.078
+                elif music_kind == "danger":
+                    beat = 2.0 + music_region * 0.07
+                    gain = 0.056
+                elif music_kind == "interior":
+                    beat = 0.48 + music_region * 0.03
+                    gain = 0.032
+                else:
+                    beat = 0.72 + music_region * 0.04
+                    gain = 0.039
+
+                mode = (
+                    1.5
+                    if music_region in {1, 4, 7}
+                    else 1.333
+                )
+                chord = (
+                    math.sin(
+                        2 * math.pi * root_note * t
+                    )
+                    + 0.50
+                    * math.sin(
+                        2
+                        * math.pi
+                        * root_note
+                        * mode
+                        * t
+                    )
+                    + 0.30
+                    * math.sin(
+                        2
+                        * math.pi
+                        * root_note
+                        * 2.0
+                        * t
+                    )
+                )
+                pulse = max(
+                    0.0,
+                    math.sin(
+                        2 * math.pi * beat * t
+                    ),
+                )
+                drum = 0.0
+                if music_kind in {"danger", "boss"}:
+                    drum = (
+                        math.sin(
+                            2
+                            * math.pi
+                            * (39 + music_region)
+                            * t
+                        )
+                        * (pulse ** 8)
+                        * 0.38
+                    )
+                texture = 0.0
+                if music_region in {4, 7}:
+                    texture = (
+                        math.sin(
+                            2
+                            * math.pi
+                            * root_note
+                            * 2.5
+                            * t
+                        )
+                        * 0.012
+                    )
+                elif music_region == 6:
+                    texture = (
+                        rng.uniform(-1, 1)
+                        * 0.012
+                    )
+
+                value = (
+                    chord
+                    * gain
+                    * (0.52 + pulse * 0.48)
+                    + drum * gain
+                    + texture
+                )
+
             elif name in {
                 "music_explore",
                 "music_danger",
@@ -412,7 +551,42 @@ class Audio:
             envelope = max(0.0, 1.0 - progress)
             value = 0.0
 
-            if kind == "thunder":
+            if kind == "voice":
+                formant = (
+                    math.sin(
+                        2 * math.pi * frequency * t
+                    )
+                    + 0.42
+                    * math.sin(
+                        2
+                        * math.pi
+                        * frequency
+                        * 2.02
+                        * t
+                    )
+                    + 0.18
+                    * math.sin(
+                        2
+                        * math.pi
+                        * frequency
+                        * 3.10
+                        * t
+                    )
+                )
+                vibrato = (
+                    0.88
+                    + 0.12
+                    * math.sin(
+                        2 * math.pi * 4.6 * t
+                    )
+                )
+                value = (
+                    formant
+                    * 0.34
+                    * vibrato
+                )
+
+            elif kind == "thunder":
                 rumble = (
                     math.sin(2 * math.pi * frequency * t) * 0.34
                     + math.sin(2 * math.pi * frequency * 0.53 * t) * 0.25

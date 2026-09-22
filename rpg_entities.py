@@ -273,7 +273,7 @@ class EnemyActor:
             self.facing,
             state,
             pygame.time.get_ticks() / 1000,
-            scale=1.48 if self.boss else 1.05,
+            scale=1.62 if self.boss else 1.12,
             chapter=self.chapter if self.boss else None,
         )
 
