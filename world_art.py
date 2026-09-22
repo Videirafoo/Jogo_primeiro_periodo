@@ -74,26 +74,46 @@ class WorldArt:
 
     def _build_decor(self):
         items = []
-        count = 64
+        # Use authored clusters instead of a uniform random scatter. The
+        # deterministic anchors keep roads/villages readable and make each
+        # biome feel composed rather than procedurally noisy.
         kinds = {
-            1: ["pine", "rock", "grass", "puddle"],
-            2: ["bone", "rock", "dead_tree", "fogstone"],
-            3: ["stake", "rock", "torch", "banner"],
-            4: ["pine", "raven_post", "mushroom", "rock"],
-            5: ["snow_pine", "ice", "rock", "bones"],
+            1: ["pine", "pine", "grass", "rock", "puddle"],
+            2: ["dead_tree", "fogstone", "bone", "rock"],
+            3: ["stake", "banner", "torch", "rock"],
+            4: ["pine", "mushroom", "raven_post", "rock"],
+            5: ["snow_pine", "snow_pine", "ice", "rock", "bones"],
             6: ["basalt", "ember_pit", "anvil", "rock"],
-            7: ["rune", "obelisk", "crystal", "rock"],
+            7: ["obelisk", "crystal", "rune", "rock"],
         }[self.chapter]
-
-        for _ in range(count):
-            items.append(
-                (
-                    self.rng.choice(kinds),
-                    self.rng.randint(45, self.world_w - 45),
-                    self.rng.randint(80, self.world_h - 45),
-                    self.rng.uniform(0.75, 1.35),
+        anchors = (
+            (180, 210), (470, 185), (760, 250),
+            (1080, 180), (1450, 250), (1710, 190),
+            (220, 820), (520, 900), (820, 840),
+            (1130, 910), (1480, 820), (1710, 930),
+            (260, 1450), (600, 1510), (960, 1420),
+            (1320, 1530), (1640, 1460),
+            (330, 1900), (820, 1880), (1370, 1920),
+        )
+        for cluster, (ax, ay) in enumerate(anchors):
+            for member in range(3):
+                angle = (
+                    cluster * 1.73
+                    + member * 2.15
+                    + self.chapter * 0.41
                 )
-            )
+                radius = 26 + member * 34 + (cluster % 3) * 9
+                wx = int(ax + math.cos(angle) * radius)
+                wy = int(ay + math.sin(angle) * radius)
+                if 45 <= wx <= self.world_w - 45 and 80 <= wy <= self.world_h - 45:
+                    items.append(
+                        (
+                            kinds[(cluster + member) % len(kinds)],
+                            wx,
+                            wy,
+                            0.78 + ((cluster + member) % 5) * 0.11,
+                        )
+                    )
         return items
 
     def draw(self, surface, camera, seconds):
@@ -414,13 +434,72 @@ class WorldArt:
 
         if kind in ("pine", "snow_pine", "dead_tree"):
             trunk = (67, 49, 35)
-            pygame.draw.rect(surface, trunk, (x - 4, y - 15, 8, 32))
+            shadow_w = max(18, int(38 * s))
+            pygame.draw.ellipse(
+                surface,
+                (7, 12, 12),
+                (x - shadow_w // 2, y + 8, shadow_w, 10),
+            )
+            pygame.draw.rect(
+                surface,
+                trunk,
+                (
+                    x - max(3, int(4 * s)),
+                    y - int(18 * s),
+                    max(6, int(8 * s)),
+                    int(36 * s),
+                ),
+                border_radius=2,
+            )
             if kind == "dead_tree":
-                pygame.draw.line(surface, trunk, (x, y - 12), (x - 16, y - 35), 4)
-                pygame.draw.line(surface, trunk, (x, y - 7), (x + 14, y - 28), 4)
+                pygame.draw.line(
+                    surface,
+                    trunk,
+                    (x, y - int(10 * s)),
+                    (x - int(18 * s), y - int(38 * s)),
+                    max(3, int(4 * s)),
+                )
+                pygame.draw.line(
+                    surface,
+                    trunk,
+                    (x, y - int(7 * s)),
+                    (x + int(16 * s), y - int(31 * s)),
+                    max(3, int(4 * s)),
+                )
+                pygame.draw.line(
+                    surface,
+                    (92, 69, 48),
+                    (x - int(17 * s), y - int(37 * s)),
+                    (x - int(24 * s), y - int(44 * s)),
+                    2,
+                )
             else:
-                color = (34, 72, 50) if kind == "pine" else (176, 194, 201)
-                pygame.draw.polygon(surface, color, [(x, y - int(42*s)), (x - int(20*s), y), (x + int(20*s), y)])
+                base = (
+                    (34, 72, 50)
+                    if kind == "pine"
+                    else (176, 194, 201)
+                )
+                dark = tuple(max(0, c - 24) for c in base)
+                light = tuple(min(255, c + 18) for c in base)
+                for tier, width in ((0, 25), (13, 21), (25, 15)):
+                    top = y - int((48 + tier) * s)
+                    bottom = y - int((4 + tier) * s)
+                    pygame.draw.polygon(
+                        surface,
+                        dark,
+                        [
+                            (x, top),
+                            (x - int(width * s), bottom),
+                            (x + int(width * s), bottom),
+                        ],
+                    )
+                    pygame.draw.line(
+                        surface,
+                        light,
+                        (x, top + int(5 * s)),
+                        (x - int((width - 5) * s), bottom - int(3 * s)),
+                        2,
+                    )
             return
 
         if kind in ("rock", "basalt", "ice", "fogstone"):
