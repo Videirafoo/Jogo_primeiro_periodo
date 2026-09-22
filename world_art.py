@@ -371,6 +371,19 @@ class WorldArt:
         y = int(230 - camera.y)
         accent = self.config["accent"]
 
+        # Every region gets a distinct silhouette and ground footprint so
+        # landmarks work as navigation anchors, not generic decoration.
+        shadow = pygame.Surface((360, 210), pygame.SRCALPHA)
+        pygame.draw.ellipse(
+            shadow,
+            (0, 0, 0, 70),
+            (10, 120, 340, 65),
+        )
+        surface.blit(
+            shadow,
+            (x - 180, y - 105),
+        )
+
         if kind == "bridge":
             for step in range(8):
                 rect = pygame.Rect(
@@ -384,9 +397,60 @@ class WorldArt:
             return
 
         if kind == "gate":
-            pygame.draw.rect(surface, (76, 71, 61), (x - 120, y - 70, 35, 180))
-            pygame.draw.rect(surface, (76, 71, 61), (x + 85, y - 70, 35, 180))
-            pygame.draw.arc(surface, (122, 113, 91), (x - 120, y - 125, 240, 170), 0, math.pi, 10)
+            stone = (76, 71, 61)
+            edge = (122, 113, 91)
+            for side in (-1, 1):
+                px = x + side * 102
+                pygame.draw.rect(
+                    surface,
+                    (48, 46, 43),
+                    (px - 25, y - 78, 50, 196),
+                    border_radius=5,
+                )
+                for course in range(5):
+                    block = pygame.Rect(
+                        px - 21 + (course % 2) * 3,
+                        y - 70 + course * 34,
+                        42,
+                        28,
+                    )
+                    pygame.draw.rect(
+                        surface,
+                        stone,
+                        block,
+                        border_radius=3,
+                    )
+                    pygame.draw.rect(
+                        surface,
+                        edge,
+                        block,
+                        1,
+                        border_radius=3,
+                    )
+                pygame.draw.polygon(
+                    surface,
+                    stone,
+                    [
+                        (px - 34, y - 78),
+                        (px, y - 112),
+                        (px + 34, y - 78),
+                    ],
+                )
+            pygame.draw.arc(
+                surface,
+                edge,
+                (x - 105, y - 128, 210, 170),
+                0,
+                math.pi,
+                12,
+            )
+            pygame.draw.circle(
+                surface,
+                accent,
+                (x, y - 86),
+                8 + int((math.sin(seconds * 2) + 1) * 2),
+                2,
+            )
             return
 
         if kind == "arena":
