@@ -654,12 +654,12 @@ class WorldQuestDirector:
                 camera,
                 fonts,
                 seconds,
-                near=player_pos.distance_to(npc.pos) <= 95,
+                near=False,
             )
 
         for secret in self.secrets:
             discovered = secret.id in self.profile["v26_secrets"]
-            near = player_pos.distance_to(secret.pos) <= 105
+            near = False
             secret.draw(surface, camera, seconds, discovered=discovered, near=near)
 
         self.encounter.draw(
@@ -668,7 +668,7 @@ class WorldQuestDirector:
             fonts,
             seconds,
             done=self.encounter.id in self.profile["v26_encounters"],
-            near=player_pos.distance_to(self.encounter.pos) <= 100,
+            near=False,
         )
 
     def draw_contracts(self, surface, fonts, accent):

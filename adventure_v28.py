@@ -269,12 +269,8 @@ class AdventureDepthV28:
             surface.blit(glyph, glyph.get_rect(center=(x, y)))
             if site.completed:
                 pygame.draw.circle(surface, (83, 212, 139), (x + 16, y - 16), 5)
-            if player_pos.distance_to(site.pos) <= 88:
-                label = fonts["small"].render(f"E — {site.name}", True, (238, 243, 248))
-                box = label.get_rect(center=(x, y - 45)).inflate(16, 8)
-                pygame.draw.rect(surface, (5, 9, 15), box, border_radius=8)
-                pygame.draw.rect(surface, color, box, 1, border_radius=8)
-                surface.blit(label, label.get_rect(center=box.center))
+            # Interaction text is centralized in the HUD. Keeping
+            # world markers icon-only prevents overlapping prompts.
 
     def draw_site(self, surface, fonts, accent, seconds):
         if not self.current_site:

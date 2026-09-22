@@ -239,7 +239,7 @@ class WorldQualityIII:
             label = fonts["small"].render(icon, True, (241, 238, 226))
             surface.blit(label, label.get_rect(center=(rect.centerx, rect.top + 18)))
 
-            near = player_pos.distance_to(building.door) <= 76
+            near = False
             if near:
                 prompt = fonts["small"].render(
                     f"E — entrar: {building.name}",

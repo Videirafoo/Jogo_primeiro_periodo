@@ -325,14 +325,19 @@ class LivingValdrak:
     def draw(self, surface, camera, fonts, seconds, player_pos):
         font = fonts["small"]
         for site in self.sites:
-            active = player_pos.distance_to(site.pos) <= 95
-            site.draw(surface, camera, font, seconds, active)
+            site.draw(
+                surface,
+                camera,
+                font,
+                seconds,
+                False,
+            )
         for actor in self.actors:
             actor.draw(
                 surface,
                 camera,
                 font,
-                near=player_pos.distance_to(actor.pos) <= 95,
+                near=False,
             )
 
     def draw_interior(self, surface, fonts, accent):

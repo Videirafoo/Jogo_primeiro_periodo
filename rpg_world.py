@@ -3392,7 +3392,7 @@ class RPGWorld:
         value = self.combat_v25.stamina
         maximum = self.profile["max_stamina"]
         ratio = value / max(1, maximum)
-        rect = pygame.Rect(485, 646, 310, 10)
+        rect = pygame.Rect(485, 648, 310, 8)
         pygame.draw.rect(
             surface,
             (23, 30, 39),
@@ -3417,7 +3417,7 @@ class RPGWorld:
         )
         surface.blit(
             label,
-            label.get_rect(midbottom=(640, 644)),
+            label.get_rect(midbottom=(640, 646)),
         )
 
     def _draw_v25_meta_overlay(

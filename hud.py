@@ -50,9 +50,9 @@ class RPGHUD:
 
         region = pygame.Rect(
             18,
-            16,
-            326,
-            82,
+            14,
+            300,
+            70,
         )
         self.panel(
             surface,
@@ -66,7 +66,7 @@ class RPGHUD:
                 True,
                 INK,
             ),
-            (38, 31),
+            (34, 25),
         )
 
         found, total = world.exploration_progress()
@@ -82,14 +82,14 @@ class RPGHUD:
                 True,
                 MUTED,
             ),
-            (39, 66),
+            (35, 56),
         )
 
         vitals = pygame.Rect(
-            359,
-            16,
-            412,
-            82,
+            330,
+            14,
+            400,
+            70,
         )
         self.panel(
             surface,
@@ -101,10 +101,10 @@ class RPGHUD:
             surface,
             fonts["small"],
             pygame.Rect(
-                389,
-                40,
-                350,
-                12,
+                358,
+                34,
+                344,
+                10,
             ),
             world.player.health,
             world.profile["max_health"],
@@ -116,10 +116,10 @@ class RPGHUD:
             surface,
             fonts["small"],
             pygame.Rect(
-                389,
-                75,
-                350,
-                12,
+                358,
+                66,
+                344,
+                10,
             ),
             world.player.energy,
             world.profile["max_energy"],
@@ -128,10 +128,10 @@ class RPGHUD:
         )
 
         info = pygame.Rect(
-            786,
-            16,
-            476,
-            82,
+            742,
+            14,
+            520,
+            70,
         )
         self.panel(
             surface,
@@ -164,7 +164,7 @@ class RPGHUD:
                 True,
                 INK,
             ),
-            (806, 37),
+            (760, 30),
         )
 
         quest = world.active_objective()
@@ -174,7 +174,7 @@ class RPGHUD:
                 True,
                 MUTED,
             ),
-            (806, 67),
+            (760, 57),
         )
 
         boss = world.boss()
@@ -186,9 +186,9 @@ class RPGHUD:
 
             bar = pygame.Rect(
                 360,
-                116,
-                560,
-                14,
+                98,
+                500,
+                12,
             )
 
             pygame.draw.rect(
@@ -217,15 +217,15 @@ class RPGHUD:
             surface.blit(
                 label,
                 label.get_rect(
-                    center=(640, 108)
+                    center=(640, 92)
                 ),
             )
 
         dock = pygame.Rect(
-            432,
-            650,
-            416,
-            50,
+            455,
+            662,
+            370,
+            42,
         )
         self.panel(
             surface,
@@ -244,12 +244,12 @@ class RPGHUD:
             key,
             label,
         ) in enumerate(abilities):
-            x = 443 + index * 100
+            x = 464 + index * 89
             cell = pygame.Rect(
                 x,
-                657,
-                90,
-                35,
+                668,
+                80,
+                29,
             )
 
             pygame.draw.rect(
@@ -272,7 +272,7 @@ class RPGHUD:
                     True,
                     accent,
                 ),
-                (x + 7, 660),
+                (x + 6, 669),
             )
 
             surface.blit(
@@ -281,7 +281,7 @@ class RPGHUD:
                     True,
                     INK,
                 ),
-                (x + 7, 675),
+                (x + 6, 683),
             )
 
         prompt = world.interaction_hint()
@@ -292,7 +292,7 @@ class RPGHUD:
                 INK,
             )
             box = rendered.get_rect(
-                center=(640, 618)
+                center=(640, 628)
             ).inflate(
                 30,
                 16,
