@@ -205,29 +205,197 @@ class WorldQualityIII:
             if rect.right < -30 or rect.left > 1310 or rect.bottom < -30 or rect.top > 750:
                 continue
 
-            pygame.draw.rect(surface, building.color, rect, border_radius=7)
-            roof_color = tuple(max(0, c - 30) for c in building.color)
+            # Layered authored longhouse: ground shadow, stone base,
+            # timber body, beams, deep roof and warm windows.
+            shadow = pygame.Rect(
+                rect.left - 12,
+                rect.bottom - 8,
+                rect.width + 24,
+                28,
+            )
+            pygame.draw.ellipse(
+                surface,
+                (4, 7, 10),
+                shadow,
+            )
+            pygame.draw.rect(
+                surface,
+                (58, 55, 51),
+                (
+                    rect.left - 4,
+                    rect.bottom - 18,
+                    rect.width + 8,
+                    20,
+                ),
+                border_radius=5,
+            )
+            pygame.draw.rect(
+                surface,
+                building.color,
+                rect,
+                border_radius=7,
+            )
+            timber = tuple(
+                max(0, c - 42)
+                for c in building.color
+            )
+            for bx in (
+                rect.left + 12,
+                rect.centerx,
+                rect.right - 12,
+            ):
+                pygame.draw.line(
+                    surface,
+                    timber,
+                    (bx, rect.top + 9),
+                    (bx, rect.bottom - 8),
+                    5,
+                )
+            pygame.draw.line(
+                surface,
+                timber,
+                (rect.left + 4, rect.centery),
+                (rect.right - 4, rect.centery),
+                4,
+            )
+
+            roof_color = tuple(
+                max(0, c - 38)
+                for c in building.color
+            )
+            roof_dark = tuple(
+                max(0, c - 68)
+                for c in building.color
+            )
+            roof = [
+                (rect.left - 18, rect.top + 8),
+                (rect.centerx, rect.top - 62),
+                (rect.right + 18, rect.top + 8),
+            ]
+            pygame.draw.polygon(
+                surface,
+                roof_dark,
+                [
+                    (rect.left - 20, rect.top + 13),
+                    (rect.centerx, rect.top - 57),
+                    (rect.right + 20, rect.top + 13),
+                ],
+            )
             pygame.draw.polygon(
                 surface,
                 roof_color,
-                [
-                    (rect.left - 10, rect.top + 4),
-                    (rect.centerx, rect.top - 55),
-                    (rect.right + 10, rect.top + 4),
-                ],
+                roof,
+            )
+            pygame.draw.lines(
+                surface,
+                timber,
+                True,
+                roof,
+                4,
+            )
+            # Snow/grass/thatch highlight gives the roof material depth.
+            roof_highlight = (
+                (178, 194, 199)
+                if self.region == 5
+                else (126, 104, 65)
+            )
+            pygame.draw.line(
+                surface,
+                roof_highlight,
+                (rect.left - 8, rect.top + 2),
+                (rect.centerx, rect.top - 53),
+                3,
+            )
+            pygame.draw.line(
+                surface,
+                roof_highlight,
+                (rect.centerx, rect.top - 53),
+                (rect.right + 8, rect.top + 2),
+                3,
             )
 
-            door = pygame.Rect(0, 0, 26, 42)
-            door.midbottom = (rect.centerx, rect.bottom + 1)
-            pygame.draw.rect(surface, (50, 35, 28), door, border_radius=4)
-            pygame.draw.circle(surface, (213, 167, 76), (door.right - 6, door.centery), 2)
+            door = pygame.Rect(0, 0, 30, 46)
+            door.midbottom = (
+                rect.centerx,
+                rect.bottom + 1,
+            )
+            pygame.draw.rect(
+                surface,
+                (43, 30, 24),
+                door,
+                border_radius=4,
+            )
+            pygame.draw.rect(
+                surface,
+                timber,
+                door,
+                3,
+                border_radius=4,
+            )
+            pygame.draw.circle(
+                surface,
+                (213, 167, 76),
+                (door.right - 7, door.centery),
+                2,
+            )
 
-            window_color = (241, 173, 72) if night else (109, 160, 181)
+            window_color = (
+                (241, 173, 72)
+                if night
+                else (109, 160, 181)
+            )
+            if night:
+                glow = pygame.Surface(
+                    (54, 48),
+                    pygame.SRCALPHA,
+                )
+                pygame.draw.ellipse(
+                    glow,
+                    (245, 150, 55, 34),
+                    glow.get_rect(),
+                )
             for dx in (-42, 42):
-                window = pygame.Rect(rect.centerx + dx - 10, rect.centery - 14, 20, 18)
-                pygame.draw.rect(surface, window_color, window, border_radius=3)
-                pygame.draw.line(surface, (57, 50, 45), window.midtop, window.midbottom, 1)
-                pygame.draw.line(surface, (57, 50, 45), window.midleft, window.midright, 1)
+                wx = rect.centerx + dx
+                wy = rect.centery - 14
+                if night:
+                    surface.blit(
+                        glow,
+                        glow.get_rect(
+                            center=(wx, wy)
+                        ),
+                    )
+                window = pygame.Rect(
+                    wx - 11,
+                    wy - 10,
+                    22,
+                    20,
+                )
+                pygame.draw.rect(
+                    surface,
+                    (38, 31, 28),
+                    window.inflate(5, 5),
+                    border_radius=3,
+                )
+                pygame.draw.rect(
+                    surface,
+                    window_color,
+                    window,
+                    border_radius=3,
+                )
+                pygame.draw.line(
+                    surface,
+                    timber,
+                    window.midtop,
+                    window.midbottom,
+                    2,
+                )
+                pygame.draw.line(
+                    surface,
+                    timber,
+                    window.midleft,
+                    window.midright,
+                    2,
+                )
 
             icon = {
                 "taverna": "T",
