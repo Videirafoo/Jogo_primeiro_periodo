@@ -71,7 +71,7 @@ def draw_protagonist(
         facing,
         state,
         seconds,
-        scale=1.24,
+        scale=1.42,
     ):
         return True
 
