@@ -1095,7 +1095,10 @@ class RPGWorld:
         damaged = self.player.damage(resolved)
         if damaged:
             heavy = resolved >= 18
-            self.combat_v27.on_hit(heavy=heavy)
+            self.combat_v27.on_hit(
+                heavy=heavy,
+                point=self.player.pos,
+            )
             if resolved >= 24:
                 self.player.knockdown_timer = 0.48
                 self.combat_v27.on_knockdown()

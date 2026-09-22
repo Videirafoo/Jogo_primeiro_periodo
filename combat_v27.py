@@ -17,6 +17,7 @@ class CombatPresentationV27:
         self.phase_banner = None
         self.phase_timer = 0.0
         self.trail = []
+        self.impact_bursts = []
 
     def update(self, dt, player):
         self.attack_timer = max(0.0, self.attack_timer - dt)
@@ -45,6 +46,13 @@ class CombatPresentationV27:
                 new_trail.append((point, life, kind))
         self.trail = new_trail[-18:]
 
+        bursts = []
+        for point, life, heavy in self.impact_bursts:
+            life -= dt
+            if life > 0:
+                bursts.append((point, life, heavy))
+        self.impact_bursts = bursts[-10:]
+
     def on_attack(self, kind="normal"):
         timings = {
             "normal": 0.36,
@@ -55,9 +63,17 @@ class CombatPresentationV27:
         self.attack_total = timings.get(kind, 0.36)
         self.attack_timer = self.attack_total
 
-    def on_hit(self, heavy=False):
+    def on_hit(self, heavy=False, point=None):
         self.hit_timer = 0.22 if heavy else 0.14
         self.camera_kick = 1.0 if heavy else 0.62
+        if point is not None:
+            self.impact_bursts.append(
+                (
+                    pygame.Vector2(point),
+                    0.24 if heavy else 0.18,
+                    heavy,
+                )
+            )
 
     def on_parry(self):
         self.parry_timer = 0.34
@@ -90,6 +106,42 @@ class CombatPresentationV27:
         return "recovery"
 
     def draw_world_fx(self, surface, camera, player, accent):
+        for point, life, heavy in self.impact_bursts:
+            x = int(point.x - camera.x)
+            y = int(point.y - camera.y)
+            total = 0.24 if heavy else 0.18
+            progress = 1.0 - life / total
+            radius = int((18 if heavy else 12) + progress * (42 if heavy else 28))
+            alpha = int(230 * max(0.0, 1.0 - progress))
+            color = (255, 190, 92) if heavy else (225, 240, 245)
+            burst = pygame.Surface((120, 120), pygame.SRCALPHA)
+            center = pygame.Vector2(60, 60)
+            pygame.draw.circle(
+                burst,
+                (*color, alpha),
+                (60, 60),
+                radius,
+                max(2, 5 if heavy else 3),
+            )
+            for i in range(8 if heavy else 6):
+                angle = i * math.tau / (8 if heavy else 6)
+                inner = center + pygame.Vector2(
+                    math.cos(angle),
+                    math.sin(angle),
+                ) * (radius * 0.45)
+                outer = center + pygame.Vector2(
+                    math.cos(angle),
+                    math.sin(angle),
+                ) * (radius * 1.25)
+                pygame.draw.line(
+                    burst,
+                    (*color, alpha),
+                    inner,
+                    outer,
+                    3 if heavy else 2,
+                )
+            surface.blit(burst, (x - 60, y - 60))
+
         for point, life, kind in self.trail:
             x = int(point.x - camera.x)
             y = int(point.y - camera.y)
