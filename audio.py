@@ -8,6 +8,23 @@ import pygame
 
 
 ASSET_ROOT = Path(__file__).with_name("assets") / "audio" / "cc0"
+KENNEY_AUDIO = (
+    Path(__file__).with_name("assets")
+    / "kenney"
+    / "audio"
+)
+
+KENNEY_SFX = {
+    "footstep": "footstep07.ogg",
+    "sword": "knifeSlice.ogg",
+    "shield": "metalLatch.ogg",
+    "pickup": "handleCoins.ogg",
+    "gate": "doorOpen_1.ogg",
+    "choice": "metalClick.ogg",
+    "boss_defeat": "chop.ogg",
+    "inventory": "creak2.ogg",
+}
+
 EXTERNAL_SFX = {
     "sword": "steel1.wav",
     "shield": "metal1.wav",
@@ -165,6 +182,17 @@ class Audio:
         self.current_ambience = None
 
     def _create_sound(self, name):
+        kenney = KENNEY_SFX.get(name)
+        if kenney:
+            path = KENNEY_AUDIO / kenney
+            if path.exists():
+                try:
+                    return pygame.mixer.Sound(
+                        str(path)
+                    )
+                except pygame.error:
+                    pass
+
         external = EXTERNAL_SFX.get(name)
         if external:
             path = ASSET_ROOT / external

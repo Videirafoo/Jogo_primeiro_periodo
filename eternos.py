@@ -5,6 +5,7 @@ import pygame
 
 from audio import Audio
 from engine import StoryEngine
+from ending_gallery import EndingGallery
 from gameplay import Challenge
 from pause_menu import PauseMenu
 from rpg_world import RPGWorld
@@ -29,6 +30,9 @@ class GameApp:
         self.fonts = ui.fonts()
         self.audio = Audio()
         self.engine = StoryEngine(GAME)
+        self.gallery = EndingGallery(
+            GAME["endings"]
+        )
 
         self.running = True
         self.fullscreen = False
@@ -234,6 +238,9 @@ class GameApp:
 
         if next_chapter is None:
             self.ending = self.engine.choose_ending()
+            self.gallery.unlock(
+                self.ending.get("id")
+            )
             self.ending_index = 0
             self.phase = "ending"
             self._play_current_item()
@@ -649,7 +656,9 @@ class GameApp:
             if self.paused:
                 self.pause_menu.draw(
                     self.canvas, self.fonts, self.audio,
-                    self.phase, bool(self.world),
+                    self.phase,
+                    bool(self.world),
+                    self.gallery,
                 )
 
             self._present()
@@ -694,8 +703,12 @@ class GameApp:
 
         if self.paused:
             self.pause_menu.draw(
-                self.canvas, self.fonts, self.audio,
-                self.phase, bool(self.world),
+                self.canvas,
+                self.fonts,
+                self.audio,
+                self.phase,
+                bool(self.world),
+                self.gallery,
             )
 
         self._present()

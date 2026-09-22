@@ -1,213 +1,276 @@
-# OS ETERNOS — O SONHO DE VALDRAK
+# OS ETERNOS — O Sonho de Valdrak
 
-Jogo narrativo interativo em Python + Pygame, ambientado em Valdrak: uma terra viking presa entre sonho, magia, memória e tecnologia.
+Action-RPG narrativo em Python/pygame-ce, desenvolvido a partir do conto **OS ETERNOS**.
 
-## História
+A V2 combina história ramificada, exploração top-down, combate, aliados, bosses, poderes, progressão, inventário, save/load e múltiplos finais.
 
-O protagonista dorme em um dia comum e desperta dentro de Valdrak.
+## Estado atual — V2 Beta
 
-Vikings, runas, cavalos, lobos de ferro e uma força que parece conhecer as memórias dos sonhadores cercam o caminho.
-
-O poder do protagonista é **Tecnologia**:
-
-- Scanner de Runas;
-- Mapa Holográfico;
-- Pulso de Código.
-
-Durante a jornada, outros sonhadores podem formar **Os Eternos**:
-
-- Thorvald — Raio de Torv;
-- Aurel — Olho do Céu;
-- Kaion — Lâmina do Vento;
-- Brenor — Fogo da Forja;
-- Eiran — Cura da Aurora;
-- Noctar — Sombra dos Corvos.
-
-## Como a V2 funciona
-
-A história começa diretamente no prólogo. Não existe menu antes do conto.
-
-A V2 mistura narrativa, decisão e gameplay. O jogador lê a cena, escolhe um caminho e entra em desafios jogáveis que alteram atributos e consequências.
-
-A campanha possui:
-
-- prólogo com 16 momentos narrativos e primeiro desafio ainda no prólogo;
+- prólogo interativo;
 - 7 capítulos;
-- escolhas ramificadas;
-- exploração top-down por capítulo com câmera seguindo o personagem;
-- combate corpo a corpo contra lobos de ferro;
-- Pulso de Código com energia e cooldown;
-- dash;
-- XP e níveis;
-- aliados acompanhando o protagonista;
-- NPC próprio em cada capítulo com diálogo e presente;
-- três arquétipos de inimigo: lobo, saqueador e corvo sombrio;
-- um Guardião/Boss único por capítulo;
-- loot de poção, essência e fragmentos;
-- inventário visual pausável com `I`/`TAB`;
-- identidade visual própria para Thorvald, Aurel, Kaion, Brenor, Eiran e Noctar;
-- aliados usando seus poderes automaticamente durante o combate;
-- retrato e caixa de diálogo para NPCs;
-- hit-stop, screen shake e flash de impacto;
-- aura visual própria para os Guardiões;
-- três santuários físicos para escolher caminhos;
-- exploração de runas com WASD/setas;
-- desafios de timing para combate, portões e tecnologia;
-- esquiva de machados e lobos de ferro;
-- desempenho do jogador afetando Coragem, Sabedoria, Tecnologia e Caos;
-- 242 caminhos completos atualmente válidos;
+- 242 caminhos narrativos auditados;
 - 5 finais;
-- áudio ambiente contínuo para chuva, vento, bosque, fogo, tecnologia e portal;
-- efeitos sonoros separados para acontecimentos;
-- interface gráfica redimensionável;
-- fullscreen;
-- HUD compacto de atributos, aliados e tecnologia.
+- exploração RPG por capítulo;
+- mapas TMX compatíveis com Tiled;
+- tiles e sprites reais CC0 da Kenney;
+- protagonista, aliados, inimigos e bosses por spritesheet;
+- câmera top-down;
+- colisão por object layer dos mapas;
+- ataque, Pulso de Código e dash;
+- seis Eternos com poderes;
+- NPCs, inimigos e 7 Guardiões/Bosses;
+- loot e inventário;
+- XP e níveis;
+- menu de pausa;
+- save/load;
+- galeria de finais;
+- créditos;
+- áudio em camadas;
+- sons CC0 externos;
+- build Windows automatizado com PyInstaller.
+
+## Stack
+
+- Python 3.12
+- pygame-ce
+- PyTMX
+- pyscroll
+- Pillow
+- PyInstaller
+- Tiled Map Editor para editar os mapas TMX
+
+As dependências estão em `requirements.txt`.
+
+## Instalação no Windows / VS Code
+
+No PowerShell, execute **somente comandos de terminal**:
+
+```powershell
+cd C:\Users\Usuario\Jogo_primeiro_periodo
+git switch v2-interface-grafica
+git pull
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python eternos.py
+```
+
+> **Importante:** não cole código Python como `rects = []`, `for ...`, `if ...` ou `return ...` diretamente no PowerShell. Código Python fica nos arquivos `.py` e é executado com `python arquivo.py`.
 
 ## Controles
 
 | Tecla | Ação |
 |---|---|
-| Enter / Espaço | Revelar/continuar narrativa ou acertar desafios de timing |
-| 1 / 2 / 3 | Escolher uma ação fora da exploração |
-| WASD / Setas | Mover no mundo, scanner e esquivas |
-| Clique | Caminhar até um ponto / interagir em desafios |
-| E | Conversar com NPC / interagir com santuário |
-| Espaço | Ataque corpo a corpo durante exploração |
+| WASD / Setas | Mover |
+| Espaço | Ataque |
 | Q | Pulso de Código |
 | Shift | Dash |
-| 1 | Usar Poção Nórdica durante exploração |
-| 2 | Usar Essência Rúnica durante exploração |
-| I / Tab | Abrir/fechar inventário visual |
-| M | Ligar/desligar áudio |
-| - / + | Ajustar volume |
+| R | Poder/ajuda de um Eterno |
+| E | Falar / interagir / escolher caminho |
+| 1 | Poção Nórdica |
+| 2 | Essência Rúnica |
+| I / Tab | Inventário |
+| Esc / P | Menu de pausa |
 | F5 | Salvar |
 | F9 | Carregar |
+| M | Áudio on/off |
+| - / + | Volume |
 | F11 | Tela cheia |
-| Esc | Sair |
-| R | Sonhar novamente após o final |
 
-Também é possível usar o mouse.
+## Menu de pausa
 
-## Rodar no Windows / VS Code
+`Esc` ou `P` abre:
 
-Abra o terminal na pasta do projeto:
+- Continuar
+- Salvar jogo
+- Carregar jogo
+- Inventário
+- Áudio
+- Controles
+- Galeria de finais
+- Créditos
+- Sair
 
-```powershell
-git switch v2-interface-grafica
-git pull
+# Plano de construção e status
+
+## Fase 1 — Tilemap real
+
+**Implementado.**
+
+- `map_loader.py`
+- `assets/maps/chapter_01.tmx` até `chapter_07.tmx`
+- PyTMX
+- mapas editáveis no Tiled
+- colisões via object layer
+- tiles CC0 Kenney
+
+## Fase 2 — Sprites
+
+**Implementado.**
+
+- `sprite_animator.py`
+- spritesheet CC0 Kenney
+- player
+- aliados
+- inimigos
+- bosses
+- estados idle, walk, attack, hurt, dash e pulse
+
+## Fase 3 — Aliados
+
+**Implementado.**
+
+- Thorvald — Raio de Torv
+- Aurel — Olho do Céu
+- Kaion — Lâmina do Vento
+- Brenor — Fogo da Forja
+- Eiran — Cura da Aurora
+- Noctar — Sombra dos Corvos
+
+Eles ajudam automaticamente e também podem ser acionados com `R`.
+
+## Fase 4 — HUD
+
+**Implementado em `hud.py`.**
+
+- HUD compacta
+- vida e energia
+- região
+- XP/nível
+- itens
+- barra de boss
+- dock de habilidades
+- prompt contextual
+
+## Fase 5 — Áudio
+
+**Implementado em quatro camadas.**
+
+1. ambiente;
+2. combate;
+3. poderes;
+4. UI.
+
+Sons externos CC0 vêm de Kenney RPG Audio e `code4fukui/sound-cc0`.
+
+## Fase 6 — Progressão e persistência
+
+**Implementado.**
+
+- save/load;
+- autosave;
+- inventário;
+- XP e nível;
+- finais desbloqueáveis;
+- galeria persistente.
+
+## Fase 7 — Distribuição
+
+**Implementado.**
+
+- `OsEternos.spec`
+- `.github/workflows/windows-beta.yml`
+- geração de `OsEternosV2.exe`
+- artefato Windows via GitHub Actions
+
+## Estrutura principal
+
+```text
+Jogo_primeiro_periodo/
+├── assets/
+│   ├── maps/
+│   ├── kenney/
+│   │   ├── roguelike/
+│   │   ├── characters/
+│   │   ├── ui/
+│   │   └── audio/
+│   └── audio/cc0/
+├── eternos.py
+├── engine.py
+├── story_data.py
+├── rpg_world.py
+├── rpg_entities.py
+├── gameplay.py
+├── map_loader.py
+├── sprite_animator.py
+├── hud.py
+├── character_visuals.py
+├── world_art.py
+├── pause_menu.py
+├── ending_gallery.py
+├── credits.py
+├── audio.py
+├── savegame.py
+├── OsEternos.spec
+└── requirements.txt
 ```
 
-Crie o ambiente:
+## Assets e licenças
 
-```powershell
-python -m venv .venv
-```
+### Kenney
 
-Ative:
+CC0 1.0.
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
+Packs usados:
 
-Atualize o ambiente desta V2:
+- Roguelike Base Pack
+- Roguelike Characters Pack
+- UI Adventure Pack
+- RPG Audio
 
-```powershell
-pip uninstall -y pygame
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
+Crédito recomendado: **Art & audio by Kenney (kenney.nl) — CC0**.
 
-Execute:
+### sound-cc0
 
-```powershell
-python eternos.py
-```
+Fonte: https://github.com/code4fukui/sound-cc0
+
+CC0 / domínio público.
+
+As licenças originais ficam dentro de `assets/`.
 
 ## Testes
 
 ```powershell
 python -m unittest -v
-```
-
-Smoke gráfico:
-
-```powershell
 python eternos.py --smoke
 ```
 
-## Estrutura
+O CI valida sintaxe, testes e smoke gráfico.
 
-```text
-Jogo_primeiro_periodo/
-├── eternos.py
-├── engine.py
-├── gameplay.py
-├── rpg_world.py
-├── rpg_entities.py
-├── character_visuals.py
-├── savegame.py
-├── story_data.py
-├── ui.py
-├── audio.py
-├── test_engine.py
-├── test_gameplay.py
-├── test_rpg_world.py
-├── test_visual_rpg.py
-├── test_savegame.py
-├── test_audio.py
-├── REFERENCIAS_RPG.md
-├── requirements.txt
-├── README.md
-├── EXPLICACAO.md
-├── INSTRUCOES.md
-└── .github/
-    └── workflows/
-        └── python.yml
+## Build local
+
+```powershell
+pyinstaller --noconfirm OsEternos.spec
 ```
 
-## Arquitetura
+Resultado:
 
-### story_data.py
+```text
+dist/OsEternosV2.exe
+```
 
-Conteúdo canônico recuperado do jogo original: prólogo, aliados, capítulos, escolhas, requisitos, consequências, atributos e finais.
+## Build Beta pelo GitHub
 
-### engine.py
+Workflow:
 
-Motor independente da interface: estado, aliados, ferramentas, requisitos, efeitos, progressão e seleção do final.
+```text
+Windows V2 Beta
+```
 
-### ui.py
+Ele instala dependências, roda testes, cria o EXE e publica o artefato `OsEternosV2-Windows`.
 
-Design visual do jogo: cenas, painéis, HUD, botões, backgrounds procedurais e adaptação de tela.
+## Evolução depois da Beta
 
-### gameplay.py
+A base técnica fica preparada para:
 
-Desafios jogáveis da campanha: rastreamento de runas, timing e esquiva.
+1. trocar sprites Kenney por arte própria;
+2. desenhar tiles exclusivos de Valdrak;
+3. animações frame-a-frame;
+4. retratos ilustrados;
+5. trilha musical autoral;
+6. mais quests e NPCs;
+7. balanceamento de bosses;
+8. gamepad;
+9. opções gráficas e acessibilidade;
+10. release candidata.
 
-### rpg_world.py
-
-Exploração top-down: jogador, câmera, colisão, inimigos, combate, Pulso de Código, dash, partículas, XP, nível, aliados acompanhantes e santuários de decisão.
-
-### savegame.py
-
-Persistência do capítulo, atributos narrativos, aliados e progressão RPG.
-
-### audio.py
-
-Áudio procedural separado em ambiente contínuo e efeitos de acontecimentos. Chuva, vento, bosque, fogo, tecnologia e portal usam loops próprios; trovão, espada, machado, cavalo, lobo, runa e outros eventos usam SFX independentes.
-
-### eternos.py
-
-Loop principal da V2 gráfica.
-
-## Princípio desta versão
-
-Narrativa e gameplay trabalham juntos.
-
-O fluxo principal é: cena → escolha → desafio jogável → consequência → progressão → nova cena.
-
-As escolhas mudam o caminho, mas não podem impedir o jogador de chegar ao fim da história.
-
-## Autor
-
-**Fernando Otávio Videira Junior**  
-Engenharia de Software — Universidade de Vassouras, Campus Saquarema
+O motor foi separado dos assets para que o gráfico possa evoluir sem desmontar os sistemas de gameplay.

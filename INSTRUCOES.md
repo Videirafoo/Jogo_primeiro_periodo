@@ -49,3 +49,10 @@ Não use `app_pygame.py`. Esse arquivo pertencia ao protótipo de adivinhação 
 - `Esc`: sair.
 
 A chuva e outros ambientes ficam tocando continuamente quando a cena pede. Os acontecimentos usam efeitos separados.
+
+
+## Graphic Overhaul V2 Beta
+
+A V2 usa mapas TMX via PyTMX, tiles e sprites CC0 da Kenney, HUD própria, galeria de finais e pipeline PyInstaller para Windows.
+
+Para rodar, use apenas comandos no PowerShell. Código Python deve permanecer nos arquivos .py e nunca deve ser colado linha por linha no PowerShell.

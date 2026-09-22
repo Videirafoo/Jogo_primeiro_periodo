@@ -7,8 +7,11 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 
 from audio import ASSET_ROOT, EXTERNAL_SFX
+from ending_gallery import EndingGallery
 from pause_menu import PauseMenu
+from story_data import GAME
 from world_art import REGIONS, WorldArt
+import ui
 
 
 class WorldMenuTests(unittest.TestCase):
@@ -30,9 +33,47 @@ class WorldMenuTests(unittest.TestCase):
         art.draw(self.surface, pygame.Vector2(0, 0), 1.5)
         self.assertNotEqual(self.surface.get_at((640, 360))[:3], (0, 0, 0))
 
-    def test_menu_tem_save_load(self):
+    def test_menu_tem_save_load_galeria_creditos(self):
         actions = {action for _label, action in PauseMenu.OPTIONS}
-        self.assertTrue({"save", "load", "controls", "resume", "quit"} <= actions)
+        expected = {
+            "save",
+            "load",
+            "controls",
+            "gallery",
+            "credits",
+            "resume",
+            "quit",
+        }
+        self.assertTrue(expected <= actions)
+
+    def test_galeria_e_creditos_renderizam(self):
+        menu = PauseMenu()
+        fonts = ui.fonts()
+        gallery = EndingGallery(GAME["endings"])
+
+        class FakeAudio:
+            master_volume = 0.72
+            enabled = True
+
+        menu.screen = "gallery"
+        menu.draw(
+            self.surface,
+            fonts,
+            FakeAudio(),
+            "explore",
+            True,
+            gallery,
+        )
+
+        menu.screen = "credits"
+        menu.draw(
+            self.surface,
+            fonts,
+            FakeAudio(),
+            "explore",
+            True,
+            gallery,
+        )
 
     def test_esc_menu_retorna_resume(self):
         menu = PauseMenu()

@@ -2,6 +2,8 @@ import math
 
 import pygame
 
+from sprite_animator import draw_actor
+
 
 INK = (236, 242, 248)
 DARK = (8, 13, 20)
@@ -72,23 +74,29 @@ def draw_ally(surface, name, pos, offset, seconds, index=0):
     y = int(pos.y - offset.y)
     bob = int(math.sin(seconds * 5 + index) * 2)
 
-    pygame.draw.ellipse(
+    rendered = draw_actor(
         surface,
-        (10, 15, 22),
-        (x - 18, y + 13, 36, 12),
+        name,
+        (x, y),
+        state="walk",
+        seconds=seconds,
+        tint=color,
     )
-    pygame.draw.rect(
-        surface,
-        color,
-        (x - 11, y - 9 + bob, 22, 30),
-        border_radius=7,
-    )
-    pygame.draw.circle(
-        surface,
-        (205, 173, 145),
-        (x, y - 18 + bob),
-        10,
-    )
+
+    if not rendered:
+        pygame.draw.rect(
+            surface,
+            color,
+            (x - 11, y - 9 + bob, 22, 30),
+            border_radius=7,
+        )
+        pygame.draw.circle(
+            surface,
+            (205, 173, 145),
+            (x, y - 18 + bob),
+            10,
+        )
+
     pygame.draw.circle(
         surface,
         color,

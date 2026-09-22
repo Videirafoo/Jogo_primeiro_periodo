@@ -4,6 +4,7 @@ import random
 import pygame
 
 from character_visuals import draw_boss_aura
+from sprite_animator import draw_actor
 
 
 INK = (236, 242, 248)
@@ -200,12 +201,27 @@ class EnemyActor:
                 scale=1.0,
             )
 
-        if self.archetype == "wolf":
-            self._draw_wolf(surface, x, y, color, scale)
-        elif self.archetype == "raider":
-            self._draw_raider(surface, x, y, color, scale)
-        else:
-            self._draw_raven(surface, x, y, color, scale)
+        rendered = draw_actor(
+            surface,
+            self.archetype,
+            (x, y),
+            state=(
+                "hurt"
+                if self.hit_flash > 0
+                else "walk"
+            ),
+            seconds=pygame.time.get_ticks() / 1000,
+            boss=self.boss,
+            tint=self.color,
+        )
+
+        if not rendered:
+            if self.archetype == "wolf":
+                self._draw_wolf(surface, x, y, color, scale)
+            elif self.archetype == "raider":
+                self._draw_raider(surface, x, y, color, scale)
+            else:
+                self._draw_raven(surface, x, y, color, scale)
 
         width = 86 if self.boss else 48
         ratio = max(0, self.hp) / self.max_hp

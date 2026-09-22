@@ -17,6 +17,8 @@ class PauseMenu:
         ("INVENTÁRIO", "inventory"),
         ("ÁUDIO", "audio"),
         ("CONTROLES", "controls"),
+        ("GALERIA DE FINAIS", "gallery"),
+        ("CRÉDITOS", "credits"),
         ("SAIR DO JOGO", "quit"),
     ]
 
@@ -30,7 +32,7 @@ class PauseMenu:
         self.screen = "menu"
 
     def handle_key(self, event):
-        if self.screen == "controls":
+        if self.screen in {"controls", "gallery", "credits"}:
             if event.key in (
                 pygame.K_ESCAPE,
                 pygame.K_RETURN,
@@ -52,15 +54,15 @@ class PauseMenu:
 
         if event.key in (pygame.K_RETURN, pygame.K_SPACE):
             action = self.OPTIONS[self.selected][1]
-            if action == "controls":
-                self.screen = "controls"
+            if action in {"controls", "gallery", "credits"}:
+                self.screen = action
                 return None
             return action
 
         return None
 
     def handle_click(self, point):
-        if self.screen == "controls":
+        if self.screen in {"controls", "gallery", "credits"}:
             self.screen = "menu"
             return None
 
@@ -68,14 +70,14 @@ class PauseMenu:
             if rect.collidepoint(point):
                 self.selected = index
                 action = self.OPTIONS[index][1]
-                if action == "controls":
-                    self.screen = "controls"
+                if action in {"controls", "gallery", "credits"}:
+                    self.screen = action
                     return None
                 return action
 
         return None
 
-    def draw(self, surface, fonts, audio, phase, has_world):
+    def draw(self, surface, fonts, audio, phase, has_world, gallery=None):
         veil = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         veil.fill((0, 0, 0, 190))
         surface.blit(veil, (0, 0))
@@ -98,11 +100,28 @@ class PauseMenu:
             self._draw_controls(surface, fonts, panel)
             return
 
+        if self.screen == "gallery":
+            self._draw_gallery(
+                surface,
+                fonts,
+                panel,
+                gallery,
+            )
+            return
+
+        if self.screen == "credits":
+            self._draw_credits(
+                surface,
+                fonts,
+                panel,
+            )
+            return
+
         self.rects = []
-        y = 194
+        y = 184
         for index, (label, action) in enumerate(self.OPTIONS):
             disabled = action == "inventory" and not has_world
-            rect = pygame.Rect(405, y + index * 57, 470, 46)
+            rect = pygame.Rect(405, y + index * 47, 470, 40)
             self.rects.append(rect)
 
             selected = index == self.selected
@@ -121,7 +140,7 @@ class PauseMenu:
             f"Volume {volume}% • Estado: {phase}"
         )
         rendered = fonts["small"].render(footer, True, MUTED)
-        surface.blit(rendered, rendered.get_rect(center=(640, 610)))
+        surface.blit(rendered, rendered.get_rect(center=(640, 622)))
 
     def _draw_controls(self, surface, fonts, panel):
         heading = fonts["heading"].render("CONTROLES", True, GOLD)
@@ -155,3 +174,109 @@ class PauseMenu:
             MUTED,
         )
         surface.blit(hint, hint.get_rect(center=(640, 600)))
+
+    def _draw_gallery(
+        self,
+        surface,
+        fonts,
+        panel,
+        gallery,
+    ):
+        heading = fonts["heading"].render(
+            "GALERIA DE FINAIS",
+            True,
+            GOLD,
+        )
+        surface.blit(heading, (405, 195))
+
+        entries = (
+            gallery.entries()
+            if gallery
+            else []
+        )
+        y = 245
+
+        for entry in entries:
+            unlocked = entry["unlocked"]
+            title = (
+                entry["title"]
+                if unlocked
+                else "Final bloqueado"
+            )
+            status = (
+                "DESBLOQUEADO"
+                if unlocked
+                else "???"
+            )
+            color = (
+                CYAN
+                if unlocked
+                else MUTED
+            )
+
+            surface.blit(
+                fonts["body"].render(
+                    title,
+                    True,
+                    color,
+                ),
+                (405, y),
+            )
+            surface.blit(
+                fonts["small"].render(
+                    status,
+                    True,
+                    color,
+                ),
+                (735, y + 4),
+            )
+            y += 55
+
+        surface.blit(
+            fonts["small"].render(
+                "Esc ou Enter para voltar",
+                True,
+                MUTED,
+            ),
+            (405, 575),
+        )
+
+    def _draw_credits(
+        self,
+        surface,
+        fonts,
+        panel,
+    ):
+        from credits import CREDITS
+
+        heading = fonts["heading"].render(
+            "CRÉDITOS",
+            True,
+            GOLD,
+        )
+        surface.blit(heading, (405, 190))
+
+        y = 232
+        for line in CREDITS:
+            if y > 575:
+                break
+
+            color = INK if line else MUTED
+            surface.blit(
+                fonts["small"].render(
+                    line,
+                    True,
+                    color,
+                ),
+                (405, y),
+            )
+            y += 24
+
+        surface.blit(
+            fonts["small"].render(
+                "Esc ou Enter para voltar",
+                True,
+                MUTED,
+            ),
+            (405, 600),
+        )

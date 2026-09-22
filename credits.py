@@ -1,0 +1,16 @@
+CREDITS = [
+    "OS ETERNOS — O Sonho de Valdrak",
+    "",
+    "Criação, história e direção: Fernando / Videira",
+    "Programação e game design: projeto acadêmico evoluído em Pygame",
+    "",
+    "Arte e UI CC0: Kenney (kenney.nl)",
+    "Roguelike Base Pack • Roguelike Characters Pack • UI Adventure Pack",
+    "Áudio RPG CC0: Kenney — RPG Audio",
+    "SFX CC0 adicionais: code4fukui/sound-cc0",
+    "",
+    "Engine: Python 3.12 + pygame-ce + PyTMX",
+    "Mapas: formato TMX compatível com Tiled Map Editor",
+    "",
+    "Obrigado por explorar Valdrak.",
+]

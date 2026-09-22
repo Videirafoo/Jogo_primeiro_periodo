@@ -6,6 +6,9 @@ import pygame
 from character_visuals import ALLY_STYLES, draw_ally, draw_dialogue_box
 from rpg_entities import EnemyActor, Loot, NPC
 from world_art import WorldArt
+from sprite_animator import draw_actor
+from hud import RPGHUD
+from map_loader import MapScene
 
 
 WORLD_W = 1800
@@ -371,89 +374,47 @@ class Player:
     def draw(self, surface, offset, accent):
         x = int(self.pos.x - offset.x)
         y = int(self.pos.y - offset.y)
+        seconds = pygame.time.get_ticks() / 1000
 
-        walk_wave = math.sin(self.anim_time * 11)
-        bob = int(walk_wave * 3) if self.state == "walk" else 0
-        lean = 6 if self.state == "dash" else 0
-
-        body_color = {
-            "hurt": (164, 180, 198),
-            "pulse": (49, 111, 134),
-            "dash": (49, 90, 126),
-        }.get(self.state, (52, 87, 118))
-
-        shadow_w = 26 if self.state == "dash" else 22
-        pygame.draw.ellipse(
+        rendered = draw_actor(
             surface,
-            (18, 23, 30),
-            (x - shadow_w, y + 16, shadow_w * 2, 14),
+            "player",
+            (x, y),
+            state=self.state,
+            facing=self.facing,
+            seconds=seconds,
+            tint=accent,
         )
 
-        leg_offset = int(walk_wave * 5) if self.state == "walk" else 0
-        pygame.draw.line(
-            surface,
-            (31, 44, 58),
-            (x - 7, y + 18),
-            (x - 8 - leg_offset, y + 35),
-            5,
-        )
-        pygame.draw.line(
-            surface,
-            (31, 44, 58),
-            (x + 7, y + 18),
-            (x + 8 + leg_offset, y + 35),
-            5,
-        )
-
-        pygame.draw.rect(
-            surface,
-            body_color,
-            (x - 16 + lean, y - 12 + bob, 32, 39),
-            border_radius=10,
-        )
-        pygame.draw.circle(
-            surface,
-            (208, 173, 145),
-            (x + lean, y - 22 + bob),
-            14,
-        )
-
-        hood = [
-            (x - 16 + lean, y - 26 + bob),
-            (x + lean, y - 43 + bob),
-            (x + 16 + lean, y - 26 + bob),
-        ]
-        pygame.draw.polygon(surface, (35, 57, 78), hood)
-
-        end = pygame.Vector2(x + lean, y) + self.facing * 31
-        pygame.draw.line(
-            surface,
-            accent,
-            (x + lean, y + 2),
-            end,
-            4,
-        )
+        if not rendered:
+            pygame.draw.circle(
+                surface,
+                accent,
+                (x, y),
+                22,
+            )
 
         if self.state == "attack":
             pygame.draw.arc(
                 surface,
                 GOLD,
-                pygame.Rect(x - 62, y - 62, 124, 124),
+                pygame.Rect(
+                    x - 62,
+                    y - 62,
+                    124,
+                    124,
+                ),
                 -0.95,
                 0.95,
                 7,
             )
-            pygame.draw.arc(
-                surface,
-                INK,
-                pygame.Rect(x - 49, y - 49, 98, 98),
-                -0.85,
-                0.85,
-                2,
-            )
 
         if self.state == "pulse":
-            radius = int(50 + (0.8 - self.pulse_timer) * 185)
+            radius = int(
+                50
+                + (0.8 - self.pulse_timer)
+                * 185
+            )
             pygame.draw.circle(
                 surface,
                 CYAN,
@@ -461,24 +422,21 @@ class Player:
                 max(10, radius),
                 4,
             )
-            for index in range(8):
-                angle = self.anim_time * 5 + index * math.tau / 8
-                px = x + math.cos(angle) * 34
-                py = y + math.sin(angle) * 34
-                pygame.draw.circle(
-                    surface,
-                    CYAN,
-                    (int(px), int(py)),
-                    3,
-                )
 
         if self.state == "dash":
             for index in range(3):
-                trail = pygame.Vector2(x, y) - self.facing * (22 + index * 16)
+                trail = (
+                    pygame.Vector2(x, y)
+                    - self.facing
+                    * (22 + index * 16)
+                )
                 pygame.draw.circle(
                     surface,
-                    (*accent,),
-                    (int(trail.x), int(trail.y)),
+                    accent,
+                    (
+                        int(trail.x),
+                        int(trail.y),
+                    ),
                     8 - index * 2,
                     2,
                 )
@@ -540,9 +498,25 @@ class RPGWorld:
         self.hit_stop = 0.0
         self.flash_timer = 0.0
         self.ally_cooldown = 0.8
-        self.world_art = WorldArt(chapter["number"], (WORLD_W, WORLD_H))
+        self.world_art = WorldArt(
+            chapter["number"],
+            (WORLD_W, WORLD_H),
+        )
+        self.map_scene = MapScene(
+            chapter["number"]
+        )
+        self.hud = RPGHUD()
+        self.step_timer = 0.0
 
-        self.obstacles = self._build_obstacles()
+        map_collisions = (
+            self.map_scene.collision_rects
+            if self.map_scene.available
+            else []
+        )
+        self.obstacles = (
+            map_collisions
+            or self._build_obstacles()
+        )
         self.shrines = self._build_shrines()
         self.enemies = self._build_enemies()
         self.loots = []
@@ -983,7 +957,22 @@ class RPGWorld:
         if self.inventory_open:
             return
 
-        self.player.update(dt, keys, self.obstacles)
+        self.player.update(
+            dt,
+            keys,
+            self.obstacles,
+        )
+
+        self.step_timer = max(
+            0.0,
+            self.step_timer - dt,
+        )
+        if (
+            self.player.is_moving
+            and self.step_timer <= 0
+        ):
+            self.events.append("footstep")
+            self.step_timer = 0.34
 
         self.ally_cooldown = max(
             0.0,
@@ -1066,7 +1055,25 @@ class RPGWorld:
     def draw(self, surface, fonts):
         seconds = pygame.time.get_ticks() / 1000
         theme = self.theme
-        self.world_art.draw(surface, self.camera, seconds)
+
+        if (
+            self.map_scene
+            and self.map_scene.draw(
+                surface,
+                self.camera,
+            )
+        ):
+            self.world_art.draw_overlay(
+                surface,
+                self.camera,
+                seconds,
+            )
+        else:
+            self.world_art.draw(
+                surface,
+                self.camera,
+                seconds,
+            )
         items = []
         for rect in self.obstacles[4:]:
             items.append((rect.bottom, "obstacle", rect))
@@ -1259,156 +1266,48 @@ class RPGWorld:
             24,
             1,
         )
-    def _draw_hud(self, surface, fonts, theme):
-        accent = theme["accent"]
-        panel = pygame.Rect(18, 16, 1244, 92)
-        pygame.draw.rect(
-            surface,
-            (7, 12, 19),
-            panel,
-            border_radius=16,
-        )
-        pygame.draw.rect(
-            surface,
-            (55, 70, 84),
-            panel,
-            1,
-            border_radius=16,
-        )
-
-        title = fonts["heading"].render(
-            theme["name"],
-            True,
-            INK,
-        )
-        surface.blit(title, (38, 29))
-
-        level_text = (
-            f"NÍVEL {self.profile['level']}  •  "
-            f"EXP {self.profile['xp']}/{self.profile['xp_next']}  •  "
-            f"ABATES {self.profile['kills']}"
-        )
-        surface.blit(
-            fonts["small"].render(
-                level_text,
-                True,
-                MUTED,
-            ),
-            (39, 63),
-        )
-
-        self._bar(
-            surface,
-            fonts["small"],
-            pygame.Rect(540, 31, 250, 15),
-            self.player.health,
-            self.profile["max_health"],
-            RED,
-            "VIDA",
-        )
-        self._bar(
-            surface,
-            fonts["small"],
-            pygame.Rect(540, 68, 250, 15),
-            self.player.energy,
-            self.profile["max_energy"],
-            CYAN,
-            "ENERGIA",
-        )
-
+    def interaction_hint(self):
         nearest = self.nearest_shrine()
-        hint = (
-            "WASD mover • ESPAÇO atacar • Q Pulso • "
-            "SHIFT dash • E interagir"
-        )
 
         if (
             self.npc
-            and self.player.pos.distance_to(self.npc.pos) <= 100
+            and self.player.pos.distance_to(
+                self.npc.pos
+            )
+            <= 100
         ):
-            hint = f"E — falar com {self.npc.name}"
-        elif (
+            return f"E — falar com {self.npc.name}"
+
+        if (
             nearest
-            and self.player.pos.distance_to(nearest.pos) <= 95
+            and self.player.pos.distance_to(
+                nearest.pos
+            )
+            <= 95
         ):
             if self.boss_alive():
-                hint = "Derrote o Guardião para liberar os caminhos"
-            elif nearest.available:
-                hint = (
+                return (
+                    "Derrote o Guardião "
+                    "para liberar os caminhos"
+                )
+
+            if nearest.available:
+                return (
                     f"E — escolher Caminho "
                     f"{nearest.index + 1}"
                 )
-            else:
-                hint = f"Bloqueado: {nearest.reason}"
 
-        hint_surf = fonts["small"].render(
-            hint,
-            True,
-            accent,
-        )
-        surface.blit(
-            hint_surf,
-            hint_surf.get_rect(topright=(1235, 35)),
-        )
+            return f"Bloqueado: {nearest.reason}"
 
-        inventory = self.profile["inventory"]
-        item_text = (
-            f"[1] Poção {inventory['pocao']}  •  "
-            f"[2] Essência {inventory['essencia']}  •  "
-            f"Fragmentos {inventory['fragmento']}"
-        )
-        surface.blit(
-            fonts["small"].render(
-                item_text,
-                True,
-                MUTED,
-            ),
-            (820, 82),
-        )
+        return ""
 
-        boss = self.boss()
-        if boss and not boss.dead:
-            ratio = max(0, boss.hp) / boss.max_hp
-            boss_rect = pygame.Rect(390, 116, 500, 12)
-            pygame.draw.rect(
-                surface,
-                (37, 29, 29),
-                boss_rect,
-                border_radius=6,
-            )
-            pygame.draw.rect(
-                surface,
-                GOLD,
-                (
-                    boss_rect.x,
-                    boss_rect.y,
-                    int(boss_rect.width * ratio),
-                    boss_rect.height,
-                ),
-                border_radius=6,
-            )
-            boss_label = fonts["small"].render(
-                f"GUARDIÃO — {boss.name}",
-                True,
-                GOLD,
-            )
-            surface.blit(
-                boss_label,
-                boss_label.get_rect(
-                    center=(640, 106)
-                ),
-            )
-
-        if self.notice_timer > 0 and self.notice:
-            notice = fonts["small"].render(
-                self.notice,
-                True,
-                GOLD,
-            )
-            surface.blit(
-                notice,
-                notice.get_rect(topright=(1235, 69)),
-            )
+    def _draw_hud(self, surface, fonts, theme):
+        self.hud.draw(
+            surface,
+            fonts,
+            self,
+            theme,
+        )
 
     def _draw_inventory(self, surface, fonts, theme):
         veil = pygame.Surface(
