@@ -175,6 +175,24 @@ class GameApp:
             for event_name in self.world.pop_events():
                 self.audio.play(event_name, 0.58)
 
+            if self.world.music_state != self.world.last_music_state:
+                self.audio.set_ambience(
+                    self.world.music_state,
+                    direct=True,
+                )
+                self.world.last_music_state = self.world.music_state
+
+            if self.world.requested_travel_chapter is not None:
+                target = self.world.requested_travel_chapter
+                self.engine.chapter_index = target - 1
+                self._start_exploration()
+                if self.world:
+                    self.world.notice = (
+                        f"Fast Travel concluído • Região {target}"
+                    )
+                    self.world.notice_timer = 2.8
+                return
+
             if self.world.selected_choice is not None:
                 index = self.world.selected_choice
                 reward = self.world.apply_rewards()
@@ -560,7 +578,7 @@ class GameApp:
             self.pause_menu.reset()
             return
 
-        if event.key == pygame.K_m:
+        if event.key == pygame.K_v:
             enabled = self.audio.toggle()
             self.message = "Áudio ligado" if enabled else "Áudio desligado"
             return

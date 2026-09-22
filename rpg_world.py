@@ -11,6 +11,18 @@ from hud import RPGHUD
 from map_loader import MapScene
 from character_art import draw_protagonist
 from adventure_system import build_chests
+from boss_v24 import BossCombatController
+from living_valdrak import LivingValdrak
+from progression_v24 import (
+    add_and_auto_equip,
+    codex_lines,
+    ensure_progression_profile,
+    equipment_stats,
+    quest_lines,
+    roll_equipment,
+    unlock_codex,
+    world_map_lines,
+)
 from world_expansion import (
     build_region_places,
     interact_with_place,
@@ -237,6 +249,9 @@ class Player:
         self.auto_target = None
         self.state = "idle"
         self.is_moving = False
+        self.attack_combo = 0
+        self.heavy_timer = 0.0
+        self.death_timer = 0.0
 
         self.profile.setdefault("level", 1)
         self.profile.setdefault("xp", 0)
@@ -291,6 +306,8 @@ class Player:
         self.pulse_timer = max(0.0, self.pulse_timer - dt)
         self.dash_timer = max(0.0, self.dash_timer - dt)
         self.invulnerable = max(0.0, self.invulnerable - dt)
+        self.heavy_timer = max(0.0, self.heavy_timer - dt)
+        self.death_timer = max(0.0, self.death_timer - dt)
 
         self.energy = min(
             self.profile["max_energy"],
@@ -330,16 +347,20 @@ class Player:
                 else self.auto_target
             )
 
-        if self.invulnerable > 0:
+        if self.death_timer > 0:
+            self.state = "death"
+        elif self.invulnerable > 0:
             self.state = "hurt"
+        elif self.heavy_timer > 0:
+            self.state = "heavy"
         elif self.pulse_timer > 0:
-            self.state = "pulse"
+            self.state = "power"
         elif self.attack_timer > 0:
-            self.state = "attack"
+            self.state = "attack1" if self.attack_combo % 2 else "attack2"
         elif self.dash_timer > 0.35:
             self.state = "dash"
         elif self.is_moving:
-            self.state = "walk"
+            self.state = "run" if self.energy > 75 else "walk"
         else:
             self.state = "idle"
 
@@ -363,6 +384,9 @@ class Player:
         if self.invulnerable > 0:
             return False
 
+        stats = equipment_stats(self.profile)
+        reduction = min(0.45, stats["defense"] * 0.012)
+        amount = max(1, int(round(amount * (1 - reduction))))
         self.health = max(0, self.health - amount)
         self.invulnerable = 0.7
         return True
@@ -495,6 +519,7 @@ class RPGWorld:
         self.chapter = chapter
         self.engine = engine
         self.profile = profile
+        ensure_progression_profile(self.profile)
         self.theme = THEMES.get(chapter["number"], THEMES[1])
         self.rng = random.Random(7000 + chapter["number"])
 
@@ -562,6 +587,17 @@ class RPGWorld:
         self.story_echoes = list(chapter.get("scene", []))
         self.story_echo_index = 0
 
+        if chapter["number"] not in self.profile["visited_regions"]:
+            self.profile["visited_regions"].append(chapter["number"])
+
+        self.living = LivingValdrak(chapter["number"], self.profile)
+        self.boss_combat = BossCombatController(chapter["number"])
+        self.overlay_screen = None
+        self.map_selection = chapter["number"]
+        self.requested_travel_chapter = None
+        self.music_state = "music_explore"
+        self.last_music_state = None
+
     def _build_obstacles(self):
         obstacles = [
             pygame.Rect(0, 0, WORLD_W, 28),
@@ -606,9 +642,18 @@ class RPGWorld:
 
     def _build_enemies(self):
         chapter_number = self.chapter["number"]
-        count = 2 + chapter_number // 2
+        count = 3 + chapter_number // 2
         enemies = []
-        archetypes = ["wolf", "raider", "raven"]
+        archetypes = [
+            "wolf",
+            "raider",
+            "raven",
+            "berserker",
+            "archer",
+            "rune_mage",
+            "alpha_wolf",
+            "elite_raider",
+        ]
 
         for index in range(count):
             for _attempt in range(30):
@@ -617,8 +662,12 @@ class RPGWorld:
                     self.rng.randint(180, WORLD_H - 180),
                 )
                 if pos.distance_to(self.player.pos) > 280:
+                    pool_end = min(
+                        len(archetypes),
+                        3 + chapter_number,
+                    )
                     archetype = archetypes[
-                        (index + chapter_number) % len(archetypes)
+                        (index + chapter_number) % pool_end
                     ]
                     enemies.append(
                         EnemyActor(
@@ -630,7 +679,16 @@ class RPGWorld:
                     )
                     break
 
-        boss_archetype = archetypes[(chapter_number - 1) % 3]
+        boss_types = {
+            1: "raider",
+            2: "elite_raider",
+            3: "berserker",
+            4: "raven",
+            5: "alpha_wolf",
+            6: "elite_raider",
+            7: "rune_mage",
+        }
+        boss_archetype = boss_types[chapter_number]
         boss_pos = pygame.Vector2(
             WORLD_W / 2,
             175 if chapter_number % 2 else WORLD_H - 175,
@@ -661,7 +719,148 @@ class RPGWorld:
         self.events.clear()
         return values
 
+    def _spawn_living_enemy(self, archetype=None):
+        choices = [
+            "raider",
+            "berserker",
+            "archer",
+            "rune_mage",
+            "alpha_wolf",
+        ]
+        archetype = archetype or self.rng.choice(choices)
+        angle = self.rng.uniform(0, math.tau)
+        pos = self.player.pos + pygame.Vector2(
+            math.cos(angle) * self.rng.randint(170, 250),
+            math.sin(angle) * self.rng.randint(170, 250),
+        )
+        pos.x = clamp(pos.x, 90, WORLD_W - 90)
+        pos.y = clamp(pos.y, 90, WORLD_H - 90)
+        self.enemies.append(
+            EnemyActor(
+                pos,
+                self.chapter["number"],
+                self.rng,
+                archetype=archetype,
+            )
+        )
+
+    def _update_music_state(self):
+        if self.living.interior:
+            self.music_state = "music_interior"
+            return
+        boss = self.boss()
+        if (
+            boss
+            and not boss.dead
+            and boss.pos.distance_to(self.player.pos) < 520
+        ):
+            self.music_state = "music_boss"
+            return
+        danger = any(
+            not enemy.dead
+            and enemy.pos.distance_to(self.player.pos) < 280
+            for enemy in self.enemies
+        )
+        self.music_state = "music_danger" if danger else "music_explore"
+
+    def heavy_attack(self):
+        if (
+            self.player.heavy_timer > 0
+            or self.player.energy < 32
+        ):
+            return
+        self.player.energy -= 32
+        self.player.heavy_timer = 0.72
+        self.player.attack_timer = 0.52
+        self.events.append("axe_whoosh")
+        attack_center = self.player.pos + self.player.facing * 68
+        stats = equipment_stats(self.profile)
+        damage = 42 + self.profile["level"] * 4 + stats["attack"]
+        for enemy in self.enemies:
+            if enemy.dead:
+                continue
+            if enemy.pos.distance_to(attack_center) <= 112:
+                died = enemy.hit(damage)
+                self._burst(enemy.pos, GOLD, 16)
+                self.impact_feedback(
+                    strength=14 if enemy.boss else 9,
+                    stop=0.10,
+                    flash=0.14,
+                )
+                if enemy.boss:
+                    if self.boss_combat.add_stagger(24):
+                        self.notice = "GUARDIÃO ATORDOADO"
+                        self.notice_timer = 2.0
+                if enemy.boss:
+                    if self.boss_combat.add_stagger(12):
+                        self.notice = "GUARDIÃO ATORDOADO"
+                        self.notice_timer = 2.0
+                if died:
+                    self._enemy_defeated(enemy)
+
     def handle_key(self, event):
+        if self.living.interior:
+            result = self.living.handle_interior_key(
+                event.key,
+                self,
+            )
+            if result:
+                self.notice, sfx = result
+                self.notice_timer = 3.0
+                self.events.append(sfx)
+            return
+
+        if self.overlay_screen:
+            if event.key in {
+                pygame.K_ESCAPE,
+                pygame.K_m,
+                pygame.K_j,
+                pygame.K_c,
+                pygame.K_g,
+            }:
+                self.overlay_screen = None
+                return
+            if self.overlay_screen == "map":
+                if event.key in {pygame.K_UP, pygame.K_w}:
+                    self.map_selection = max(1, self.map_selection - 1)
+                elif event.key in {pygame.K_DOWN, pygame.K_s}:
+                    self.map_selection = min(7, self.map_selection + 1)
+                elif event.key in {pygame.K_RETURN, pygame.K_SPACE}:
+                    if self.map_selection in self.profile["fast_travel_regions"]:
+                        self.requested_travel_chapter = self.map_selection
+                        self.overlay_screen = None
+                        self.events.append("portal")
+                    else:
+                        self.notice = "Ative o altar desta região para usar Fast Travel"
+                        self.notice_timer = 2.3
+                return
+            return
+
+        if event.key == pygame.K_m:
+            self.overlay_screen = "map"
+            self.map_selection = self.chapter["number"]
+            self.events.append("rune")
+            return
+
+        if event.key == pygame.K_j:
+            self.overlay_screen = "quests"
+            self.events.append("choice")
+            return
+
+        if event.key == pygame.K_c:
+            self.overlay_screen = "codex"
+            self.events.append("choice")
+            return
+
+        if event.key == pygame.K_g:
+            self.overlay_screen = "gear"
+            self.events.append("inventory")
+            return
+
+        if event.key == pygame.K_f:
+            self.heavy_attack()
+            return
+
         if event.key == pygame.K_r:
             self._ally_assist()
             self.ally_cooldown = 2.4
@@ -698,6 +897,21 @@ class RPGWorld:
                         self.npc.name,
                         line + " Receba também uma Essência Rúnica.",
                     )
+                return
+
+            living_obj = self.living.nearest(self.player.pos)
+            if living_obj is not None:
+                text, sfx = self.living.interact(
+                    living_obj,
+                    self,
+                )
+                self.notice = living_obj.name
+                self.dialogue = (
+                    living_obj.name,
+                    text,
+                )
+                self.notice_timer = 5.0
+                self.events.append(sfx)
                 return
 
             shrine = self.nearest_shrine()
@@ -844,6 +1058,9 @@ class RPGWorld:
         if self.player.attack_timer > 0:
             return
 
+        self.player.attack_combo = (
+            self.player.attack_combo + 1
+        ) % 2
         self.player.attack_timer = 0.42
         self.events.append("sword")
         self._tutorial_advance(
@@ -858,7 +1075,20 @@ class RPGWorld:
                 continue
             if enemy.pos.distance_to(attack_center) <= 90:
                 hit_any = True
-                died = enemy.hit(22 + self.profile["level"] * 2)
+                stats = equipment_stats(self.profile)
+                crit = self.rng.random() < (
+                    0.06 + stats["crit"]
+                )
+                damage = (
+                    22
+                    + self.profile["level"] * 2
+                    + stats["attack"]
+                )
+                if crit:
+                    damage = int(damage * 1.7)
+                    self.notice = "ACERTO CRÍTICO"
+                    self.notice_timer = 0.9
+                died = enemy.hit(damage)
                 self._burst(enemy.pos, GOLD, 10)
                 self.impact_feedback(
                     strength=11 if enemy.boss else 6,
@@ -898,6 +1128,10 @@ class RPGWorld:
                     stop=0.085 if enemy.boss else 0.055,
                     flash=0.13,
                 )
+                if enemy.boss:
+                    if self.boss_combat.add_stagger(18):
+                        self.notice = "GUARDIÃO ATORDOADO"
+                        self.notice_timer = 2.0
                 if died:
                     self._enemy_defeated(enemy)
 
@@ -936,6 +1170,16 @@ class RPGWorld:
         )
 
         if enemy.boss:
+            unlock_codex(self.profile, "guardioes")
+            item = roll_equipment(
+                self.chapter["number"],
+                self.rng,
+                boss=True,
+            )
+            equipped = add_and_auto_equip(
+                self.profile,
+                item,
+            )
             self.notice = (
                 f"{enemy.name} derrotado • caminhos liberados"
             )
@@ -953,7 +1197,28 @@ class RPGWorld:
                 Loot(enemy.pos + pygame.Vector2(0, 25), "essencia")
             )
             self.events.append("thunder")
+            self.notice += (
+                f" • {item['rarity']} {item['name']}"
+                + (" equipado" if equipped else "")
+            )
         else:
+            if self.rng.random() < 0.24:
+                gear = roll_equipment(
+                    self.chapter["number"],
+                    self.rng,
+                    elite=enemy.archetype
+                    in {"elite_raider", "berserker", "alpha_wolf"},
+                )
+                auto = add_and_auto_equip(
+                    self.profile,
+                    gear,
+                )
+                self.notice = (
+                    f"Loot: {gear['rarity']} {gear['name']}"
+                    + (" • equipado" if auto else "")
+                )
+                self.notice_timer = 2.3
+
             roll = self.rng.random()
             if roll < 0.28:
                 kind = "pocao"
@@ -1131,6 +1396,10 @@ class RPGWorld:
 
     def update(self, dt, keys):
         self.notice_timer = max(0.0, self.notice_timer - dt)
+
+        if self.living.interior:
+            self._update_music_state()
+            return
         self.shake_timer = max(0.0, self.shake_timer - dt)
         self.flash_timer = max(0.0, self.flash_timer - dt)
 
@@ -1178,6 +1447,47 @@ class RPGWorld:
         if self.ally_cooldown <= 0:
             self._ally_assist()
             self.ally_cooldown = 2.4
+
+        living_event = self.living.update(dt, self)
+        if living_event:
+            if living_event["kind"] == "ambush":
+                for _ in range(living_event["count"]):
+                    self._spawn_living_enemy()
+                self.notice = living_event["text"]
+                self.notice_timer = 3.0
+                self.events.append("shield")
+            else:
+                self.notice = living_event["text"]
+                self.notice_timer = 2.8
+                self.events.append(living_event.get("sfx", "wind"))
+
+        boss_event = self.boss_combat.update(
+            dt,
+            self.boss(),
+            self.player,
+        )
+        if boss_event:
+            move = boss_event["move"]
+            if boss_event["kind"] == "telegraph_start":
+                self.notice = f"GUARDIÃO: {move['name']}"
+                self.notice_timer = 1.1
+                self.events.append("rune")
+            elif boss_event["kind"] == "resolve":
+                self.events.append(move["sfx"])
+                if boss_event["hit"]:
+                    self.player.damage(move["damage"])
+                    self._burst(
+                        self.player.pos,
+                        RED,
+                        12,
+                    )
+                    self.impact_feedback(
+                        strength=11,
+                        stop=0.06,
+                        flash=0.11,
+                    )
+
+        self._update_music_state()
 
         for enemy in self.enemies:
             enemy.update(dt, self.player.pos)
@@ -1252,6 +1562,14 @@ class RPGWorld:
     def draw(self, surface, fonts):
         seconds = pygame.time.get_ticks() / 1000
         theme = self.theme
+
+        if self.living.interior:
+            self.living.draw_interior(
+                surface,
+                fonts,
+                theme["accent"],
+            )
+            return
 
         if (
             self.map_scene
@@ -1370,6 +1688,14 @@ class RPGWorld:
                     item[2],
                 )
 
+        self.living.draw(
+            surface,
+            self.camera,
+            fonts,
+            seconds,
+            self.player.pos,
+        )
+
         for loot in self.loots:
             loot.draw(surface, self.camera, seconds)
 
@@ -1400,6 +1726,13 @@ class RPGWorld:
 
         if self.inventory_open:
             self._draw_inventory(surface, fonts, theme)
+
+        if self.overlay_screen:
+            self._draw_v24_overlay(
+                surface,
+                fonts,
+                theme,
+            )
 
         if self.flash_timer > 0:
             alpha = int(
@@ -1507,6 +1840,10 @@ class RPGWorld:
         place = self.nearest_place()
         chest = self.nearest_chest()
 
+        living_obj = self.living.nearest(self.player.pos)
+        if living_obj is not None:
+            return f"E — interagir: {living_obj.name}"
+
         if (
             self.npc
             and self.player.pos.distance_to(
@@ -1566,6 +1903,154 @@ class RPGWorld:
             fonts,
             self,
             theme,
+        )
+
+    def _draw_v24_overlay(self, surface, fonts, theme):
+        veil = pygame.Surface(
+            (1280, 720),
+            pygame.SRCALPHA,
+        )
+        veil.fill((0, 0, 0, 205))
+        surface.blit(veil, (0, 0))
+
+        panel = pygame.Rect(185, 78, 910, 570)
+        pygame.draw.rect(
+            surface,
+            (8, 14, 22),
+            panel,
+            border_radius=24,
+        )
+        pygame.draw.rect(
+            surface,
+            theme["accent"],
+            panel,
+            2,
+            border_radius=24,
+        )
+
+        titles = {
+            "map": "MAPA MUNDIAL DE VALDRAK",
+            "quests": "QUEST LOG",
+            "codex": "CODEX DE VALDRAK",
+            "gear": "EQUIPAMENTOS",
+        }
+        surface.blit(
+            fonts["title"].render(
+                titles[self.overlay_screen],
+                True,
+                INK,
+            ),
+            (225, 112),
+        )
+
+        y = 180
+        if self.overlay_screen == "map":
+            for number, name, status in world_map_lines(
+                self.profile,
+                self.chapter["number"],
+            ):
+                selected = number == self.map_selection
+                color = (
+                    theme["accent"]
+                    if selected
+                    else (155, 170, 185)
+                )
+                line = (
+                    f"{'▶' if selected else ' '} "
+                    f"{number}. {name} — {status}"
+                )
+                surface.blit(
+                    fonts["body"].render(
+                        line,
+                        True,
+                        color,
+                    ),
+                    (240, y),
+                )
+                y += 48
+            hint = (
+                "↑/↓ seleciona • Enter viaja "
+                "quando o Altar da região estiver ativo"
+            )
+        elif self.overlay_screen == "quests":
+            for line in quest_lines(
+                self.profile,
+                self.chapter["number"],
+                self.boss_alive(),
+            ):
+                surface.blit(
+                    fonts["body"].render(
+                        line,
+                        True,
+                        INK,
+                    ),
+                    (240, y),
+                )
+                y += 58
+            hint = "J ou Esc fecha o Quest Log"
+        elif self.overlay_screen == "codex":
+            for title, body in codex_lines(self.profile)[:7]:
+                surface.blit(
+                    fonts["heading"].render(
+                        title,
+                        True,
+                        GOLD,
+                    ),
+                    (240, y),
+                )
+                surface.blit(
+                    fonts["small"].render(
+                        body[:92],
+                        True,
+                        (155, 170, 185),
+                    ),
+                    (240, y + 28),
+                )
+                y += 65
+            hint = "C ou Esc fecha o Codex"
+        else:
+            stats = equipment_stats(self.profile)
+            for slot in ("weapon", "armor", "amulet", "rune"):
+                item = self.profile["equipped"].get(slot)
+                if item:
+                    line = (
+                        f"{slot.upper()}: "
+                        f"{item['rarity']} {item['name']} "
+                        f"(+{item['value']} {item['stat']})"
+                    )
+                else:
+                    line = f"{slot.upper()}: vazio"
+                surface.blit(
+                    fonts["body"].render(
+                        line,
+                        True,
+                        INK,
+                    ),
+                    (240, y),
+                )
+                y += 52
+            y += 12
+            summary = (
+                f"ATQ +{stats['attack']}  DEF +{stats['defense']}  "
+                f"CRIT +{int(stats['crit'] * 100)}%  ENERGIA +{stats['energy']}"
+            )
+            surface.blit(
+                fonts["body"].render(
+                    summary,
+                    True,
+                    theme["accent"],
+                ),
+                (240, y),
+            )
+            hint = "G ou Esc fecha Equipamentos"
+
+        surface.blit(
+            fonts["small"].render(
+                hint,
+                True,
+                (155, 170, 185),
+            ),
+            (240, 605),
         )
 
     def _draw_inventory(self, surface, fonts, theme):

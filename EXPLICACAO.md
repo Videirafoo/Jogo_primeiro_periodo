@@ -162,3 +162,8 @@ O áudio de combate passou a priorizar o banco autoral assets/audio/valdrak com 
 ## Adventure From First Second V2.3
 
 A V2.3 inicia diretamente na exploração de Valdrak. O tutorial usa ações reais do jogador, a narrativa aparece dentro do mundo e cada região recebeu três baús de aventura.
+
+
+## Living Valdrak V2.4
+
+A V2.4 adiciona mundo vivo, eventos aleatórios, interiores, puzzles, oito famílias de inimigos, loot com raridades, sete Guardiões com movesets únicos, mapa mundial, Fast Travel, Quest Log, Codex e trilha dinâmica.

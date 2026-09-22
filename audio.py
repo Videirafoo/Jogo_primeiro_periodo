@@ -158,6 +158,10 @@ class Audio:
                 "fire": 0.28,
                 "techhum": 0.18,
                 "portalhum": 0.22,
+                "music_explore": 0.24,
+                "music_danger": 0.29,
+                "music_boss": 0.34,
+                "music_interior": 0.22,
             }.get(self.current_ambience, 0.20)
             self.ambience_channel.set_volume(
                 base * self.ambience_mix * self.master_volume
@@ -193,6 +197,10 @@ class Audio:
             "fire": 0.28,
             "techhum": 0.18,
             "portalhum": 0.22,
+            "music_explore": 0.24,
+            "music_danger": 0.29,
+            "music_boss": 0.34,
+            "music_interior": 0.22,
         }.get(ambience, 0.20)
 
         self.ambience_channel.set_volume(
@@ -357,6 +365,36 @@ class Audio:
                     math.sin(2 * math.pi * 68 * mod * t) * 0.065
                     + math.sin(2 * math.pi * 136 * t) * 0.025
                 )
+            elif name in {
+                "music_explore",
+                "music_danger",
+                "music_boss",
+                "music_interior",
+            }:
+                config = {
+                    "music_explore": (55, 0.9, 0.035),
+                    "music_danger": (65, 2.2, 0.055),
+                    "music_boss": (46, 3.8, 0.075),
+                    "music_interior": (73, 0.55, 0.030),
+                }[name]
+                root_note, beat, gain = config
+                chord = (
+                    math.sin(2 * math.pi * root_note * t)
+                    + 0.55 * math.sin(2 * math.pi * root_note * 1.5 * t)
+                    + 0.32 * math.sin(2 * math.pi * root_note * 2.0 * t)
+                )
+                pulse = max(
+                    0.0,
+                    math.sin(2 * math.pi * beat * t),
+                )
+                drum = 0.0
+                if name in {"music_danger", "music_boss"}:
+                    drum = (
+                        math.sin(2 * math.pi * 42 * t)
+                        * (pulse ** 8)
+                        * 0.35
+                    )
+                value = chord * gain * (0.55 + pulse * 0.45) + drum * gain
 
             data.append(self._to_sample(value))
 

@@ -2,6 +2,8 @@ import math
 
 import pygame
 
+from animation_v24 import direction8, pose
+
 from weapon_art import (
     CYAN,
     GOLD,
@@ -64,9 +66,9 @@ def draw_protagonist(
     x, y = int(center[0]), int(center[1])
     scale = 1.0
 
-    walk = math.sin(seconds * 11)
-    bob = int(abs(walk) * 2) if state == "walk" else 0
-    y += bob
+    anim = pose(state, seconds)
+    walk = math.sin(seconds * (14 if state == "run" else 11))
+    y += int(anim["bob"])
 
     _body_shadow(
         surface,
@@ -202,9 +204,8 @@ def draw_protagonist(
         hair,
     )
 
-    direction = 1
-    if facing is not None and getattr(facing, "x", 0) < -0.15:
-        direction = -1
+    facing_name = direction8(facing)
+    direction = -1 if facing_name in {"W", "NW", "SW"} else 1
 
     pygame.draw.circle(
         surface,
@@ -234,18 +235,15 @@ def draw_protagonist(
         y - 1,
     )
 
-    if state == "attack":
-        angle = (
-            -55
-            if direction > 0
-            else 55
-        )
-        angle += math.sin(seconds * 24) * 12
+    if state in {"attack", "attack1", "attack2", "heavy"}:
+        angle = float(anim["weapon"])
+        if direction < 0:
+            angle = -angle
         draw_sword(
             surface,
             weapon_center,
             angle=angle,
-            scale=0.63,
+            scale=0.74 if state == "heavy" else 0.63,
             rune_color=accent,
             motion=1.0,
         )

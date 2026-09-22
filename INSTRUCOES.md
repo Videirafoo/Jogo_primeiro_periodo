@@ -70,3 +70,15 @@ Atualize a branch v2-interface-grafica e execute normalmente com python eternos.
 ## V2.3
 
 Após atualizar a branch, execute python eternos.py. A aventura começa imediatamente no mapa; siga os objetivos de tutorial exibidos no HUD.
+
+
+## Controles V2.4
+
+- M: mapa mundial;
+- J: Quest Log;
+- C: Codex;
+- G: equipamentos;
+- F: ataque pesado;
+- V: áudio ON/OFF;
+- 1/2/3: puzzles rúnicos em interiores;
+- E ou Esc: sair de interiores.

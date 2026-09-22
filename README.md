@@ -404,3 +404,43 @@ A V2.3 começa com controle imediato do personagem em Valdrak. O tutorial aconte
 Também entraram 21 baús de aventura, três por região, com recompensas, relíquias, XP e armadilhas.
 
 Os seis Eternos recebem silhuetas e equipamentos próprios: Thorvald com machado e raio, Aurel com cajado dourado, Kaion com espada do vento, Brenor com martelo, Eiran com cajado da aurora e Noctar com máscara e lâminas duplas.
+
+
+## V2.4 — Living Valdrak
+
+A V2.4 transforma o mapa em um mundo mais vivo. Entraram eventos aleatórios, emboscadas, viajantes, patrulhas vikings, animais e caravanas.
+
+Cada região ganhou seis pontos de aventura:
+- Altar Escondido;
+- Acampamento Inimigo;
+- Caverna Rúnica;
+- Casa Abandonada;
+- Templo Antigo;
+- Masmorra de Valdrak.
+
+Cavernas, casas, templos e masmorras possuem interiores e puzzles rúnicos. Altares liberam Fast Travel. O mapa mundial abre com M, Quest Log com J, Codex com C e equipamentos com G.
+
+O combate recebeu oito famílias de inimigos:
+- Viking Raider;
+- Berserker;
+- Archer;
+- Rune Mage;
+- Iron Wolf;
+- Alpha Wolf;
+- Shadow Raven;
+- Elite Raider.
+
+O Loot System agora possui:
+- armas;
+- armaduras;
+- amuletos;
+- runas;
+- raridades Comum, Raro, Épico e Lendário;
+- atributos de ataque, defesa, crítico e energia;
+- autoequip de itens melhores.
+
+Os sete Guardiões receberam três movimentos próprios cada, telegraph, segunda fase e barra interna de stagger. Ataques normais, Pulso e ataque pesado contribuem para atordoar bosses.
+
+A trilha sonora passou a trocar dinamicamente entre exploração, perigo, boss e interior.
+
+O protagonista possui estados de idle, walk, run, attack1, attack2, heavy, dash, hurt, death e power, com direção calculada em oito orientações.

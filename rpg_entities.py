@@ -26,12 +26,40 @@ ARCHETYPES = {
         "damage": 1.0,
         "color": (82, 94, 108),
     },
+    "alpha_wolf": {
+        "name": "Lobo Alfa",
+        "hp": 1.55,
+        "speed": 1.28,
+        "damage": 1.35,
+        "color": (116, 132, 148),
+    },
     "raider": {
-        "name": "Saqueador de Valdrak",
+        "name": "Viking Raider",
         "hp": 1.35,
         "speed": 0.82,
         "damage": 1.35,
         "color": (120, 78, 67),
+    },
+    "berserker": {
+        "name": "Berserker de Valdrak",
+        "hp": 1.75,
+        "speed": 0.95,
+        "damage": 1.65,
+        "color": (151, 61, 53),
+    },
+    "archer": {
+        "name": "Arqueiro Nórdico",
+        "hp": 0.9,
+        "speed": 0.90,
+        "damage": 1.15,
+        "color": (111, 92, 64),
+    },
+    "rune_mage": {
+        "name": "Mago Rúnico",
+        "hp": 1.05,
+        "speed": 0.78,
+        "damage": 1.45,
+        "color": (94, 66, 130),
     },
     "raven": {
         "name": "Corvo Sombrio",
@@ -39,6 +67,13 @@ ARCHETYPES = {
         "speed": 1.42,
         "damage": 0.82,
         "color": (73, 62, 94),
+    },
+    "elite_raider": {
+        "name": "Jarl de Patrulha",
+        "hp": 2.10,
+        "speed": 0.88,
+        "damage": 1.75,
+        "color": (153, 105, 58),
     },
 }
 
@@ -164,9 +199,28 @@ class EnemyActor:
         distance = delta.length()
 
         if distance > 1:
-            if distance < (520 if self.boss else 390):
+            aggro = 540 if self.boss else 410
+            if distance < aggro:
                 direction = delta.normalize()
-                self.pos += direction * self.speed * dt
+
+                if self.archetype in {"archer", "rune_mage"}:
+                    if distance < 165:
+                        self.pos -= direction * self.speed * 0.85 * dt
+                    elif distance > 285:
+                        self.pos += direction * self.speed * 0.72 * dt
+                    else:
+                        side = pygame.Vector2(-direction.y, direction.x)
+                        self.pos += side * self.speed * 0.40 * dt
+                else:
+                    boost = 1.0
+                    if (
+                        self.archetype == "berserker"
+                        and self.hp < self.max_hp * 0.5
+                    ):
+                        boost = 1.38
+                    if self.archetype == "alpha_wolf":
+                        boost = 1.18
+                    self.pos += direction * self.speed * boost * dt
             else:
                 self.wander_angle += dt * 0.65
                 direction = pygame.Vector2(
@@ -218,9 +272,15 @@ class EnemyActor:
         )
 
         if not rendered:
-            if self.archetype == "wolf":
+            if self.archetype in {"wolf", "alpha_wolf"}:
                 self._draw_wolf(surface, x, y, color, scale)
-            elif self.archetype == "raider":
+            elif self.archetype in {
+                "raider",
+                "berserker",
+                "archer",
+                "rune_mage",
+                "elite_raider",
+            }:
                 self._draw_raider(surface, x, y, color, scale)
             else:
                 self._draw_raven(surface, x, y, color, scale)
@@ -234,13 +294,30 @@ class EnemyActor:
                 seconds,
                 scale=0.58,
             )
-        elif self.archetype == "raider":
+        elif self.archetype in {"raider", "berserker", "elite_raider"}:
             draw_viking_axe(
                 surface,
                 (x + 19, y + 3),
                 angle=-31 + math.sin(seconds * 5) * 4,
-                scale=0.36,
-                rune_color=GOLD,
+                scale=0.44 if self.archetype != "raider" else 0.36,
+                rune_color=RED if self.archetype == "berserker" else GOLD,
+            )
+        elif self.archetype == "rune_mage":
+            pygame.draw.circle(
+                surface,
+                VIOLET,
+                (x + 22, y - 16),
+                9,
+                2,
+            )
+        elif self.archetype == "archer":
+            pygame.draw.arc(
+                surface,
+                GOLD,
+                (x + 8, y - 26, 28, 44),
+                -1.35,
+                1.35,
+                3,
             )
 
         width = 86 if self.boss else 48
