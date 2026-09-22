@@ -82,3 +82,17 @@ Após atualizar a branch, execute python eternos.py. A aventura começa imediata
 - V: áudio ON/OFF;
 - 1/2/3: puzzles rúnicos em interiores;
 - E ou Esc: sair de interiores.
+
+## Controles V2.5
+
+- Espaço: combo;
+- F: ataque pesado;
+- P: parry;
+- Shift: dash / perfect dodge;
+- X: execução quando o Guardião estiver atordoado;
+- K: crafting;
+- T: talentos;
+- U: upgrade da arma equipada;
+- O: acessibilidade e dificuldade;
+- F6: alternar save slot;
+- gamepad: A ataque, B dash, X pulso, Y Eterno, LB parry, RB pesado, Start pausa.

@@ -167,3 +167,7 @@ A V2.3 inicia diretamente na exploração de Valdrak. O tutorial usa ações rea
 ## Living Valdrak V2.4
 
 A V2.4 adiciona mundo vivo, eventos aleatórios, interiores, puzzles, oito famílias de inimigos, loot com raridades, sete Guardiões com movesets únicos, mapa mundial, Fast Travel, Quest Log, Codex e trilha dinâmica.
+
+## Visual RPG & Systems Pass V2.5
+
+A V2.5 é o maior passe de RPG da linha V2: sprite-sheets autorais com oito direções, frame-a-frame, iluminação dinâmica, dungeons multi-sala, Combat 2.0, Loot 2.0, crafting, upgrades, talentos, vendedores, save slots, gamepad e acessibilidade.

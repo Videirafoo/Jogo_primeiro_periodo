@@ -7,6 +7,7 @@ from character_visuals import draw_boss_aura
 from sprite_animator import draw_actor
 from character_art import draw_viking_npc
 from weapon_art import draw_boss_weapon, draw_viking_axe
+from sprite_v25 import draw_actor_v25
 
 
 INK = (236, 242, 248)
@@ -186,6 +187,7 @@ class EnemyActor:
         self.attack_cd = 0.0
         self.hit_flash = 0.0
         self.wander_angle = rng.uniform(0, math.tau)
+        self.facing = pygame.Vector2(0, 1)
         self.dead = False
 
     def update(self, dt, player_pos):
@@ -202,6 +204,7 @@ class EnemyActor:
             aggro = 540 if self.boss else 410
             if distance < aggro:
                 direction = delta.normalize()
+                self.facing = direction
 
                 if self.archetype in {"archer", "rune_mage"}:
                     if distance < 165:
@@ -227,6 +230,7 @@ class EnemyActor:
                     math.cos(self.wander_angle),
                     math.sin(self.wander_angle),
                 )
+                self.facing = direction
                 self.pos += direction * self.speed * 0.16 * dt
 
     def hit(self, damage):
@@ -257,19 +261,32 @@ class EnemyActor:
                 scale=1.0,
             )
 
-        rendered = draw_actor(
-            surface,
-            self.archetype,
-            (x, y),
-            state=(
-                "hurt"
-                if self.hit_flash > 0
-                else "walk"
-            ),
-            seconds=pygame.time.get_ticks() / 1000,
-            boss=self.boss,
-            tint=self.color,
+        state = (
+            "hurt"
+            if self.hit_flash > 0
+            else "walk"
         )
+        rendered = draw_actor_v25(
+            surface,
+            "boss" if self.boss else self.archetype,
+            (x, y),
+            self.facing,
+            state,
+            pygame.time.get_ticks() / 1000,
+            scale=1.48 if self.boss else 1.05,
+            chapter=self.chapter if self.boss else None,
+        )
+
+        if not rendered:
+            rendered = draw_actor(
+                surface,
+                self.archetype,
+                (x, y),
+                state=state,
+                seconds=pygame.time.get_ticks() / 1000,
+                boss=self.boss,
+                tint=self.color,
+            )
 
         if not rendered:
             if self.archetype in {"wolf", "alpha_wolf"}:

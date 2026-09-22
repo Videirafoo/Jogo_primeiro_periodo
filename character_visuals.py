@@ -431,3 +431,237 @@ def draw_portrait(surface, name, rect, accent=None):
             (cx + 29, cy - 23),
         ],
     )
+
+# V2.5 final authored renderers
+from sprite_v25 import draw_actor_v25
+from character_art import draw_viking_npc
+
+
+def draw_ally(surface, name, pos, offset, seconds, index=0):
+    style = ALLY_STYLES.get(
+        name,
+        {"color": CYAN, "symbol": "eye"},
+    )
+    x = int(pos.x - offset.x)
+    y = int(pos.y - offset.y)
+    facing = pygame.Vector2(
+        math.cos(seconds * 0.22 + index * 0.7),
+        0.75,
+    )
+
+    rendered = draw_actor_v25(
+        surface,
+        name,
+        (x, y),
+        facing,
+        "walk",
+        seconds + index * 0.11,
+        scale=1.10,
+    )
+    if not rendered:
+        draw_eterno_character(
+            surface,
+            name,
+            (x, y),
+            seconds=seconds,
+            index=index,
+        )
+
+    color = style["color"]
+    radius = 39 + int(
+        (math.sin(seconds * 2.6 + index) + 1) * 2
+    )
+    pygame.draw.circle(
+        surface,
+        color,
+        (x, y - 2),
+        radius,
+        1,
+    )
+
+
+def _is_character_speaker(name):
+    if name in ALLY_STYLES:
+        return True
+    keywords = (
+        "Edda",
+        "Orm",
+        "Sigrun",
+        "Hilda",
+        "Torsten",
+        "Yrsa",
+        "Voz da Porta",
+    )
+    return any(key in str(name) for key in keywords)
+
+
+def _draw_lore_emblem(surface, rect, accent, seconds):
+    cx, cy = rect.center
+    pygame.draw.rect(
+        surface,
+        (10, 15, 22),
+        rect,
+        border_radius=18,
+    )
+    pygame.draw.rect(
+        surface,
+        accent,
+        rect,
+        2,
+        border_radius=18,
+    )
+    radius = min(rect.width, rect.height) // 3
+    pygame.draw.circle(
+        surface,
+        accent,
+        (cx, cy),
+        radius,
+        2,
+    )
+    points = []
+    for index in range(6):
+        angle = (
+            seconds * 0.25
+            + index * math.tau / 6
+        )
+        points.append(
+            (
+                int(cx + math.cos(angle) * radius * 0.72),
+                int(cy + math.sin(angle) * radius * 0.72),
+            )
+        )
+    pygame.draw.lines(
+        surface,
+        accent,
+        True,
+        points,
+        2,
+    )
+    pygame.draw.line(
+        surface,
+        accent,
+        (cx, cy - radius + 8),
+        (cx, cy + radius - 8),
+        3,
+    )
+    pygame.draw.circle(
+        surface,
+        GOLD,
+        (cx, cy),
+        5,
+    )
+
+
+def draw_dialogue_box(
+    surface,
+    fonts,
+    speaker,
+    body,
+    accent,
+    portrait_name=None,
+):
+    # Smaller dialogue card keeps more of the adventure visible.
+    panel = pygame.Rect(92, 492, 1096, 166)
+    shadow = pygame.Surface(
+        (panel.width + 12, panel.height + 12),
+        pygame.SRCALPHA,
+    )
+    pygame.draw.rect(
+        shadow,
+        (0, 0, 0, 110),
+        shadow.get_rect(),
+        border_radius=23,
+    )
+    surface.blit(
+        shadow,
+        (panel.x + 5, panel.y + 7),
+    )
+    pygame.draw.rect(
+        surface,
+        (7, 12, 19),
+        panel,
+        border_radius=20,
+    )
+    pygame.draw.rect(
+        surface,
+        accent,
+        panel,
+        2,
+        border_radius=20,
+    )
+
+    portrait = pygame.Rect(112, 531, 100, 112)
+    name = portrait_name or speaker
+    if name in ALLY_STYLES:
+        pygame.draw.rect(
+            surface,
+            (8, 13, 20),
+            portrait,
+            border_radius=16,
+        )
+        pygame.draw.rect(
+            surface,
+            ALLY_STYLES[name]["color"],
+            portrait,
+            2,
+            border_radius=16,
+        )
+        draw_actor_v25(
+            surface,
+            name,
+            (
+                portrait.centerx,
+                portrait.bottom - 42,
+            ),
+            pygame.Vector2(0, 1),
+            "idle",
+            pygame.time.get_ticks() / 1000,
+            scale=1.42,
+        )
+    elif _is_character_speaker(name):
+        draw_viking_npc(
+            surface,
+            (
+                portrait.centerx,
+                portrait.bottom - 39,
+            ),
+            1,
+            accent,
+            near=False,
+        )
+        pygame.draw.rect(
+            surface,
+            accent,
+            portrait,
+            2,
+            border_radius=16,
+        )
+    else:
+        _draw_lore_emblem(
+            surface,
+            portrait,
+            accent,
+            pygame.time.get_ticks() / 1000,
+        )
+
+    title = fonts["heading"].render(
+        str(speaker),
+        True,
+        accent,
+    )
+    surface.blit(title, (235, 530))
+
+    lines = _wrap(
+        fonts["body"],
+        body,
+        900,
+    )
+    for index, line in enumerate(lines[:3]):
+        surface.blit(
+            fonts["body"].render(
+                line,
+                True,
+                INK,
+            ),
+            (235, 571 + index * 27),
+        )

@@ -100,3 +100,19 @@ def load_game(path=SAVE_PATH):
         return None
 
     return data
+
+def slot_path(slot=1):
+    slot = max(1, min(3, int(slot)))
+    if slot == 1:
+        return SAVE_PATH
+    return Path(__file__).with_name(
+        f"save_os_eternos_slot_{slot}.json"
+    )
+
+
+def available_slots():
+    return [
+        slot
+        for slot in range(1, 4)
+        if slot_path(slot).exists()
+    ]

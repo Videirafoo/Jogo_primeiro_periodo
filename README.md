@@ -444,3 +444,19 @@ Os sete Guardiões receberam três movimentos próprios cada, telegraph, segunda
 A trilha sonora passou a trocar dinamicamente entre exploração, perigo, boss e interior.
 
 O protagonista possui estados de idle, walk, run, attack1, attack2, heavy, dash, hurt, death e power, com direção calculada em oito orientações.
+
+## V2.5 — Visual RPG & Systems Pass
+
+A V2.5 cria sprite-sheets autorais para o protagonista, seis Eternos, oito famílias de inimigos e sete Guardiões. Os personagens possuem oito direções e estados frame-a-frame para idle, walk, run, combos, ataque pesado, dash, dano, morte e poderes.
+
+O QA visual da V2.4 também motivou mudanças de composição: os seis aliados agora usam formação em duas fileiras, evitando a pilha visual sobre o protagonista, e a caixa de diálogo foi reduzida. Lore e lugares usam emblemas rúnicos em vez de um retrato humano genérico.
+
+Entraram iluminação dinâmica, água animada, vegetação com sway, partículas ambientais e color grading cinematográfico.
+
+Dungeon System II adiciona cinco salas, portas, armadilhas, puzzle, chave, mini-boss e cofre final.
+
+Combat 2.0 adiciona stamina, parry, perfect dodge, combo de três passos, ataque pesado, knockback, status effects e execução de Guardião atordoado.
+
+Loot 2.0 adiciona materiais, crafting, upgrade de arma, talentos, pontos de talento, vendedores, moedas e quests encadeadas de NPC.
+
+A plataforma passa a oferecer três save slots, gamepad, acessibilidade, redução de flash, screen shake configurável e três dificuldades.

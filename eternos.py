@@ -9,7 +9,7 @@ from ending_gallery import EndingGallery
 from gameplay import Challenge
 from pause_menu import PauseMenu
 from rpg_world import RPGWorld
-from savegame import load_game, save_game
+from savegame import load_game, save_game, slot_path
 from story_data import GAME
 import ui
 
@@ -39,6 +39,7 @@ class GameApp:
         self.headless = headless
         self.paused = False
         self.pause_menu = PauseMenu()
+        self.current_save_slot = 1
 
         self.phase = "opening"
         self.opening_index = 0
@@ -429,6 +430,7 @@ class GameApp:
             self.phase,
             self.opening_index,
             self.scene_index,
+            path=slot_path(self.current_save_slot),
         )
 
         if not silent:
@@ -441,7 +443,9 @@ class GameApp:
         return saved
 
     def quick_load(self):
-        data = load_game()
+        data = load_game(
+            path=slot_path(self.current_save_slot)
+        )
         if data is None:
             self.message = "Nenhum save válido encontrado"
             self.audio.play("error", 0.42)
@@ -585,6 +589,21 @@ class GameApp:
 
         if event.key == pygame.K_F11:
             self.toggle_fullscreen()
+            return
+
+        if event.key == pygame.K_F6:
+            self.current_save_slot = (
+                self.current_save_slot % 3
+            ) + 1
+            self.rpg_profile[
+                "current_save_slot"
+            ] = self.current_save_slot
+            self.message = (
+                f"Slot de save: {self.current_save_slot}"
+            )
+            if self.world:
+                self.world.notice = self.message
+                self.world.notice_timer = 1.8
             return
 
         if event.key == pygame.K_F5:
@@ -1032,6 +1051,26 @@ class GameApp:
                     self.running = False
                 elif event.type == pygame.KEYDOWN:
                     self.handle_key(event)
+                elif event.type == pygame.JOYBUTTONDOWN:
+                    gamepad_map = {
+                        0: pygame.K_SPACE,
+                        1: pygame.K_LSHIFT,
+                        2: pygame.K_q,
+                        3: pygame.K_r,
+                        4: pygame.K_p,
+                        5: pygame.K_f,
+                        6: pygame.K_m,
+                        7: pygame.K_ESCAPE,
+                        8: pygame.K_x,
+                    }
+                    key = gamepad_map.get(event.button)
+                    if key is not None:
+                        self.handle_key(
+                            pygame.event.Event(
+                                pygame.KEYDOWN,
+                                key=key,
+                            )
+                        )
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     self.handle_click(event.pos)
 

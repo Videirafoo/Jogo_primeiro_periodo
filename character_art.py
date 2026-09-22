@@ -3,6 +3,7 @@ import math
 import pygame
 
 from animation_v24 import direction8, pose
+from sprite_v25 import draw_actor_v25
 
 from weapon_art import (
     CYAN,
@@ -63,6 +64,17 @@ def draw_protagonist(
     seconds,
     accent,
 ):
+    if draw_actor_v25(
+        surface,
+        "protagonist",
+        center,
+        facing,
+        state,
+        seconds,
+        scale=1.14,
+    ):
+        return True
+
     x, y = int(center[0]), int(center[1])
     scale = 1.0
 

@@ -2,6 +2,8 @@ import math
 import random
 import pygame
 
+from dungeon_v25 import DungeonRun
+
 from progression_v24 import (
     add_and_auto_equip,
     ensure_progression_profile,
@@ -145,6 +147,7 @@ class LivingValdrak:
         self.actors = []
         self.event_timer = 8.0
         self.interior = None
+        self.dungeon = None
         self.puzzle_input = []
         self.message = ""
         self.sites = self._build_sites()
@@ -235,8 +238,8 @@ class LivingValdrak:
             if obj.kind == "animal":
                 world.player.energy = min(world.profile["max_energy"], world.player.energy + 15)
                 return "O cervo conduz você por uma trilha segura. +15 Energia.", "forest"
-            world.profile["inventory"]["pocao"] += 1
-            return "A caravana oferece suprimentos. Você recebe uma Poção Nórdica.", "horse"
+            world.overlay_screen = "vendor"
+            return "A caravana abriu sua banca. Escolha mercadorias no painel.", "horse"
 
         if obj.kind == "altar":
             regions = self.profile["fast_travel_regions"]
@@ -253,11 +256,29 @@ class LivingValdrak:
 
         self.interior = obj
         self.puzzle_input = []
+        if obj.kind == "dungeon":
+            self.dungeon = DungeonRun(
+                self.chapter,
+                self.profile,
+                seed=self.chapter,
+            )
+            return "Você entrou em uma masmorra de várias salas.", "gate"
         return f"Você entrou em {obj.name}. Procure as runas e resolva o puzzle.", "gate"
 
     def handle_interior_key(self, key, world):
         if not self.interior:
             return None
+
+        if self.dungeon:
+            action, text, sfx = self.dungeon.handle_key(
+                key,
+                world,
+            )
+            if action == "exit":
+                self.interior = None
+                self.dungeon = None
+            return text, sfx
+
         if key == pygame.K_ESCAPE or key == pygame.K_e:
             name = self.interior.name
             self.interior = None
@@ -316,6 +337,13 @@ class LivingValdrak:
 
     def draw_interior(self, surface, fonts, accent):
         if not self.interior:
+            return
+        if self.dungeon:
+            self.dungeon.draw(
+                surface,
+                fonts,
+                accent,
+            )
             return
         surface.fill((8, 10, 15))
         pygame.draw.rect(surface, (18, 24, 31), (80, 78, 1120, 560), border_radius=24)

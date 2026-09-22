@@ -13,6 +13,25 @@ from character_art import draw_protagonist
 from adventure_system import build_chests
 from boss_v24 import BossCombatController
 from living_valdrak import LivingValdrak
+from combat_v25 import CombatV25
+from meta_v25 import (
+    RECIPES,
+    TALENTS,
+    balance,
+    buy_item,
+    craft,
+    cycle_difficulty,
+    ensure_meta,
+    grant_materials,
+    quest_step,
+    talent_bonus,
+    toggle_accessibility,
+    unlock_talent,
+    upgrade_equipped,
+    vendor_stock,
+)
+from visual_v25 import VisualRPGPass
+
 from progression_v24 import (
     add_and_auto_equip,
     codex_lines,
@@ -324,6 +343,22 @@ class Player:
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:
             direction.y += 1
 
+        if (
+            direction.length_squared() == 0
+            and pygame.joystick.get_init()
+            and pygame.joystick.get_count() > 0
+        ):
+            try:
+                joystick = pygame.joystick.Joystick(0)
+                if not joystick.get_init():
+                    joystick.init()
+                axis_x = joystick.get_axis(0)
+                axis_y = joystick.get_axis(1)
+                if abs(axis_x) > 0.18 or abs(axis_y) > 0.18:
+                    direction.update(axis_x, axis_y)
+            except pygame.error:
+                pass
+
         if direction.length_squared() == 0 and self.auto_target is not None:
             delta = self.auto_target - self.pos
             if delta.length() > 8:
@@ -520,6 +555,7 @@ class RPGWorld:
         self.engine = engine
         self.profile = profile
         ensure_progression_profile(self.profile)
+        ensure_meta(self.profile)
         self.theme = THEMES.get(chapter["number"], THEMES[1])
         self.rng = random.Random(7000 + chapter["number"])
 
@@ -592,6 +628,15 @@ class RPGWorld:
 
         self.living = LivingValdrak(chapter["number"], self.profile)
         self.boss_combat = BossCombatController(chapter["number"])
+        self.combat_v25 = CombatV25(self.profile)
+        self.visual_v25 = VisualRPGPass(
+            chapter["number"],
+            (WORLD_W, WORLD_H),
+        )
+        self.vendor_items = vendor_stock(
+            chapter["number"],
+            self.rng,
+        )
         self.overlay_screen = None
         self.map_selection = chapter["number"]
         self.requested_travel_chapter = None
@@ -763,19 +808,104 @@ class RPGWorld:
         )
         self.music_state = "music_danger" if danger else "music_explore"
 
-    def heavy_attack(self):
-        if (
-            self.player.heavy_timer > 0
-            or self.player.energy < 32
-        ):
+    def _damage_player(self, amount):
+        difficulty = balance(self.profile)
+        amount = max(
+            1,
+            int(round(amount * difficulty["enemy_damage"])),
+        )
+        resolved, label = self.combat_v25.incoming(amount)
+        if label:
+            self.notice = label
+            self.notice_timer = 1.2
+            self.events.append(
+                "shield" if "PARRY" in label else "wind"
+            )
+            self.impact_feedback(
+                strength=5,
+                stop=0.045,
+                flash=0.05,
+            )
+            return False
+        return self.player.damage(resolved)
+
+    def _status_from_rune(self):
+        rune = self.profile.get("equipped", {}).get("rune")
+        if not rune:
+            return None
+        name = rune.get("name", "")
+        if "Trovão" in name:
+            return "bleed"
+        if "Pedra" in name:
+            return "frost"
+        if "Código" in name:
+            return "burn"
+        return None
+
+    def parry(self):
+        if self.combat_v25.activate_parry():
+            self.notice = "PARRY — janela ativa"
+            self.notice_timer = 0.7
+            self.events.append("shield")
+        else:
+            self.notice = "Stamina insuficiente"
+            self.notice_timer = 1.0
+
+    def execute_boss(self):
+        boss = self.boss()
+        if not boss or boss.dead:
             return
-        self.player.energy -= 32
+        if not self.combat_v25.execution_available(
+            self.boss_combat,
+            boss.pos.distance_to(self.player.pos),
+        ):
+            self.notice = "Execução indisponível"
+            self.notice_timer = 1.0
+            return
+        self.combat_v25.execute()
+        damage = int(boss.max_hp * 0.22)
+        died = boss.hit(damage)
+        self.notice = f"EXECUÇÃO RÚNICA • {damage} dano"
+        self.notice_timer = 1.8
+        self.events.extend(["blade_hit", "rune"])
+        self.impact_feedback(
+            strength=16,
+            stop=0.12,
+            flash=0.16,
+        )
+        if died:
+            self._enemy_defeated(boss)
+
+    def heavy_attack(self):
+        if self.player.heavy_timer > 0:
+            return
+        if not self.combat_v25.spend_heavy():
+            self.notice = "Stamina insuficiente"
+            self.notice_timer = 1.0
+            return
+        if self.player.energy < 20:
+            self.notice = "Energia insuficiente"
+            self.notice_timer = 1.0
+            return
+        self.player.energy -= 20
         self.player.heavy_timer = 0.72
         self.player.attack_timer = 0.52
         self.events.append("axe_whoosh")
         attack_center = self.player.pos + self.player.facing * 68
         stats = equipment_stats(self.profile)
-        damage = 42 + self.profile["level"] * 4 + stats["attack"]
+        difficulty = balance(self.profile)
+        damage = int(
+            (
+                42
+                + self.profile["level"] * 4
+                + stats["attack"]
+                + talent_bonus(
+                    self.profile,
+                    "attack_bonus",
+                )
+            )
+            * difficulty["player_damage"]
+        )
         for enemy in self.enemies:
             if enemy.dead:
                 continue
@@ -791,10 +921,17 @@ class RPGWorld:
                     if self.boss_combat.add_stagger(24):
                         self.notice = "GUARDIÃO ATORDOADO"
                         self.notice_timer = 2.0
-                if enemy.boss:
-                    if self.boss_combat.add_stagger(12):
-                        self.notice = "GUARDIÃO ATORDOADO"
-                        self.notice_timer = 2.0
+                elif not died:
+                    delta = enemy.pos - self.player.pos
+                    if delta.length_squared():
+                        enemy.pos += delta.normalize() * 34
+                    status = self._status_from_rune()
+                    if status:
+                        self.combat_v25.apply_status(
+                            enemy,
+                            status,
+                            duration=4.0,
+                        )
                 if died:
                     self._enemy_defeated(enemy)
 
@@ -811,15 +948,81 @@ class RPGWorld:
             return
 
         if self.overlay_screen:
-            if event.key in {
+            close_keys = {
                 pygame.K_ESCAPE,
                 pygame.K_m,
                 pygame.K_j,
                 pygame.K_c,
                 pygame.K_g,
-            }:
+                pygame.K_k,
+                pygame.K_t,
+                pygame.K_o,
+            }
+            if event.key in close_keys:
                 self.overlay_screen = None
                 return
+
+            number_map = {
+                pygame.K_1: 0,
+                pygame.K_2: 1,
+                pygame.K_3: 2,
+                pygame.K_KP1: 0,
+                pygame.K_KP2: 1,
+                pygame.K_KP3: 2,
+            }
+            if self.overlay_screen == "craft" and event.key in number_map:
+                ok, message = craft(
+                    self.profile,
+                    number_map[event.key],
+                    self.chapter["number"],
+                    self.rng,
+                )
+                self.notice = message
+                self.notice_timer = 2.0
+                self.events.append("pickup" if ok else "error")
+                return
+
+            if self.overlay_screen == "talents" and event.key in number_map:
+                ok, message = unlock_talent(
+                    self.profile,
+                    number_map[event.key],
+                )
+                self.notice = message
+                self.notice_timer = 2.0
+                self.events.append("rune" if ok else "error")
+                return
+
+            if self.overlay_screen == "vendor" and event.key in number_map:
+                item = self.vendor_items[number_map[event.key]]
+                ok, message = buy_item(self.profile, item)
+                self.notice = message
+                self.notice_timer = 2.0
+                self.events.append("pickup" if ok else "error")
+                return
+
+            if self.overlay_screen == "accessibility":
+                access_map = {
+                    pygame.K_1: "high_contrast",
+                    pygame.K_2: "reduce_flash",
+                    pygame.K_3: "screen_shake",
+                    pygame.K_4: "large_ui",
+                }
+                if event.key in access_map:
+                    key = access_map[event.key]
+                    value = toggle_accessibility(
+                        self.profile,
+                        key,
+                    )
+                    self.notice = (
+                        f"{key}: {'ON' if value else 'OFF'}"
+                    )
+                    self.notice_timer = 1.4
+                    return
+                if event.key == pygame.K_5:
+                    mode = cycle_difficulty(self.profile)
+                    self.notice = f"Dificuldade: {mode}"
+                    self.notice_timer = 1.4
+                    return
             if self.overlay_screen == "map":
                 if event.key in {pygame.K_UP, pygame.K_w}:
                     self.map_selection = max(1, self.map_selection - 1)
@@ -834,6 +1037,39 @@ class RPGWorld:
                         self.notice = "Ative o altar desta região para usar Fast Travel"
                         self.notice_timer = 2.3
                 return
+            return
+
+        if event.key == pygame.K_p:
+            self.parry()
+            return
+
+        if event.key == pygame.K_x:
+            self.execute_boss()
+            return
+
+        if event.key == pygame.K_k:
+            self.overlay_screen = "craft"
+            self.events.append("inventory")
+            return
+
+        if event.key == pygame.K_t:
+            self.overlay_screen = "talents"
+            self.events.append("rune")
+            return
+
+        if event.key == pygame.K_u:
+            ok, message = upgrade_equipped(
+                self.profile,
+                "weapon",
+            )
+            self.notice = message
+            self.notice_timer = 2.0
+            self.events.append("forge" if ok else "error")
+            return
+
+        if event.key == pygame.K_o:
+            self.overlay_screen = "accessibility"
+            self.events.append("choice")
             return
 
         if event.key == pygame.K_m:
@@ -877,6 +1113,12 @@ class RPGWorld:
                 and self.player.pos.distance_to(self.npc.pos) <= 100
             ):
                 line = self.npc.talk()
+                quest_line = quest_step(
+                    self.profile,
+                    self.npc.name,
+                )
+                if quest_line:
+                    line = f"{line}  {quest_line}"
                 self.notice = f"{self.npc.name}: {line}"
                 self.dialogue = (self.npc.name, line)
                 self.notice_timer = 4.2
@@ -997,22 +1239,28 @@ class RPGWorld:
         stop=0.045,
         flash=0.08,
     ):
-        self.shake_strength = max(
-            self.shake_strength,
-            strength,
+        accessibility = self.profile.get(
+            "accessibility",
+            {},
         )
-        self.shake_timer = max(
-            self.shake_timer,
-            0.18,
-        )
+        if accessibility.get("screen_shake", True):
+            self.shake_strength = max(
+                self.shake_strength,
+                strength,
+            )
+            self.shake_timer = max(
+                self.shake_timer,
+                0.18,
+            )
         self.hit_stop = max(
             self.hit_stop,
             stop,
         )
-        self.flash_timer = max(
-            self.flash_timer,
-            flash,
-        )
+        if not accessibility.get("reduce_flash", False):
+            self.flash_timer = max(
+                self.flash_timer,
+                flash,
+            )
 
     def use_item(self, kind):
         inventory = self.profile["inventory"]
@@ -1079,16 +1327,36 @@ class RPGWorld:
                 crit = self.rng.random() < (
                     0.06 + stats["crit"]
                 )
-                damage = (
-                    22
-                    + self.profile["level"] * 2
-                    + stats["attack"]
+                combo_mult = self.combat_v25.next_combo()
+                difficulty = balance(self.profile)
+                damage = int(
+                    (
+                        22
+                        + self.profile["level"] * 2
+                        + stats["attack"]
+                        + talent_bonus(
+                            self.profile,
+                            "attack_bonus",
+                        )
+                    )
+                    * combo_mult
+                    * difficulty["player_damage"]
                 )
                 if crit:
                     damage = int(damage * 1.7)
                     self.notice = "ACERTO CRÍTICO"
                     self.notice_timer = 0.9
                 died = enemy.hit(damage)
+                if not died:
+                    delta = enemy.pos - self.player.pos
+                    if delta.length_squared():
+                        enemy.pos += delta.normalize() * 18
+                    status = self._status_from_rune()
+                    if status and self.rng.random() < 0.34:
+                        self.combat_v25.apply_status(
+                            enemy,
+                            status,
+                        )
                 self._burst(enemy.pos, GOLD, 10)
                 self.impact_feedback(
                     strength=11 if enemy.boss else 6,
@@ -1140,6 +1408,7 @@ class RPGWorld:
             return
 
         self.player.energy -= 15
+        self.combat_v25.activate_dodge()
         self.player.dash_timer = 0.7
         self._tutorial_advance(
             3,
@@ -1158,6 +1427,18 @@ class RPGWorld:
             )
     def _enemy_defeated(self, enemy):
         self.profile["kills"] += 1
+        elite = (
+            enemy.boss
+            or enemy.archetype
+            in {"elite_raider", "berserker", "alpha_wolf"}
+        )
+        grant_materials(
+            self.profile,
+            self.rng,
+            elite=elite,
+        )
+        if self.profile["kills"] % 8 == 0:
+            self.profile["skill_points"] += 1
         if self.profile["kills"] % 2 == 0:
             self.advance_story_echo()
         xp_gain = 3 if enemy.boss else 1
@@ -1396,6 +1677,13 @@ class RPGWorld:
 
     def update(self, dt, keys):
         self.notice_timer = max(0.0, self.notice_timer - dt)
+        self.combat_v25.update(
+            dt,
+            moving=self.player.is_moving,
+        )
+        for defeated in self.combat_v25.update_statuses(dt):
+            if defeated.dead:
+                self._enemy_defeated(defeated)
 
         if self.living.interior:
             self._update_music_state()
@@ -1475,7 +1763,7 @@ class RPGWorld:
             elif boss_event["kind"] == "resolve":
                 self.events.append(move["sfx"])
                 if boss_event["hit"]:
-                    self.player.damage(move["damage"])
+                    self._damage_player(move["damage"])
                     self._burst(
                         self.player.pos,
                         RED,
@@ -1496,7 +1784,7 @@ class RPGWorld:
 
             distance = enemy.pos.distance_to(self.player.pos)
             if distance <= enemy.radius + 25 and enemy.attack_cd <= 0:
-                if self.player.damage(enemy.damage):
+                if self._damage_player(enemy.damage):
                     enemy.attack_cd = 0.9
                     self.events.append("wolf")
                     self._burst(self.player.pos, RED, 9)
@@ -1589,6 +1877,13 @@ class RPGWorld:
                 self.camera,
                 seconds,
             )
+        self.visual_v25.draw_environment(
+            surface,
+            self.camera,
+            seconds,
+            theme["accent"],
+        )
+
         items = []
 
         if not self.map_scene.available:
@@ -1702,6 +1997,16 @@ class RPGWorld:
         for particle in self.particles:
             particle.draw(surface, self.camera)
 
+        self.visual_v25.draw_lighting(
+            surface,
+            self,
+            seconds,
+        )
+        self._draw_boss_telegraph(
+            surface,
+            theme,
+        )
+
         if self.shake_timer > 0:
             power = self.shake_strength * (
                 self.shake_timer / 0.18
@@ -1713,6 +2018,11 @@ class RPGWorld:
             surface.blit(frame, (dx, dy))
 
         self._draw_hud(surface, fonts, theme)
+        self._draw_v25_stamina(
+            surface,
+            fonts,
+            theme,
+        )
 
         if self.dialogue and self.notice_timer > 0:
             speaker, body = self.dialogue
@@ -1728,11 +2038,23 @@ class RPGWorld:
             self._draw_inventory(surface, fonts, theme)
 
         if self.overlay_screen:
-            self._draw_v24_overlay(
-                surface,
-                fonts,
-                theme,
-            )
+            if self.overlay_screen in {
+                "craft",
+                "talents",
+                "vendor",
+                "accessibility",
+            }:
+                self._draw_v25_meta_overlay(
+                    surface,
+                    fonts,
+                    theme,
+                )
+            else:
+                self._draw_v24_overlay(
+                    surface,
+                    fonts,
+                    theme,
+                )
 
         if self.flash_timer > 0:
             alpha = int(
@@ -1798,12 +2120,24 @@ class RPGWorld:
         )
 
     def _ally_pos(self, index):
-        angle = math.pi + (index - 1.5) * 0.55
-        distance = 62 + (index % 2) * 16
-        return self.player.pos + pygame.Vector2(
-            math.cos(angle) * distance,
-            math.sin(angle) * distance,
-        )
+        # Two-row formation behind the player prevents six allies
+        # from occupying the same visual space.
+        formations = [
+            (-88, 58),
+            (88, 58),
+            (-135, 105),
+            (135, 105),
+            (-56, 128),
+            (56, 128),
+        ]
+        if index < len(formations):
+            ox, oy = formations[index]
+        else:
+            angle = math.pi * 0.25 + index * 0.72
+            ox = math.cos(angle) * 145
+            oy = 105 + math.sin(angle) * 55
+        return self.player.pos + pygame.Vector2(ox, oy)
+
     def _draw_ally(self, surface, name, pos, index, accent):
         x = int(pos.x - self.camera.x)
         y = int(pos.y - self.camera.y)
@@ -1903,6 +2237,257 @@ class RPGWorld:
             fonts,
             self,
             theme,
+        )
+
+    def _draw_boss_telegraph(self, surface, theme):
+        boss = self.boss()
+        move = self.boss_combat.pending
+        if not boss or boss.dead or not move:
+            return
+
+        x = int(boss.pos.x - self.camera.x)
+        y = int(boss.pos.y - self.camera.y)
+        radius = min(250, int(move["range"]))
+        warning = pygame.Surface(
+            (radius * 2 + 8, radius * 2 + 8),
+            pygame.SRCALPHA,
+        )
+        pygame.draw.circle(
+            warning,
+            (225, 82, 92, 42),
+            (radius + 4, radius + 4),
+            radius,
+        )
+        pygame.draw.circle(
+            warning,
+            (255, 118, 92, 205),
+            (radius + 4, radius + 4),
+            radius,
+            3,
+        )
+        surface.blit(
+            warning,
+            (x - radius - 4, y - radius - 4),
+        )
+
+    def _draw_v25_stamina(self, surface, fonts, theme):
+        value = self.combat_v25.stamina
+        maximum = self.profile["max_stamina"]
+        ratio = value / max(1, maximum)
+        rect = pygame.Rect(485, 646, 310, 10)
+        pygame.draw.rect(
+            surface,
+            (23, 30, 39),
+            rect,
+            border_radius=5,
+        )
+        pygame.draw.rect(
+            surface,
+            GOLD,
+            (
+                rect.x,
+                rect.y,
+                int(rect.width * ratio),
+                rect.height,
+            ),
+            border_radius=5,
+        )
+        label = fonts["small"].render(
+            f"STAMINA {int(value)}/{maximum}",
+            True,
+            (205, 213, 221),
+        )
+        surface.blit(
+            label,
+            label.get_rect(midbottom=(640, 644)),
+        )
+
+    def _draw_v25_meta_overlay(
+        self,
+        surface,
+        fonts,
+        theme,
+    ):
+        veil = pygame.Surface(
+            (1280, 720),
+            pygame.SRCALPHA,
+        )
+        veil.fill((0, 0, 0, 215))
+        surface.blit(veil, (0, 0))
+
+        panel = pygame.Rect(180, 82, 920, 560)
+        pygame.draw.rect(
+            surface,
+            (8, 14, 22),
+            panel,
+            border_radius=24,
+        )
+        pygame.draw.rect(
+            surface,
+            theme["accent"],
+            panel,
+            2,
+            border_radius=24,
+        )
+
+        titles = {
+            "craft": "FORJA & CRAFTING",
+            "talents": "ÁRVORE DE TALENTOS",
+            "vendor": "MERCADOR DE VALDRAK",
+            "accessibility": "ACESSIBILIDADE & BALANCEAMENTO",
+        }
+        surface.blit(
+            fonts["title"].render(
+                titles[self.overlay_screen],
+                True,
+                INK,
+            ),
+            (225, 120),
+        )
+        y = 190
+
+        if self.overlay_screen == "craft":
+            mats = self.profile["materials"]
+            summary = "  ".join(
+                f"{k.upper()} {v}"
+                for k, v in mats.items()
+            )
+            surface.blit(
+                fonts["small"].render(
+                    summary,
+                    True,
+                    theme["accent"],
+                ),
+                (225, y),
+            )
+            y += 50
+            for index, recipe in enumerate(RECIPES, 1):
+                cost = ", ".join(
+                    f"{key}:{value}"
+                    for key, value in recipe["cost"].items()
+                )
+                line = f"{index}. {recipe['name']} — {cost}"
+                surface.blit(
+                    fonts["body"].render(
+                        line,
+                        True,
+                        INK,
+                    ),
+                    (225, y),
+                )
+                y += 58
+            hint = "1/2/3 cria • U melhora arma • K/Esc fecha"
+
+        elif self.overlay_screen == "talents":
+            surface.blit(
+                fonts["heading"].render(
+                    f"PONTOS: {self.profile['skill_points']}",
+                    True,
+                    GOLD,
+                ),
+                (225, y),
+            )
+            y += 52
+            for index, (
+                name,
+                key,
+                value,
+            ) in enumerate(TALENTS[:3], 1):
+                unlocked = key in self.profile["talents"]
+                suffix = (
+                    "DESBLOQUEADO"
+                    if unlocked
+                    else f"+{value} {key}"
+                )
+                surface.blit(
+                    fonts["body"].render(
+                        f"{index}. {name} — {suffix}",
+                        True,
+                        theme["accent"]
+                        if unlocked
+                        else INK,
+                    ),
+                    (225, y),
+                )
+                y += 62
+            hint = "1/2/3 desbloqueia • T/Esc fecha"
+
+        elif self.overlay_screen == "vendor":
+            surface.blit(
+                fonts["heading"].render(
+                    f"MOEDAS: {self.profile['coins']}",
+                    True,
+                    GOLD,
+                ),
+                (225, y),
+            )
+            y += 54
+            prices = {
+                "Comum": 25,
+                "Raro": 48,
+                "Épico": 85,
+                "Lendário": 140,
+            }
+            for index, item in enumerate(
+                self.vendor_items,
+                1,
+            ):
+                line = (
+                    f"{index}. {item['rarity']} {item['name']} "
+                    f"+{item['value']} {item['stat']} "
+                    f"— {prices[item['rarity']]} moedas"
+                )
+                surface.blit(
+                    fonts["body"].render(
+                        line,
+                        True,
+                        INK,
+                    ),
+                    (225, y),
+                )
+                y += 62
+            hint = "1/2/3 compra • Esc fecha"
+
+        else:
+            settings = self.profile["accessibility"]
+            labels = [
+                ("Alto contraste", "high_contrast"),
+                ("Reduzir flashes", "reduce_flash"),
+                ("Screen shake", "screen_shake"),
+                ("UI ampliada", "large_ui"),
+            ]
+            for index, (label, key) in enumerate(
+                labels,
+                1,
+            ):
+                state = "ON" if settings[key] else "OFF"
+                surface.blit(
+                    fonts["body"].render(
+                        f"{index}. {label}: {state}",
+                        True,
+                        INK,
+                    ),
+                    (225, y),
+                )
+                y += 58
+
+            surface.blit(
+                fonts["body"].render(
+                    f"5. Dificuldade: {self.profile['difficulty']}",
+                    True,
+                    GOLD,
+                ),
+                (225, y),
+            )
+            hint = "1-4 alterna • 5 dificuldade • O/Esc fecha"
+
+        surface.blit(
+            fonts["small"].render(
+                hint,
+                True,
+                (155, 170, 185),
+            ),
+            (225, 602),
         )
 
     def _draw_v24_overlay(self, surface, fonts, theme):

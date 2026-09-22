@@ -147,21 +147,21 @@ class PauseMenu:
         surface.blit(heading, (405, 200))
 
         rows = [
-            ("WASD / Setas", "Mover"),
-            ("Espaço", "Atacar / confirmar"),
-            ("Q", "Pulso de Código"),
-            ("Shift", "Dash"),
-            ("R", "Poder dos Eternos"),
-            ("F", "Ataque pesado"),
+            ("WASD / Setas / Analógico", "Mover"),
+            ("Espaço / A", "Ataque / confirmar"),
+            ("F / RB", "Ataque pesado"),
+            ("P / LB", "Parry"),
+            ("Shift / B", "Dash / esquiva perfeita"),
+            ("Q / X", "Pulso de Código"),
+            ("R / Y", "Poder dos Eternos"),
+            ("X / R3", "Execução em Guardião atordoado"),
             ("E", "Interagir"),
-            ("1 / 2", "Poção / Essência"),
-            ("I / Tab", "Inventário"),
-            ("M / J / C", "Mapa / Quest Log / Codex"),
-            ("G", "Equipamentos"),
-            ("V", "Áudio ON/OFF"),
-            ("F5 / F9", "Salvar / Carregar"),
-            ("- / +", "Volume"),
-            ("Esc", "Pausa"),
+            ("M / J / C / G", "Mapa / Quests / Codex / Equipamentos"),
+            ("K / T / U", "Craft / Talentos / Upgrade"),
+            ("O", "Acessibilidade / dificuldade"),
+            ("F5 / F9 / F6", "Salvar / carregar / trocar slot"),
+            ("V / - / +", "Áudio / volume"),
+            ("Esc / Start", "Pausa"),
         ]
 
         y = 248
@@ -170,7 +170,7 @@ class PauseMenu:
             action_surf = fonts["body"].render(action, True, INK)
             surface.blit(key_surf, (410, y))
             surface.blit(action_surf, (610, y + 1))
-            y += 31
+            y += 25
 
         hint = fonts["small"].render(
             "Enter, Espaço, Esc ou clique para voltar",
