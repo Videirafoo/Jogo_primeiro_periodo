@@ -152,3 +152,9 @@ Para rodar, use apenas comandos no PowerShell. Código Python deve permanecer no
 A nova etapa amplia Valdrak com 28 pontos especiais distribuídos nas sete regiões: ruínas, acampamentos, microcontos e sete passagens secretas. O jogador registra descobertas, Relíquias de Memória e Chaves Rúnicas, e cada região possui uma missão secundária concluída após três descobertas.
 
 O tilemap também foi revisto com macrotiles de 48 px, menos ruído visual, tint própria por região, sprites mais proporcionais e HUD escura/compacta.
+
+## Combat & Audio Art Pass V2.2
+
+A V2.2 inicia a substituição definitiva dos elementos temporários de combate por identidade autoral de Valdrak. O protagonista possui silhueta própria, manopla rúnica e espada visível. NPCs ganharam roupa, elmo e ferramentas próprias. Machados vikings agora possuem cabo de madeira, couro, cabeça de aço, fio, runas, rotação e rastro de movimento. Hroth usa dois machados e os demais Guardiões recebem armas diferentes.
+
+O áudio de combate passou a priorizar o banco autoral assets/audio/valdrak com variantes de passos, cortes, impactos, machados, escudos, runas e derrota de Guardião.

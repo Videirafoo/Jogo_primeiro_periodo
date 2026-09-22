@@ -3,6 +3,8 @@ import random
 
 import pygame
 
+from weapon_art import draw_viking_axe
+
 
 ARENA = pygame.Rect(70, 270, 1140, 300)
 INK = (236, 242, 248)
@@ -198,6 +200,10 @@ class Challenge:
                     "speed": self.rng.randint(210, 330),
                     "size": self.rng.randint(16, 26),
                     "kind": hazard_kind,
+                    "spin": self.rng.uniform(0, 360),
+                    "spin_speed": self.rng.choice(
+                        [-760, -620, 620, 760]
+                    ),
                 }
             )
 
@@ -211,6 +217,10 @@ class Challenge:
 
         for hazard in self.hazards:
             hazard["y"] += hazard["speed"] * dt
+            hazard["spin"] = (
+                hazard.get("spin", 0.0)
+                + hazard.get("spin_speed", 0.0) * dt
+            ) % 360
             rect = pygame.Rect(
                 int(hazard["x"] - hazard["size"]),
                 int(hazard["y"] - hazard["size"]),
@@ -312,21 +322,14 @@ class Challenge:
             size = hazard["size"]
 
             if hazard.get("kind") == "axe":
-                pygame.draw.line(
+                draw_viking_axe(
                     surface,
-                    (132, 91, 55),
-                    (x - size, y + size),
-                    (x + size, y - size),
-                    6,
+                    (x, y),
+                    angle=hazard.get("spin", 0.0),
+                    scale=max(0.38, size / 46),
+                    rune_color=accent,
+                    motion=1.0,
                 )
-                blade = [
-                    (x + size - 4, y - size),
-                    (x + size + 10, y - size + 4),
-                    (x + size + 5, y + 5),
-                    (x - 2, y),
-                ]
-                pygame.draw.polygon(surface, (190, 202, 214), blade)
-                pygame.draw.polygon(surface, INK, blade, 2)
             else:
                 pygame.draw.ellipse(
                     surface,

@@ -62,3 +62,7 @@ Para rodar, use apenas comandos no PowerShell. Código Python deve permanecer no
 A nova etapa amplia Valdrak com 28 pontos especiais distribuídos nas sete regiões: ruínas, acampamentos, microcontos e sete passagens secretas. O jogador registra descobertas, Relíquias de Memória e Chaves Rúnicas, e cada região possui uma missão secundária concluída após três descobertas.
 
 O tilemap também foi revisto com macrotiles de 48 px, menos ruído visual, tint própria por região, sprites mais proporcionais e HUD escura/compacta.
+
+## V2.2 Combat & Audio
+
+Atualize a branch v2-interface-grafica e execute normalmente com python eternos.py. A V2.2 não exige dependências adicionais. O novo áudio é carregado automaticamente de assets/audio/valdrak.

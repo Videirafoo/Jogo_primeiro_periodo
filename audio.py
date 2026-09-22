@@ -13,6 +13,46 @@ KENNEY_AUDIO = (
     / "kenney"
     / "audio"
 )
+VALDRAK_AUDIO = (
+    Path(__file__).with_name("assets")
+    / "audio"
+    / "valdrak"
+)
+
+VALDRAK_SFX = {
+    "footstep": [
+        "footstep_grass_1.wav",
+        "footstep_grass_2.wav",
+        "footstep_grass_3.wav",
+        "footstep_grass_4.wav",
+    ],
+    "sword": [
+        "sword_slash_1.wav",
+        "sword_slash_2.wav",
+        "sword_slash_3.wav",
+    ],
+    "blade_hit": [
+        "blade_hit_1.wav",
+        "blade_hit_2.wav",
+    ],
+    "axe_whoosh": [
+        "axe_whoosh_1.wav",
+        "axe_whoosh_2.wav",
+        "axe_whoosh_3.wav",
+    ],
+    "axe_hit": [
+        "axe_hit_1.wav",
+        "axe_hit_2.wav",
+        "axe_hit_3.wav",
+    ],
+    "shield": [
+        "shield_hit_1.wav",
+        "shield_hit_2.wav",
+    ],
+    "rune": ["rune_pulse_1.wav"],
+    "runes": ["rune_pulse_1.wav"],
+    "boss_defeat": ["boss_defeat_1.wav"],
+}
 
 KENNEY_SFX = {
     "footstep": "footstep07.ogg",
@@ -68,6 +108,7 @@ class Audio:
         self.enabled = True
         self.cache = {}
         self.ambience_cache = {}
+        self.variant_index = {}
         self.current_ambience = None
         self.master_volume = 0.72
         self.ambience_mix = 0.72
@@ -163,10 +204,18 @@ class Audio:
         if not self.enabled or not pygame.mixer.get_init():
             return
 
-        sound = self.cache.get(name)
+        variants = VALDRAK_SFX.get(name)
+        cache_key = name
+        variant = 0
+        if variants:
+            variant = self.variant_index.get(name, 0) % len(variants)
+            self.variant_index[name] = variant + 1
+            cache_key = f"{name}:{variant}"
+
+        sound = self.cache.get(cache_key)
         if sound is None:
-            sound = self._create_sound(name)
-            self.cache[name] = sound
+            sound = self._create_sound(name, variant=variant)
+            self.cache[cache_key] = sound
 
         channel = pygame.mixer.find_channel(True)
         if channel is None:
@@ -181,7 +230,17 @@ class Audio:
             pygame.mixer.stop()
         self.current_ambience = None
 
-    def _create_sound(self, name):
+    def _create_sound(self, name, variant=0):
+        variants = VALDRAK_SFX.get(name)
+        if variants:
+            filename = variants[variant % len(variants)]
+            path = VALDRAK_AUDIO / filename
+            if path.exists():
+                try:
+                    return pygame.mixer.Sound(str(path))
+                except pygame.error:
+                    pass
+
         kenney = KENNEY_SFX.get(name)
         if kenney:
             path = KENNEY_AUDIO / kenney

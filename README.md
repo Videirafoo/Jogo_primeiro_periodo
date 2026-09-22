@@ -373,3 +373,26 @@ Arquivos principais desta etapa:
 - `test_world_expansion.py`
 
 A próxima evolução visual continua preparada para substituir gradualmente os assets CC0 por arte autoral de Valdrak, sem reescrever os sistemas de exploração e narrativa.
+
+
+## V2.2 — Combat & Audio Art Pass
+
+A V2.2 substitui elementos temporários de combate por arte autoral de Valdrak.
+
+- machados vikings redesenhados com cabo de madeira, couro, aço, fio e runas;
+- machados arremessados agora giram e deixam motion trail;
+- protagonista recebeu silhueta autoral, capa, túnica, botas, manopla rúnica e espada visível;
+- NPCs receberam corpo, roupa, elmo e ferramentas coerentes com cada região;
+- Hroth agora usa dois machados e os demais Guardiões recebem armas visualmente distintas;
+- saqueadores passam a carregar machados reais no mundo;
+- novo banco de áudio procedural autoral em assets/audio/valdrak;
+- três variações de whoosh de machado;
+- três impactos de machado;
+- três cortes de espada;
+- dois impactos de lâmina;
+- quatro passos em terreno;
+- dois impactos de escudo;
+- novo pulso rúnico e impacto de derrota de boss;
+- golpes que acertam inimigos agora disparam som de impacto separado do som de corte.
+
+Os novos WAVs são gerados sem samples de terceiros e documentados em assets/audio/valdrak/SOURCE.md.

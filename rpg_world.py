@@ -9,6 +9,7 @@ from world_art import WorldArt
 from sprite_animator import draw_actor
 from hud import RPGHUD
 from map_loader import MapScene
+from character_art import draw_protagonist
 from world_expansion import (
     build_region_places,
     interact_with_place,
@@ -386,22 +387,24 @@ class Player:
         y = int(self.pos.y - offset.y)
         seconds = pygame.time.get_ticks() / 1000
 
-        rendered = draw_actor(
+        rendered = draw_protagonist(
             surface,
-            "player",
             (x, y),
-            state=self.state,
-            facing=self.facing,
-            seconds=seconds,
-            tint=accent,
+            self.facing,
+            self.state,
+            seconds,
+            accent,
         )
 
         if not rendered:
-            pygame.draw.circle(
+            rendered = draw_actor(
                 surface,
-                accent,
+                "player",
                 (x, y),
-                22,
+                state=self.state,
+                facing=self.facing,
+                seconds=seconds,
+                tint=accent,
             )
 
         if self.state == "attack":
@@ -805,10 +808,12 @@ class RPGWorld:
         self.events.append("sword")
         attack_center = self.player.pos + self.player.facing * 55
 
+        hit_any = False
         for enemy in self.enemies:
             if enemy.dead:
                 continue
             if enemy.pos.distance_to(attack_center) <= 90:
+                hit_any = True
                 died = enemy.hit(22 + self.profile["level"] * 2)
                 self._burst(enemy.pos, GOLD, 10)
                 self.impact_feedback(
@@ -818,6 +823,9 @@ class RPGWorld:
                 )
                 if died:
                     self._enemy_defeated(enemy)
+
+        if hit_any:
+            self.events.append("blade_hit")
 
     def tech_pulse(self):
         if self.player.pulse_timer > 0 or self.player.energy < 24:

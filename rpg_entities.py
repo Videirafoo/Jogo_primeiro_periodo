@@ -5,6 +5,8 @@ import pygame
 
 from character_visuals import draw_boss_aura
 from sprite_animator import draw_actor
+from character_art import draw_viking_npc
+from weapon_art import draw_boss_weapon, draw_viking_axe
 
 
 INK = (236, 242, 248)
@@ -223,6 +225,24 @@ class EnemyActor:
             else:
                 self._draw_raven(surface, x, y, color, scale)
 
+        seconds = pygame.time.get_ticks() / 1000
+        if self.boss:
+            draw_boss_weapon(
+                surface,
+                self.chapter,
+                (x + 22, y + 3),
+                seconds,
+                scale=0.58,
+            )
+        elif self.archetype == "raider":
+            draw_viking_axe(
+                surface,
+                (x + 19, y + 3),
+                angle=-31 + math.sin(seconds * 5) * 4,
+                scale=0.36,
+                rune_color=GOLD,
+            )
+
         width = 86 if self.boss else 48
         ratio = max(0, self.hp) / self.max_hp
         bar_x = x - width // 2
@@ -344,41 +364,13 @@ class NPC:
     def draw(self, surface, offset, accent, near=False):
         x = int(self.pos.x - offset.x)
         y = int(self.pos.y - offset.y)
-
-        pygame.draw.circle(
+        draw_viking_npc(
             surface,
-            (11, 17, 24),
-            (x, y + 11),
-            21,
-        )
-        pygame.draw.rect(
-            surface,
+            (x, y),
+            self.chapter,
             accent,
-            (x - 13, y - 12, 26, 37),
-            border_radius=8,
+            near=near,
         )
-        pygame.draw.circle(
-            surface,
-            (208, 174, 145),
-            (x, y - 23),
-            12,
-        )
-        pygame.draw.line(
-            surface,
-            GOLD,
-            (x + 11, y - 3),
-            (x + 27, y - 31),
-            4,
-        )
-
-        if near:
-            pygame.draw.circle(
-                surface,
-                accent,
-                (x, y),
-                34,
-                2,
-            )
 
 
 class Loot:
