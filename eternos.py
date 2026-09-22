@@ -577,7 +577,15 @@ class GameApp:
             self._handle_pause_action(action)
             return
 
-        if event.key in (pygame.K_ESCAPE, pygame.K_p):
+        if event.key == pygame.K_ESCAPE:
+            if self.phase == "explore" and self.world:
+                if (
+                    self.world.overlay_screen
+                    or self.world.living.interior
+                    or self.world.inventory_open
+                ):
+                    self.world.handle_key(event)
+                    return
             self.paused = True
             self.pause_menu.reset()
             return

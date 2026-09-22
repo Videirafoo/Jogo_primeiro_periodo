@@ -8,6 +8,7 @@ import pygame
 
 from combat_v25 import CombatV25
 from dungeon_v25 import DungeonRun
+from eternos import GameApp
 from meta_v25 import craft, ensure_meta, unlock_talent
 from savegame import slot_path
 from sprite_v25 import (
@@ -102,6 +103,32 @@ class V25SystemsTests(unittest.TestCase):
     def test_save_slots_sao_distintos(self):
         self.assertNotEqual(slot_path(1), slot_path(2))
         self.assertNotEqual(slot_path(2), slot_path(3))
+
+    def test_p_aciona_parry_sem_pausar(self):
+        app = GameApp(headless=True)
+        app.handle_key(
+            pygame.event.Event(
+                pygame.KEYDOWN,
+                key=pygame.K_p,
+            )
+        )
+        self.assertFalse(app.paused)
+        self.assertGreater(
+            app.world.combat_v25.parry_window,
+            0,
+        )
+
+    def test_escape_fecha_overlay_antes_de_pausar(self):
+        app = GameApp(headless=True)
+        app.world.overlay_screen = "map"
+        app.handle_key(
+            pygame.event.Event(
+                pygame.KEYDOWN,
+                key=pygame.K_ESCAPE,
+            )
+        )
+        self.assertFalse(app.paused)
+        self.assertIsNone(app.world.overlay_screen)
 
 
 if __name__ == "__main__":

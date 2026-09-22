@@ -936,6 +936,10 @@ class RPGWorld:
                     self._enemy_defeated(enemy)
 
     def handle_key(self, event):
+        if self.inventory_open and event.key == pygame.K_ESCAPE:
+            self.inventory_open = False
+            return
+
         if self.living.interior:
             result = self.living.handle_interior_key(
                 event.key,
