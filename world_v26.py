@@ -231,13 +231,37 @@ class Villager:
             return self.market
         return self.home
 
-    def update(self, dt, hour):
+    def update(self, dt, hour, obstacles=None):
         self.target = self._schedule_target(hour)
         delta = self.target - self.pos
         if delta.length() > 8:
             direction = delta.normalize()
             self.facing = direction
-            self.pos += direction * self.speed * dt
+            step = direction * self.speed * dt
+
+            def blocked(pos):
+                if not obstacles:
+                    return False
+                rect = pygame.Rect(
+                    int(pos.x - 13),
+                    int(pos.y - 16),
+                    26,
+                    38,
+                )
+                return any(
+                    rect.colliderect(obstacle)
+                    for obstacle in obstacles
+                )
+
+            next_pos = self.pos.copy()
+            next_pos.x += step.x
+            if not blocked(next_pos):
+                self.pos.x = next_pos.x
+
+            next_pos = self.pos.copy()
+            next_pos.y += step.y
+            if not blocked(next_pos):
+                self.pos.y = next_pos.y
         else:
             self.phase += dt
 
@@ -443,7 +467,11 @@ class WorldQuestDirector:
         self.hour = (self.hour + dt * 0.018) % 24
         self.profile["v26_time"] = self.hour
         for npc in self.villagers:
-            npc.update(dt, self.hour)
+            npc.update(
+                dt,
+                self.hour,
+                world.obstacles,
+            )
 
         self.rare_timer -= dt
         if self.rare_timer <= 0:

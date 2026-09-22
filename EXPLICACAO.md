@@ -183,3 +183,7 @@ A V2.7 aumenta a animação para seis frames, adiciona estados visuais de parry/
 ## Adventure Depth V2.8
 
 A V2.8 quadruplica a área física dos mapas TMX e integra oito tipos de local de aventura. Dungeon III, Combat 3.0, RPG Depth II e Companion System passam a trabalhar sobre o mesmo perfil persistente, portanto saves existentes continuam compatíveis e os novos estados são gravados automaticamente.
+
+## Hotfix V2.8.1 — Movimento e colisões
+
+A expansão 2x2 da V2.8 repetia também as colisões de borda dos TMX. Isso criava paredes invisíveis nas emendas internas. Além disso, o novo prédio central da vila podia ocupar o ponto antigo de spawn. A V2.8.1 remove as colisões internas de costura, mantém somente o contorno externo, procura um spawn com folga real e reposiciona interações bloqueadas. NPCs de rotina agora também verificam colisões durante o deslocamento.

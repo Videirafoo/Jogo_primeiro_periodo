@@ -128,3 +128,7 @@ Após atualizar a branch, execute python eternos.py. A aventura começa imediata
 - C no painel Z: trocar modo dos companheiros;
 - T no painel Z: gastar ponto em skill do Eterno;
 - os controles anteriores continuam válidos.
+
+## Correção V2.8.1
+
+Se a V2.8 anterior deixou o personagem preso, atualize para a V2.8.1. O personagem deve nascer em área livre e andar normalmente com WASD ou setas. As passagens entre os quatro setores do mapa também estão abertas.

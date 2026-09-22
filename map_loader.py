@@ -127,6 +127,36 @@ class MapScene:
                 oy = row * base_height
                 expanded.blit(base_surface, (ox, oy))
                 for rect in base_collisions:
+                    is_top = (
+                        rect.top <= 0
+                        and rect.width >= base_width * 0.8
+                    )
+                    is_bottom = (
+                        rect.bottom >= base_height
+                        and rect.width >= base_width * 0.8
+                    )
+                    is_left = (
+                        rect.left <= 0
+                        and rect.height >= base_height * 0.8
+                    )
+                    is_right = (
+                        rect.right >= base_width
+                        and rect.height >= base_height * 0.8
+                    )
+
+                    # Original TMX collision objects are the four map
+                    # borders. Once the map is tiled 2x2, only the
+                    # outside borders remain solid; internal seams
+                    # must stay open so the player can cross sectors.
+                    if is_top and row != 0:
+                        continue
+                    if is_bottom and row != 1:
+                        continue
+                    if is_left and col != 0:
+                        continue
+                    if is_right and col != 1:
+                        continue
+
                     expanded_collisions.append(
                         rect.move(ox, oy)
                     )

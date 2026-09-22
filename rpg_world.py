@@ -67,6 +67,9 @@ from world_expansion import (
 
 WORLD_W = 3648
 WORLD_H = 2208
+SECTOR_W = 1824
+SECTOR_H = 1104
+START_POS = pygame.Vector2(SECTOR_W / 2, SECTOR_H / 2)
 PLAYER_SIZE = 42
 
 INK = (236, 242, 248)
@@ -272,7 +275,7 @@ class Enemy:
 class Player:
     def __init__(self, profile):
         self.profile = profile
-        self.pos = pygame.Vector2(WORLD_W / 2, WORLD_H / 2)
+        self.pos = START_POS.copy()
         self.facing = pygame.Vector2(0, 1)
         self.speed = 250
         self.attack_timer = 0.0
@@ -636,7 +639,7 @@ class RPGWorld:
         )
         self.npc = NPC(
             chapter["number"],
-            (WORLD_W / 2 + 185, WORLD_H / 2 - 105),
+            (START_POS.x + 185, START_POS.y - 105),
         )
 
         self.chapter_kills_start = profile.get("kills", 0)
@@ -690,6 +693,10 @@ class RPGWorld:
         self.obstacles.extend(
             self.world_v27.collision_rects()
         )
+        self.player.pos.update(
+            self._find_safe_spawn(START_POS)
+        )
+        self.tutorial_origin = self.player.pos.copy()
         self.v27_boss_phase2 = False
 
         self.adventure_v28 = AdventureDepthV28(
@@ -713,6 +720,7 @@ class RPGWorld:
         self.companion_v28.sync(
             self.engine.ally_names()
         )
+        self._sanitize_world_positions()
 
         self.vendor_items = vendor_stock(
             chapter["number"],
@@ -723,6 +731,158 @@ class RPGWorld:
         self.requested_travel_chapter = None
         self.music_state = "music_explore"
         self.last_music_state = None
+
+    def _find_safe_spawn(self, preferred):
+        preferred = pygame.Vector2(preferred)
+        step = 24
+
+        def safe(pos):
+            if not (
+                110 <= pos.x <= WORLD_W - 110
+                and 110 <= pos.y <= WORLD_H - 110
+            ):
+                return False
+            # Spawn/respawn requires clearance in every direction,
+            # not only a non-overlapping center point.
+            rect = self.player.rect_at(
+                pos
+            ).inflate(180, 180)
+            return not any(
+                rect.colliderect(obstacle)
+                for obstacle in self.obstacles
+            )
+
+        if safe(preferred):
+            return preferred
+
+        for radius in range(step, 520, step):
+            offsets = []
+            for dx in range(-radius, radius + 1, step):
+                offsets.extend(
+                    [(dx, -radius), (dx, radius)]
+                )
+            for dy in range(
+                -radius + step,
+                radius,
+                step,
+            ):
+                offsets.extend(
+                    [(-radius, dy), (radius, dy)]
+                )
+            for dx, dy in offsets:
+                candidate = preferred + pygame.Vector2(
+                    dx,
+                    dy,
+                )
+                if safe(candidate):
+                    return candidate
+
+        return pygame.Vector2(120, 120)
+
+    def _find_safe_near(
+        self,
+        preferred,
+        max_radius=360,
+        step=24,
+    ):
+        preferred = pygame.Vector2(preferred)
+
+        def safe(pos):
+            if not (
+                48 <= pos.x <= WORLD_W - 48
+                and 48 <= pos.y <= WORLD_H - 48
+            ):
+                return False
+            rect = self.player.rect_at(
+                pos
+            ).inflate(24, 24)
+            return not any(
+                rect.colliderect(obstacle)
+                for obstacle in self.obstacles
+            )
+
+        if safe(preferred):
+            return preferred
+
+        for radius in range(
+            step,
+            max_radius + step,
+            step,
+        ):
+            offsets = []
+            for dx in range(
+                -radius,
+                radius + 1,
+                step,
+            ):
+                offsets.extend(
+                    [(dx, -radius), (dx, radius)]
+                )
+            for dy in range(
+                -radius + step,
+                radius,
+                step,
+            ):
+                offsets.extend(
+                    [(-radius, dy), (radius, dy)]
+                )
+            for dx, dy in offsets:
+                candidate = (
+                    preferred
+                    + pygame.Vector2(dx, dy)
+                )
+                if safe(candidate):
+                    return candidate
+
+        return preferred
+
+    def _sanitize_world_positions(self):
+        # V2.8 combines repeated TMX sectors with authored
+        # structures and encounter points. Any interactable that
+        # lands inside a collider is nudged to the nearest walkable
+        # tile so it can always be reached.
+        groups = [
+            [self.npc],
+            self.shrines,
+            self.places,
+            self.chests,
+            self.enemies,
+            self.v26.villagers,
+            self.v26.secrets,
+            [self.v26.encounter],
+            self.adventure_v28.sites,
+        ]
+        for group in groups:
+            for obj in group:
+                pos = getattr(obj, "pos", None)
+                if pos is None:
+                    continue
+                obj.pos.update(
+                    self._find_safe_near(
+                        pos,
+                        max_radius=420,
+                    )
+                )
+
+        for villager in self.v26.villagers:
+            for attr in (
+                "home",
+                "work",
+                "market",
+            ):
+                target = getattr(
+                    villager,
+                    attr,
+                    None,
+                )
+                if target is None:
+                    continue
+                target.update(
+                    self._find_safe_near(
+                        target,
+                        max_radius=420,
+                    )
+                )
 
     def _build_obstacles(self):
         obstacles = [
@@ -739,7 +899,7 @@ class RPGWorld:
             y = self.rng.randint(130, WORLD_H - 190)
 
             rect = pygame.Rect(x, y, w, h)
-            if rect.collidepoint(WORLD_W / 2, WORLD_H / 2):
+            if rect.collidepoint(START_POS.x, START_POS.y):
                 continue
             obstacles.append(rect)
 
@@ -2555,7 +2715,9 @@ class RPGWorld:
             self.engine.state["caos"] = self.engine.state.get("caos", 0) + 1
             self.player.health = self.profile["max_health"]
             self.player.energy = self.profile["max_energy"]
-            self.player.pos.update(WORLD_W / 2, WORLD_H / 2)
+            self.player.pos.update(
+                self._find_safe_spawn(START_POS)
+            )
             self.notice = "Você caiu e despertou no marco rúnico • +1 Caos"
             self.notice_timer = 2.8
             self.events.append("wake")

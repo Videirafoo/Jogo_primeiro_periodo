@@ -618,3 +618,22 @@ A V2.8 transforma Valdrak em uma aventura maior e mais profunda.
 - temas autorais procedurais por região, perigo, interior e Guardião;
 - tema musical curto de cada Eterno;
 - voice acting real continua opcional por arquivo WAV.
+
+## V2.8.1 — Movement & Map Hotfix
+
+Hotfix corretivo da V2.8 após QA real.
+
+- corrige o protagonista preso no spawn;
+- spawn e respawn agora procuram área realmente livre em todas as direções;
+- corrige colisões internas criadas ao expandir os mapas para 2x2 setores;
+- mantém apenas as bordas externas do mapa como sólidas;
+- permite atravessar as emendas verticais e horizontais entre setores;
+- reposiciona automaticamente NPCs, santuários, pontos de exploração, baús, inimigos e locais de aventura que nasceriam dentro de colisores;
+- NPCs com rotina passam a respeitar colisões durante caminhada;
+- adiciona regressões automáticas para movimento nas quatro direções, emendas de mapa e posições interativas.
+
+Validação do hotfix:
+- 109 testes automatizados;
+- 76 telas de smoke;
+- QA runtime nas 7 regiões;
+- travessia real das duas emendas do mapa.
