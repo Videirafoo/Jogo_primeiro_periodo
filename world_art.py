@@ -119,6 +119,11 @@ class WorldArt:
         # Quando existe tilemap real, o procedural entra apenas como
         # camada cinematográfica. Isso evita árvores e pedras vetoriais
         # gigantes competindo com os tiles.
+        self._travel_overlay(
+            surface,
+            camera,
+            seconds,
+        )
         self._landmark(
             surface,
             camera,
@@ -237,6 +242,108 @@ class WorldArt:
                 pts,
                 3,
             )
+
+    def _travel_overlay(self, surface, camera, seconds):
+        """Adds restrained authored travel cues over the TMX world."""
+        cfg = self.config
+        layer = pygame.Surface((1280, 720), pygame.SRCALPHA)
+
+        # Main road: dark shoulder + warm compacted center.
+        route = [
+            (-80 - camera.x, 612 - camera.y),
+            (300 - camera.x, 548 - camera.y),
+            (740 - camera.x, 590 - camera.y),
+            (1180 - camera.x, 486 - camera.y),
+            (1900 - camera.x, 524 - camera.y),
+        ]
+        pts = [(int(x), int(y)) for x, y in route]
+        pygame.draw.lines(
+            layer,
+            (*cfg["earth"], 42),
+            False,
+            pts,
+            46,
+        )
+        pygame.draw.lines(
+            layer,
+            (*cfg["detail"], 58),
+            False,
+            pts,
+            3,
+        )
+
+        # Region 1 gains a readable river and timber crossing without
+        # covering gameplay objects. Other regions receive dry creek/rift.
+        river_y = 392
+        if self.chapter == 1:
+            wave = int(math.sin(seconds * 1.8) * 3)
+            water = [
+                (0, river_y - int(camera.y)),
+                (1280, river_y + 28 - int(camera.y)),
+            ]
+            pygame.draw.line(
+                layer,
+                (24, 82, 103, 62),
+                water[0],
+                water[1],
+                54,
+            )
+            pygame.draw.line(
+                layer,
+                (83, 179, 196, 74),
+                (0, water[0][1] - 10 + wave),
+                (1280, water[1][1] - 10 + wave),
+                2,
+            )
+            bx = int(900 - camera.x)
+            by = int(river_y + 13 - camera.y)
+            for step in range(-4, 5):
+                plank = pygame.Rect(
+                    bx + step * 22 - 9,
+                    by - 34,
+                    18,
+                    68,
+                )
+                pygame.draw.rect(
+                    layer,
+                    (111, 76, 45, 220),
+                    plank,
+                    border_radius=3,
+                )
+                pygame.draw.line(
+                    layer,
+                    (171, 126, 70, 190),
+                    plank.topleft,
+                    plank.topright,
+                    2,
+                )
+            for side in (-1, 1):
+                rx = bx + side * 106
+                pygame.draw.line(
+                    layer,
+                    (55, 39, 28, 230),
+                    (rx, by - 36),
+                    (rx, by + 38),
+                    4,
+                )
+        elif self.chapter in {2, 5, 7}:
+            rift_y = int(405 - camera.y)
+            pygame.draw.line(
+                layer,
+                (*cfg["detail"], 32),
+                (-20, rift_y),
+                (1300, rift_y + 22),
+                18,
+            )
+            pygame.draw.line(
+                layer,
+                (*cfg["accent"], 34),
+                (-20, rift_y - 2),
+                (1300, rift_y + 20),
+                2,
+            )
+
+        surface.blit(layer, (0, 0))
 
     def _landmark(self, surface, camera, seconds):
         kind = self.config["landmark"]
