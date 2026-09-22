@@ -1,8 +1,13 @@
-__pycache__/
+
 *.py[cod]
-.venv/
-venv/
 .env
-.vscode/
 .idea/
+.venv/
+.vscode/
+__pycache__/
+build/
 dados_jogador.json
+dist/
+gallery_os_eternos.json
+save_os_eternos.json
+venv/

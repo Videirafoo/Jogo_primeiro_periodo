@@ -1,0 +1,5 @@
+pygame-ce>=2.5.0,<3
+pytmx>=3.32,<4
+pyscroll>=2.31,<3
+Pillow>=10.4,<13
+pyinstaller>=6.10,<7

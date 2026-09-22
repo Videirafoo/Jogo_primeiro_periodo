@@ -1,209 +1,620 @@
-# Desafio do Número Secreto — Jogo em Python
+# OS ETERNOS — O Sonho de Valdrak
 
-Projeto didático em Python que transforma fundamentos de programação em um jogo de terminal completo, rejogável, testado e com progresso local.
+Action-RPG narrativo em Python/pygame-ce, desenvolvido a partir do conto **OS ETERNOS**.
 
-**Nível:** iniciante  
-**Objetivo:** praticar lógica de programação usando um jogo simples de entender, jogar e modificar.
+A V2 combina história ramificada, exploração top-down, combate, aliados, bosses, poderes, progressão, inventário, save/load e múltiplos finais.
 
-## Como funciona
+## Estado atual — V2 Beta
 
-O computador escolhe um número secreto e o jogador precisa descobri-lo antes de acabar o limite de tentativas.
+- prólogo interativo;
+- 7 capítulos;
+- 242 caminhos narrativos auditados;
+- 5 finais;
+- exploração RPG por capítulo;
+- mapas TMX compatíveis com Tiled;
+- tiles e sprites reais CC0 da Kenney;
+- protagonista, aliados, inimigos e bosses por spritesheet;
+- câmera top-down;
+- colisão por object layer dos mapas;
+- ataque, Pulso de Código e dash;
+- seis Eternos com poderes;
+- NPCs, inimigos e 7 Guardiões/Bosses;
+- loot e inventário;
+- XP e níveis;
+- menu de pausa;
+- save/load;
+- galeria de finais;
+- créditos;
+- áudio em camadas;
+- sons CC0 externos;
+- build Windows automatizado com PyInstaller.
 
-Durante a partida, o jogo informa:
+## Stack
 
-- se o número secreto é maior ou menor que o palpite;
-- se o palpite está frio, morno, quente ou muito quente;
-- a faixa possível atual do número secreto;
-- quantas tentativas ainda restam;
-- a pontuação conquistada ao acertar.
+- Python 3.12
+- pygame-ce
+- PyTMX
+- pyscroll
+- Pillow
+- PyInstaller
+- Tiled Map Editor para editar os mapas TMX
 
-Palpites repetidos não gastam tentativa.
+As dependências estão em `requirements.txt`.
 
-## Dificuldades
+## Instalação no Windows / VS Code
 
-| Modo | Intervalo | Tentativas | Multiplicador |
-|---|---:|---:|---:|
-| Fácil | 1 a 50 | 10 | x1 |
-| Normal | 1 a 100 | 8 | x2 |
-| Difícil | 1 a 500 | 10 | x3 |
+No PowerShell, execute **somente comandos de terminal**:
 
-As dicas de proximidade são calculadas proporcionalmente ao tamanho do intervalo. Assim, o modo difícil continua justo mesmo usando números muito maiores.
-
-## Sistema de dica
-
-Durante uma partida, digite:
-
-```text
-DICA
+```powershell
+cd C:\Users\Usuario\Jogo_primeiro_periodo
+git switch v2-interface-grafica
+git pull
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python eternos.py
 ```
 
-O jogo informa características do número secreto, como:
+> **Importante:** não cole código Python como `rects = []`, `for ...`, `if ...` ou `return ...` diretamente no PowerShell. Código Python fica nos arquivos `.py` e é executado com `python arquivo.py`.
 
-- se ele é par ou ímpar;
-- se é divisível por 5.
+## Controles
 
-A dica pode ser usada apenas uma vez por partida e reduz a pontuação final em 15%.
+| Tecla | Ação |
+|---|---|
+| WASD / Setas | Mover |
+| Espaço | Ataque |
+| Q | Pulso de Código |
+| Shift | Dash |
+| R | Poder/ajuda de um Eterno |
+| E | Falar / interagir / escolher caminho |
+| 1 | Poção Nórdica |
+| 2 | Essência Rúnica |
+| I / Tab | Inventário |
+| Esc / P | Menu de pausa |
+| F5 | Salvar |
+| F9 | Carregar |
+| M | Áudio on/off |
+| - / + | Volume |
+| F11 | Tela cheia |
 
-## Pontuação
+## Menu de pausa
 
-Quanto menos tentativas forem usadas, maior será a pontuação.
+`Esc` ou `P` abre:
 
-A dificuldade aplica um multiplicador e o uso da dica aplica uma pequena penalidade.
+- Continuar
+- Salvar jogo
+- Carregar jogo
+- Inventário
+- Áudio
+- Controles
+- Galeria de finais
+- Créditos
+- Sair
 
-Exemplo:
+# Plano de construção e status
 
-- acertar rapidamente no Fácil gera uma boa pontuação;
-- acertar rapidamente no Difícil gera uma pontuação maior;
-- usar `DICA` ajuda, mas reduz o total recebido.
+## Fase 1 — Tilemap real
 
-## Progresso salvo
+**Implementado.**
 
-O jogo registra automaticamente em `dados_jogador.json`:
+- `map_loader.py`
+- `assets/maps/chapter_01.tmx` até `chapter_07.tmx`
+- PyTMX
+- mapas editáveis no Tiled
+- colisões via object layer
+- tiles CC0 Kenney
 
-- partidas jogadas;
-- vitórias;
-- taxa de vitória;
-- melhor pontuação geral;
-- melhor pontuação por dificuldade;
-- histórico das 5 partidas mais recentes;
-- conquistas desbloqueadas.
+## Fase 2 — Sprites
 
-As estatísticas ficam separadas pelo nome digitado no início. O nome é normalizado para evitar duplicidade por diferenças simples de letras maiúsculas ou espaços.
+**Implementado.**
 
-O arquivo de progresso possui uma versão própria para facilitar futuras evoluções sem perder compatibilidade.
+- `sprite_animator.py`
+- spritesheet CC0 Kenney
+- player
+- aliados
+- inimigos
+- bosses
+- estados idle, walk, attack, hurt, dash e pulse
 
-Esse arquivo é criado localmente ao jogar e está no `.gitignore`, portanto não é enviado para o GitHub.
+## Fase 3 — Aliados
 
-## Executar no VS Code
+**Implementado.**
 
-1. abra a pasta do projeto no VS Code;
-2. abra o terminal integrado;
-3. execute:
+- Thorvald — Raio de Torv
+- Aurel — Olho do Céu
+- Kaion — Lâmina do Vento
+- Brenor — Fogo da Forja
+- Eiran — Cura da Aurora
+- Noctar — Sombra dos Corvos
 
-```bash
-python main.py
-```
+Eles ajudam automaticamente e também podem ser acionados com `R`.
 
-No Windows também pode funcionar com:
+## Fase 4 — HUD
 
-```bash
-py main.py
-```
+**Implementado em `hud.py`.**
 
-Não existem bibliotecas externas para instalar.
+- HUD compacta
+- vida e energia
+- região
+- XP/nível
+- itens
+- barra de boss
+- dock de habilidades
+- prompt contextual
 
-## Executar os testes
+## Fase 5 — Áudio
 
-```bash
-python -m unittest -v
-```
+**Implementado em quatro camadas.**
 
-A suíte cobre as principais regras do jogo, incluindo:
+1. ambiente;
+2. combate;
+3. poderes;
+4. UI.
 
-- comparação de palpites;
-- proximidade adaptativa;
-- cálculo de pontuação;
-- penalidade da dica;
-- geração de dicas;
-- escolha de dificuldade;
-- vitória e derrota;
-- palpite repetido sem perda de tentativa;
-- menu principal;
-- estatísticas separadas por jogador;
-- zerar apenas o progresso do jogador escolhido;
-- ranking local com os 5 melhores jogadores;
-- conquistas;
-- histórico limitado às 5 partidas mais recentes;
-- normalização do nome;
-- versão do arquivo de progresso;
-- criação, atualização e leitura das estatísticas em JSON.
+Sons externos CC0 vêm de Kenney RPG Audio e `code4fukui/sound-cc0`.
 
-## Conceitos de Python praticados
+## Fase 6 — Progressão e persistência
 
-- variáveis e constantes;
-- funções;
-- dicionários;
-- listas e conjuntos (`set`);
-- `if`, `elif` e `else`;
-- `for` e `while`;
-- `try/except`;
-- validação de entrada;
-- números aleatórios com `random`;
-- leitura e escrita de JSON;
-- arquivos com `pathlib.Path`;
-- contadores, recordes e pontuação;
-- organização com `main()`;
-- testes automatizados com `unittest`;
-- automação com GitHub Actions.
+**Implementado.**
 
-## Estrutura
+- save/load;
+- autosave;
+- inventário;
+- XP e nível;
+- finais desbloqueáveis;
+- galeria persistente.
+
+## Fase 7 — Distribuição
+
+**Implementado.**
+
+- `OsEternos.spec`
+- `.github/workflows/windows-beta.yml`
+- geração de `OsEternosV2.exe`
+- artefato Windows via GitHub Actions
+
+## Estrutura principal
 
 ```text
 Jogo_primeiro_periodo/
-├── main.py
-├── test_main.py
-├── README.md
-├── EXPLICACAO.md
-├── .gitignore
-└── .github/
-    └── workflows/
-        └── python.yml
+├── assets/
+│   ├── maps/
+│   ├── kenney/
+│   │   ├── roguelike/
+│   │   ├── characters/
+│   │   ├── ui/
+│   │   └── audio/
+│   └── audio/cc0/
+├── eternos.py
+├── engine.py
+├── story_data.py
+├── rpg_world.py
+├── rpg_entities.py
+├── gameplay.py
+├── map_loader.py
+├── sprite_animator.py
+├── hud.py
+├── character_visuals.py
+├── world_art.py
+├── pause_menu.py
+├── ending_gallery.py
+├── credits.py
+├── audio.py
+├── savegame.py
+├── OsEternos.spec
+└── requirements.txt
 ```
 
-Ao jogar, também é criado localmente:
+## Assets e licenças
+
+### Kenney
+
+CC0 1.0.
+
+Packs usados:
+
+- Roguelike Base Pack
+- Roguelike Characters Pack
+- UI Adventure Pack
+- RPG Audio
+
+Crédito recomendado: **Art & audio by Kenney (kenney.nl) — CC0**.
+
+### sound-cc0
+
+Fonte: https://github.com/code4fukui/sound-cc0
+
+CC0 / domínio público.
+
+As licenças originais ficam dentro de `assets/`.
+
+## Testes
+
+```powershell
+python -m unittest -v
+python eternos.py --smoke
+```
+
+O CI valida sintaxe, testes e smoke gráfico.
+
+## Build local
+
+```powershell
+pyinstaller --noconfirm OsEternos.spec
+```
+
+Resultado:
 
 ```text
-dados_jogador.json
+dist/OsEternosV2.exe
 ```
 
-## Fluxo do jogo
+## Build Beta pelo GitHub
+
+Workflow:
 
 ```text
-iniciar
-  ↓
-informar nome
-  ↓
-menu principal
-  ├─ Jogar → dificuldade → partida → histórico/conquistas → salvar
-  ├─ Estatísticas → recordes + últimas partidas
-  ├─ Ranking → Top 5 local
-  ├─ Conquistas → mostrar medalhas liberadas
-  ├─ Regras → mostrar instruções
-  ├─ Zerar progresso → apagar somente os dados do jogador
-  └─ Sair
+Windows V2 Beta
 ```
 
-## Como estudar este projeto
+Ele instala dependências, roda testes, cria o EXE e publica o artefato `OsEternosV2-Windows`.
 
-1. execute uma partida em cada dificuldade;
-2. teste o comando `DICA`;
-3. tente repetir um palpite e observe que a tentativa não é perdida;
-4. abra o ranking e as conquistas;
-5. termine partidas e observe o histórico das 5 mais recentes;
-6. abra `dados_jogador.json` e veja a separação por jogador;
-7. leia `main.py` e `EXPLICACAO.md`;
-8. execute `python -m unittest -v`.
+## Evolução depois da Beta
 
-## Qualidade
+A base técnica fica preparada para:
 
-O GitHub Actions executa automaticamente:
+1. trocar sprites Kenney por arte própria;
+2. desenhar tiles exclusivos de Valdrak;
+3. animações frame-a-frame;
+4. retratos ilustrados;
+5. trilha musical autoral;
+6. mais quests e NPCs;
+7. balanceamento de bosses;
+8. gamepad;
+9. opções gráficas e acessibilidade;
+10. release candidata.
 
-1. validação da sintaxe Python;
-2. suíte de testes com `unittest`.
+O motor foi separado dos assets para que o gráfico possa evoluir sem desmontar os sistemas de gameplay.
 
-Isso ajuda a impedir que alterações futuras quebrem regras já funcionando.
+## V2.1 — World Expansion
 
-## Próximas evoluções possíveis
+A V2.1 transforma as sete regiões de Valdrak em espaços com exploração opcional, histórias próprias e atalhos secretos, além do caminho principal.
 
-Sem mudar a proposta didática, o projeto ainda pode evoluir para:
+### 28 lugares exploráveis
 
-- modos de jogo adicionais;
-- mais conquistas;
-- ranking por dificuldade;
-- interface gráfica com Tkinter ou Pygame;
-- versão web.
+Cada região recebeu quatro pontos especiais:
 
-## Autor
+- uma ruína;
+- um ponto de lore/microconto;
+- um acampamento;
+- uma passagem secreta.
 
-**Fernando Otávio Videira Junior**  
-Engenharia de Software — Universidade de Vassouras, Campus Saquarema
+São **28 lugares novos**, incluindo **7 passagens secretas**.
+
+Entre eles:
+
+- Ponte do Corvo Quebrado;
+- Pântano dos Sussurros;
+- Cripta das Três Chaves;
+- Mercado dos Ossos;
+- Taverna do Martelo Torto;
+- Catacumbas do Campeão;
+- Lago dos Nomes;
+- Casa da Bruxa de Musgo;
+- Torre da Matilha;
+- Mina de Ferro Azul;
+- Rio de Lava Negra;
+- Arquivo dos Ferreiros;
+- Biblioteca Impossível;
+- Sala dos Espelhos;
+- Jardim do Despertar.
+
+### Novos contos e mistérios
+
+Cada ponto possui um microconto conectado ao mistério central. As novas histórias introduzem:
+
+- outros sonhadores que podem ter passado por Valdrak;
+- memórias perdidas e vendidas;
+- referências à faculdade dentro do sonho;
+- versões alternativas dos acontecimentos;
+- a origem dos Lobos de Ferro;
+- projetos escondidos na Forja;
+- diferentes possibilidades para o despertar;
+- pistas de que Valdrak pode existir antes de Os Eternos.
+
+### Passagens secretas
+
+Cada região possui uma passagem própria. Ela só desperta depois que o jogador encontra outros pontos daquela região.
+
+As passagens funcionam como atalhos físicos e narrativos: túneis, raízes, pontes invertidas, elevadores rúnicos e espaços que dobram o mapa.
+
+### Missões regionais
+
+Cada região ganhou uma missão secundária de exploração:
+
+1. Os Marcos da Estrada;
+2. As Três Chaves do Portão;
+3. Juramentos da Vila;
+4. Vozes Entre as Raízes;
+5. A Trilha da Matilha;
+6. Segredos da Forja Morta;
+7. Fragmentos do Despertar.
+
+Ao descobrir três pontos de uma região, a missão regional é concluída e concede XP extra e uma **Chave Rúnica**.
+
+### Novos itens e recompensas
+
+O inventário agora também registra:
+
+- Relíquia de Memória;
+- Chave Rúnica.
+
+Descobertas podem entregar XP, fragmentos, relíquias, poções, cura, energia e chaves.
+
+### Graphic Overhaul V2.1
+
+A captura real da V2 Beta mostrou excesso de microtiles, contraste muito claro no HUD e elementos procedurais fora de escala. A V2.1 corrige essa direção:
+
+- macrotiles visuais de 48 px;
+- menos mosaico aleatório e ruído;
+- tint própria para cada uma das sete regiões;
+- remoção de árvores/pedras procedurais gigantes quando o TMX está ativo;
+- sprites menores e mais proporcionais;
+- HUD escura, compacta e com maior área livre para o mundo;
+- HUD com descobertas, missão regional, relíquias e chaves;
+- colisões centrais removidas dos mapas gerados para evitar paredes invisíveis;
+- atmosfera procedural preservada apenas como camada cinematográfica.
+
+Arquivos principais desta etapa:
+
+- `world_expansion.py`
+- `map_loader.py`
+- `hud.py`
+- `rpg_world.py`
+- `test_world_expansion.py`
+
+A próxima evolução visual continua preparada para substituir gradualmente os assets CC0 por arte autoral de Valdrak, sem reescrever os sistemas de exploração e narrativa.
+
+
+## V2.2 — Combat & Audio Art Pass
+
+A V2.2 substitui elementos temporários de combate por arte autoral de Valdrak.
+
+- machados vikings redesenhados com cabo de madeira, couro, aço, fio e runas;
+- machados arremessados agora giram e deixam motion trail;
+- protagonista recebeu silhueta autoral, capa, túnica, botas, manopla rúnica e espada visível;
+- NPCs receberam corpo, roupa, elmo e ferramentas coerentes com cada região;
+- Hroth agora usa dois machados e os demais Guardiões recebem armas visualmente distintas;
+- saqueadores passam a carregar machados reais no mundo;
+- novo banco de áudio procedural autoral em assets/audio/valdrak;
+- três variações de whoosh de machado;
+- três impactos de machado;
+- três cortes de espada;
+- dois impactos de lâmina;
+- quatro passos em terreno;
+- dois impactos de escudo;
+- novo pulso rúnico e impacto de derrota de boss;
+- golpes que acertam inimigos agora disparam som de impacto separado do som de corte.
+
+Os novos WAVs são gerados sem samples de terceiros e documentados em assets/audio/valdrak/SOURCE.md.
+
+## V2.3 — Adventure From First Second
+
+A V2.3 começa com controle imediato do personagem em Valdrak. O tutorial acontece dentro do mapa: movimento, ataque, Pulso de Código, dash e conversa com Edda. A narrativa antiga passa a aparecer como ecos e diálogos durante a exploração.
+
+Também entraram 21 baús de aventura, três por região, com recompensas, relíquias, XP e armadilhas.
+
+Os seis Eternos recebem silhuetas e equipamentos próprios: Thorvald com machado e raio, Aurel com cajado dourado, Kaion com espada do vento, Brenor com martelo, Eiran com cajado da aurora e Noctar com máscara e lâminas duplas.
+
+
+## V2.4 — Living Valdrak
+
+A V2.4 transforma o mapa em um mundo mais vivo. Entraram eventos aleatórios, emboscadas, viajantes, patrulhas vikings, animais e caravanas.
+
+Cada região ganhou seis pontos de aventura:
+- Altar Escondido;
+- Acampamento Inimigo;
+- Caverna Rúnica;
+- Casa Abandonada;
+- Templo Antigo;
+- Masmorra de Valdrak.
+
+Cavernas, casas, templos e masmorras possuem interiores e puzzles rúnicos. Altares liberam Fast Travel. O mapa mundial abre com M, Quest Log com J, Codex com C e equipamentos com G.
+
+O combate recebeu oito famílias de inimigos:
+- Viking Raider;
+- Berserker;
+- Archer;
+- Rune Mage;
+- Iron Wolf;
+- Alpha Wolf;
+- Shadow Raven;
+- Elite Raider.
+
+O Loot System agora possui:
+- armas;
+- armaduras;
+- amuletos;
+- runas;
+- raridades Comum, Raro, Épico e Lendário;
+- atributos de ataque, defesa, crítico e energia;
+- autoequip de itens melhores.
+
+Os sete Guardiões receberam três movimentos próprios cada, telegraph, segunda fase e barra interna de stagger. Ataques normais, Pulso e ataque pesado contribuem para atordoar bosses.
+
+A trilha sonora passou a trocar dinamicamente entre exploração, perigo, boss e interior.
+
+O protagonista possui estados de idle, walk, run, attack1, attack2, heavy, dash, hurt, death e power, com direção calculada em oito orientações.
+
+## V2.5 — Visual RPG & Systems Pass
+
+A V2.5 cria sprite-sheets autorais para o protagonista, seis Eternos, oito famílias de inimigos e sete Guardiões. Os personagens possuem oito direções e estados frame-a-frame para idle, walk, run, combos, ataque pesado, dash, dano, morte e poderes.
+
+O QA visual da V2.4 também motivou mudanças de composição: os seis aliados agora usam formação em duas fileiras, evitando a pilha visual sobre o protagonista, e a caixa de diálogo foi reduzida. Lore e lugares usam emblemas rúnicos em vez de um retrato humano genérico.
+
+Entraram iluminação dinâmica, água animada, vegetação com sway, partículas ambientais e color grading cinematográfico.
+
+Dungeon System II adiciona cinco salas, portas, armadilhas, puzzle, chave, mini-boss e cofre final.
+
+Combat 2.0 adiciona stamina, parry, perfect dodge, combo de três passos, ataque pesado, knockback, status effects e execução de Guardião atordoado.
+
+Loot 2.0 adiciona materiais, crafting, upgrade de arma, talentos, pontos de talento, vendedores, moedas e quests encadeadas de NPC.
+
+A plataforma passa a oferecer três save slots, gamepad, acessibilidade, redução de flash, screen shake configurável e três dificuldades.
+
+## V2.6 — World & Quest Quality Pass
+
+A V2.6 faz Valdrak reagir ao jogador em vez de funcionar apenas como um mapa de combate.
+
+### Mundo vivo
+- sete vilas povoadas;
+- sete moradores por região;
+- NPCs caminham entre casa, trabalho e mercado;
+- ciclo de horário persistente;
+- diálogos condicionais por horário, Guardião e consequências;
+- eventos raros por região;
+- um encontro único por região;
+- dois segredos de lore por região;
+- mini-histórias regionais.
+
+### Quest Quality
+Cada região recebe uma quest multi-etapa com objetivo, retorno ao NPC, decisão entre dois caminhos, consequência persistente, descoberta de segredo e recompensa. Também existem três contratos/caçadas por região.
+
+### Art Quality Pass IV / World Art II
+- personagens maiores;
+- seis Eternos simultâneos;
+- partículas de poder;
+- impactos estilizados;
+- vilas nórdicas;
+- montanhas;
+- rios;
+- cachoeira;
+- lava dinâmica;
+- castelos;
+- templos;
+- cidade/arena;
+- landmarks;
+- mudanças visuais conforme escolhas.
+
+### Cinemáticas / áudio
+- entrada de região;
+- primeira aproximação do Guardião;
+- decisões de quest;
+- eventos raros;
+- derrota de Guardião;
+- cues pseudo-vocais;
+- SFX de segredo, contrato e conclusão;
+- trilha procedural diferente para cada região;
+- perigo, interiores e boss por região.
+
+Nenhuma dependência nova foi adicionada ao requirements.txt.
+
+## V2.7 — Combat, Animation & World Quality
+
+A V2.7 é um passe de qualidade sobre a V2.6.
+
+### V2.6.1 Visual QA
+- regressão automática de sobreposição dos seis Eternos;
+- teste de clipping das portas/colisões;
+- validação dos cinco interiores por região;
+- smoke nativo incluído no gate.
+
+### NPC Art Pass
+Cada profissão possui roupa, paleta, rosto, cabelo e acessório próprios:
+- vidente;
+- ferreiro;
+- caçador;
+- mercador;
+- guarda;
+- curandeira;
+- viajante.
+
+### Combat & Animation Quality
+- sprite-sheets passam de 4 para 6 frames;
+- parry, dodge, knockdown e execução entram como estados;
+- anticipation / active / recovery;
+- hit reaction;
+- weapon trails;
+- perfect-dodge ghost;
+- feedback visual de parry;
+- câmera/impact feedback;
+- cinemática de fase 2 dos bosses.
+
+### World Quality III
+Cada região possui taverna, ferreiro, loja, casa e salão com portas, colisão coerente e interiores conectados. Existem moradores nos interiores, ciclo dia/noite, janelas e tochas noturnas, além de clima com impacto real em movimento e stamina.
+
+### Quest System II
+- marcadores de objetivo;
+- reputação;
+- três facções;
+- duas quests opcionais por região;
+- escolhas alimentam reputação;
+- final de Valdrak calculado a partir do estado do mundo.
+
+### Audio Production Pass
+- loops regionais mais longos;
+- layers procedurais;
+- passos em grama, pedra, madeira e neve;
+- sons de vila, noite, taverna, ferreiro e portas;
+- hooks para voice acting em assets/audio/voices, com fallback procedural.
+
+## V2.8 — Adventure Depth
+
+A V2.8 transforma Valdrak em uma aventura maior e mais profunda.
+
+### Mapa e exploração
+- o mapa físico de cada região passa de 1824x1104 para 3648x2208;
+- quatro setores TMX conectados por região;
+- três sub-regiões por capítulo;
+- estradas longas;
+- acampamentos;
+- fortalezas;
+- cavernas profundas;
+- ruínas;
+- catacumbas;
+- costa;
+- navios;
+- ilhas secretas.
+
+### Dungeon System III
+- salas procedurais;
+- atalhos;
+- puzzles de quatro runas;
+- armadilhas móveis;
+- mini-boss;
+- chaves especiais;
+- loot lendário exclusivo por capítulo.
+
+### Combat 3.0
+- hitboxes retangulares reais por janela ativa;
+- cancel windows;
+- stamina por dificuldade;
+- parry timing por arquétipo;
+- enemy/boss combo patterns;
+- projéteis;
+- grabs com escape;
+- finishers em inimigos enfraquecidos.
+
+### RPG Depth II
+- inventário visual avançado;
+- comparação de itens;
+- equipamento visível no protagonista;
+- três builds;
+- atributos;
+- skill trees dos seis Eternos;
+- sinergias.
+
+### Companion System
+- dois Eternos ativos;
+- troca de formação;
+- modos agressivo/guarda/suporte;
+- combo com aliados;
+- amizade;
+- quests pessoais.
+
+### Production Art / Audio II
+- retratos definitivos estilizados para os Eternos;
+- moldura final de UI;
+- equipamento renderizado;
+- temas autorais procedurais por região, perigo, interior e Guardião;
+- tema musical curto de cada Eterno;
+- voice acting real continua opcional por arquivo WAV.

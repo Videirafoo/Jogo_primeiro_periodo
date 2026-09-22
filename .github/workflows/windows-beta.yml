@@ -1,14 +1,14 @@
-name: OS Eternos CI
+name: Windows V2 Beta
 
 on:
+  workflow_dispatch:
   push:
-    branches: ["main", "v2-*"]
-  pull_request:
-    branches: ["main"]
+    tags:
+      - "v2-beta-*"
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
+  build-windows:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -22,17 +22,23 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Validate syntax
-        run: python -m compileall -q .
-
       - name: Run tests
         env:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
-        run: python -m unittest -v
+        run: python -m unittest -q
 
-      - name: Pygame smoke
+      - name: Native Windows visual smoke
         env:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
         run: python eternos.py --smoke
+
+      - name: Build EXE
+        run: pyinstaller --noconfirm OsEternos.spec
+
+      - name: Upload Windows Beta
+        uses: actions/upload-artifact@v4
+        with:
+          name: OsEternosV2-Windows
+          path: dist/OsEternosV2.exe
