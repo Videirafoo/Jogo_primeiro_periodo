@@ -501,6 +501,14 @@ class Player:
                 tint=accent,
             )
 
+        # V2.8: equipment is reflected on the protagonist in-world.
+        draw_player_equipment_v28(
+            surface,
+            (x, y),
+            self.profile,
+            self.facing,
+        )
+
         if self.state == "attack":
             pygame.draw.arc(
                 surface,
