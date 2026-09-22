@@ -158,3 +158,7 @@ O tilemap também foi revisto com macrotiles de 48 px, menos ruído visual, tint
 A V2.2 inicia a substituição definitiva dos elementos temporários de combate por identidade autoral de Valdrak. O protagonista possui silhueta própria, manopla rúnica e espada visível. NPCs ganharam roupa, elmo e ferramentas próprias. Machados vikings agora possuem cabo de madeira, couro, cabeça de aço, fio, runas, rotação e rastro de movimento. Hroth usa dois machados e os demais Guardiões recebem armas diferentes.
 
 O áudio de combate passou a priorizar o banco autoral assets/audio/valdrak com variantes de passos, cortes, impactos, machados, escudos, runas e derrota de Guardião.
+
+## Adventure From First Second V2.3
+
+A V2.3 inicia diretamente na exploração de Valdrak. O tutorial usa ações reais do jogador, a narrativa aparece dentro do mundo e cada região recebeu três baús de aventura.

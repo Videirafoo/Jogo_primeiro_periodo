@@ -10,6 +10,7 @@ from sprite_animator import draw_actor
 from hud import RPGHUD
 from map_loader import MapScene
 from character_art import draw_protagonist
+from adventure_system import build_chests
 from world_expansion import (
     build_region_places,
     interact_with_place,
@@ -537,12 +538,29 @@ class RPGWorld:
             self.profile,
         )
         self.loots = []
+        self.chests = build_chests(
+            chapter["number"],
+            self.profile,
+        )
         self.npc = NPC(
             chapter["number"],
             (WORLD_W / 2 + 185, WORLD_H / 2 - 105),
         )
 
         self.chapter_kills_start = profile.get("kills", 0)
+
+        self.profile.setdefault("tutorial_complete", False)
+        self.profile.setdefault("tutorial_stage", 0)
+        self.tutorial_active = (
+            chapter["number"] == 1
+            and not self.profile["tutorial_complete"]
+        )
+        self.tutorial_stage = int(
+            self.profile.get("tutorial_stage", 0)
+        )
+        self.tutorial_origin = self.player.pos.copy()
+        self.story_echoes = list(chapter.get("scene", []))
+        self.story_echo_index = 0
 
     def _build_obstacles(self):
         obstacles = [
@@ -664,6 +682,12 @@ class RPGWorld:
                 self.dialogue = (self.npc.name, line)
                 self.notice_timer = 4.2
                 self.events.append("rune")
+                self._tutorial_advance(
+                    4,
+                    "Edda reconheceu você • tutorial concluído",
+                )
+                if not self.tutorial_active:
+                    self.advance_story_echo()
 
                 flag = f"npc_gift_{self.chapter['number']}"
                 if not self.profile["npc_flags"].get(flag):
@@ -708,6 +732,22 @@ class RPGWorld:
                     result["text"],
                 )
                 self.notice_timer = 5.2
+                self.events.append(result["sfx"])
+                self.advance_story_echo()
+                return
+
+            chest = self.nearest_chest()
+            if (
+                chest
+                and self.player.pos.distance_to(chest.pos) <= 78
+            ):
+                result = chest.open(self)
+                self.notice = result["title"]
+                self.dialogue = (
+                    result["title"],
+                    result["text"],
+                )
+                self.notice_timer = 5.0
                 self.events.append(result["sfx"])
                 return
 
@@ -806,6 +846,10 @@ class RPGWorld:
 
         self.player.attack_timer = 0.42
         self.events.append("sword")
+        self._tutorial_advance(
+            1,
+            "Ataque dominado • use Q para o Pulso de Código",
+        )
         attack_center = self.player.pos + self.player.facing * 55
 
         hit_any = False
@@ -836,6 +880,10 @@ class RPGWorld:
             return
         self.player.energy -= 24
         self.player.pulse_timer = 0.80
+        self._tutorial_advance(
+            2,
+            "Pulso dominado • experimente SHIFT",
+        )
         self.events.append("tech")
         self._burst(self.player.pos, CYAN, 20, speed=210)
 
@@ -859,6 +907,10 @@ class RPGWorld:
 
         self.player.energy -= 15
         self.player.dash_timer = 0.7
+        self._tutorial_advance(
+            3,
+            "Dash dominado • encontre Edda e pressione E",
+        )
         self.events.append("wind")
         start = self.player.pos.copy()
 
@@ -872,6 +924,8 @@ class RPGWorld:
             )
     def _enemy_defeated(self, enemy):
         self.profile["kills"] += 1
+        if self.profile["kills"] % 2 == 0:
+            self.advance_story_echo()
         xp_gain = 3 if enemy.boss else 1
         leveled = self.player.gain_xp(xp_gain)
         self.events.append("victory")
@@ -927,6 +981,77 @@ class RPGWorld:
             self.shrines,
             key=lambda shrine: self.player.pos.distance_to(shrine.pos),
         )
+
+    def nearest_chest(self):
+        if not self.chests:
+            return None
+        return min(
+            self.chests,
+            key=lambda chest: self.player.pos.distance_to(chest.pos),
+        )
+
+    def active_objective(self):
+        if self.tutorial_active:
+            objectives = [
+                "TUTORIAL — mova-se com WASD ou setas",
+                "TUTORIAL — ataque com ESPAÇO",
+                "TUTORIAL — use o Pulso de Código com Q",
+                "TUTORIAL — faça um dash com SHIFT",
+                "TUTORIAL — encontre Edda e fale com E",
+            ]
+            return objectives[
+                min(self.tutorial_stage, len(objectives) - 1)
+            ]
+        return self.exploration_quest_name()
+
+    def _tutorial_advance(self, expected, message):
+        if not self.tutorial_active or self.tutorial_stage != expected:
+            return
+
+        self.tutorial_stage += 1
+        self.profile["tutorial_stage"] = self.tutorial_stage
+        self.notice = message
+        self.notice_timer = 2.6
+        self.events.append("rune")
+
+        if self.tutorial_stage >= 5:
+            self.tutorial_active = False
+            self.profile["tutorial_complete"] = True
+            self.notice = "Prólogo jogável concluído • Valdrak está aberto"
+            self.notice_timer = 4.0
+            self.player.gain_xp(2)
+            self.events.append("victory")
+
+    def start_story_echo(self, speaker=None, text=None):
+        if text:
+            self.dialogue = (speaker or self.chapter["title"], text)
+            self.notice_timer = 6.0
+            return
+
+        if not self.story_echoes:
+            return
+
+        item = self.story_echoes[0]
+        self.dialogue = (
+            self.chapter["title"],
+            item.get("text", ""),
+        )
+        self.notice_timer = 5.2
+        self.events.append(item.get("sfx", "rune"))
+        self.story_echo_index = 1
+
+    def advance_story_echo(self):
+        if self.story_echo_index >= len(self.story_echoes):
+            return
+
+        item = self.story_echoes[self.story_echo_index]
+        self.story_echo_index += 1
+        self.dialogue = (
+            self.chapter["title"],
+            item.get("text", ""),
+        )
+        self.notice_timer = 5.2
+        self.events.append(item.get("sfx", "rune"))
 
     def nearest_place(self):
         if not self.places:
@@ -1039,6 +1164,17 @@ class RPGWorld:
             0.0,
             self.ally_cooldown - dt,
         )
+
+        if (
+            self.tutorial_active
+            and self.tutorial_stage == 0
+            and self.player.pos.distance_to(self.tutorial_origin) >= 85
+        ):
+            self._tutorial_advance(
+                0,
+                "Movimento dominado • agora ataque com ESPAÇO",
+            )
+
         if self.ally_cooldown <= 0:
             self._ally_assist()
             self.ally_cooldown = 2.4
@@ -1152,6 +1288,10 @@ class RPGWorld:
             items.append(
                 (place.pos.y, "place", place)
             )
+        for chest in self.chests:
+            items.append(
+                (chest.pos.y, "chest", chest)
+            )
         if self.npc:
             items.append((self.npc.pos.y, "npc", self.npc))
         for enemy in self.enemies:
@@ -1193,6 +1333,18 @@ class RPGWorld:
                     fonts["small"],
                     seconds,
                     near=near_place,
+                )
+            elif kind == "chest":
+                near_chest = (
+                    self.player.pos.distance_to(item.pos) <= 95
+                )
+                item.draw(
+                    surface,
+                    self.camera,
+                    fonts["small"],
+                    theme["accent"],
+                    seconds,
+                    near=near_chest,
                 )
             elif kind == "npc":
                 near_npc = (
@@ -1353,6 +1505,7 @@ class RPGWorld:
     def interaction_hint(self):
         nearest = self.nearest_shrine()
         place = self.nearest_place()
+        chest = self.nearest_chest()
 
         if (
             self.npc
@@ -1397,6 +1550,13 @@ class RPGWorld:
                 else "descobrir"
             )
             return f"E — {status}: {place.name}"
+
+        if (
+            chest
+            and self.player.pos.distance_to(chest.pos) <= 78
+        ):
+            action = "examinar" if chest.opened else "abrir"
+            return f"E — {action}: {chest.name}"
 
         return ""
 

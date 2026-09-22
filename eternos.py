@@ -71,7 +71,17 @@ class GameApp:
 
         self.current_sfx = ""
         self.transition_alpha = 210
-        self._play_current_item()
+        self._start_exploration()
+        if self.world:
+            opening = GAME["opening"][0].get(
+                "text",
+                "Fui dormir num dia comum.",
+            )
+            self.world.start_story_echo(
+                "O SONHO COMEÇA",
+                opening
+                + " Quando abri os olhos, eu já podia caminhar por Valdrak.",
+            )
 
     def current_item(self):
         if self.phase == "opening":
@@ -247,8 +257,9 @@ class GameApp:
             return
 
         self.scene_index = 0
-        self.phase = "chapter"
-        self._play_current_item()
+        self._start_exploration()
+        if self.world:
+            self.world.start_story_echo()
 
     def _start_exploration(self):
         chapter = self.engine.current_chapter
@@ -486,7 +497,17 @@ class GameApp:
             "kills": 0,
         }
         self.message = ""
-        self._play_current_item()
+        self._start_exploration()
+        if self.world:
+            opening = GAME["opening"][0].get(
+                "text",
+                "Fui dormir num dia comum.",
+            )
+            self.world.start_story_echo(
+                "O SONHO COMEÇA",
+                opening
+                + " Quando abri os olhos, eu já podia caminhar por Valdrak.",
+            )
 
     def input_to_canvas(self, pos):
         window_w, window_h = self.window.get_size()

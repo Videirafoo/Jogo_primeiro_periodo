@@ -395,3 +395,39 @@ def _draw_symbol(surface, symbol, center, color, radius, seconds):
             (x + r // 3, y),
             max(2, r // 5),
         )
+
+from character_art import draw_eterno_character, draw_eterno_portrait
+
+
+def draw_ally(surface, name, pos, offset, seconds, index=0):
+    style = ALLY_STYLES.get(name, {"color": CYAN, "symbol": "eye"})
+    x = int(pos.x - offset.x)
+    y = int(pos.y - offset.y)
+    draw_eterno_character(surface, name, (x, y), seconds=seconds, index=index)
+    color = style["color"]
+    radius = 38 + int((math.sin(seconds * 3 + index) + 1) * 3)
+    pygame.draw.circle(surface, color, (x, y - 3), radius, 1)
+    _draw_symbol(surface, style["symbol"], (x, y - 55), color, 20, seconds)
+
+
+def draw_portrait(surface, name, rect, accent=None):
+    if name in ALLY_STYLES:
+        draw_eterno_portrait(surface, name, rect)
+        return
+
+    color = accent or CYAN
+    pygame.draw.rect(surface, DARK, rect, border_radius=16)
+    pygame.draw.rect(surface, color, rect, 2, border_radius=16)
+    cx, cy = rect.center
+    pygame.draw.circle(surface, (28, 37, 49), (cx, cy + 25), 42)
+    pygame.draw.circle(surface, (207, 171, 141), (cx, cy - 22), 25)
+    pygame.draw.polygon(
+        surface,
+        (31, 32, 38),
+        [
+            (cx - 27, cy - 27),
+            (cx - 11, cy - 53),
+            (cx + 21, cy - 48),
+            (cx + 29, cy - 23),
+        ],
+    )

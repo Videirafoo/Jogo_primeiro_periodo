@@ -167,7 +167,7 @@ class RPGHUD:
             (806, 37),
         )
 
-        quest = world.exploration_quest_name()
+        quest = world.active_objective()
         surface.blit(
             fonts["small"].render(
                 f"MISSÃO: {quest}",

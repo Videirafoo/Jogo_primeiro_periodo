@@ -66,3 +66,7 @@ O tilemap também foi revisto com macrotiles de 48 px, menos ruído visual, tint
 ## V2.2 Combat & Audio
 
 Atualize a branch v2-interface-grafica e execute normalmente com python eternos.py. A V2.2 não exige dependências adicionais. O novo áudio é carregado automaticamente de assets/audio/valdrak.
+
+## V2.3
+
+Após atualizar a branch, execute python eternos.py. A aventura começa imediatamente no mapa; siga os objetivos de tutorial exibidos no HUD.

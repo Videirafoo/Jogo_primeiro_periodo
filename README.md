@@ -396,3 +396,11 @@ A V2.2 substitui elementos temporários de combate por arte autoral de Valdrak.
 - golpes que acertam inimigos agora disparam som de impacto separado do som de corte.
 
 Os novos WAVs são gerados sem samples de terceiros e documentados em assets/audio/valdrak/SOURCE.md.
+
+## V2.3 — Adventure From First Second
+
+A V2.3 começa com controle imediato do personagem em Valdrak. O tutorial acontece dentro do mapa: movimento, ataque, Pulso de Código, dash e conversa com Edda. A narrativa antiga passa a aparecer como ecos e diálogos durante a exploração.
+
+Também entraram 21 baús de aventura, três por região, com recompensas, relíquias, XP e armadilhas.
+
+Os seis Eternos recebem silhuetas e equipamentos próprios: Thorvald com machado e raio, Aurel com cajado dourado, Kaion com espada do vento, Brenor com martelo, Eiran com cajado da aurora e Noctar com máscara e lâminas duplas.
