@@ -3,6 +3,8 @@ name: Windows V2 Beta
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "v2.8.1-beta2"
     tags:
       - "v2-beta-*"
 
@@ -21,6 +23,9 @@ jobs:
 
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
+
+      - name: Generate V2.8 authored music
+        run: python music_v28.py
 
       - name: Run tests
         env:
