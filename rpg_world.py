@@ -14,6 +14,9 @@ from adventure_system import build_chests
 from boss_v24 import BossCombatController
 from living_valdrak import LivingValdrak
 from combat_v25 import CombatV25
+from combat_v27 import CombatPresentationV27
+from quest_v27 import QuestSystemII
+from world_v27 import WorldQualityIII
 from meta_v25 import (
     RECIPES,
     TALENTS,
@@ -274,6 +277,10 @@ class Player:
         self.attack_combo = 0
         self.heavy_timer = 0.0
         self.death_timer = 0.0
+        self.parry_timer = 0.0
+        self.dodge_anim_timer = 0.0
+        self.execute_timer = 0.0
+        self.knockdown_timer = 0.0
 
         self.profile.setdefault("level", 1)
         self.profile.setdefault("xp", 0)
@@ -330,6 +337,10 @@ class Player:
         self.invulnerable = max(0.0, self.invulnerable - dt)
         self.heavy_timer = max(0.0, self.heavy_timer - dt)
         self.death_timer = max(0.0, self.death_timer - dt)
+        self.parry_timer = max(0.0, self.parry_timer - dt)
+        self.dodge_anim_timer = max(0.0, self.dodge_anim_timer - dt)
+        self.execute_timer = max(0.0, self.execute_timer - dt)
+        self.knockdown_timer = max(0.0, self.knockdown_timer - dt)
 
         self.energy = min(
             self.profile["max_energy"],
@@ -387,6 +398,14 @@ class Player:
 
         if self.death_timer > 0:
             self.state = "death"
+        elif self.knockdown_timer > 0:
+            self.state = "knockdown"
+        elif self.execute_timer > 0:
+            self.state = "execute"
+        elif self.parry_timer > 0:
+            self.state = "parry"
+        elif self.dodge_anim_timer > 0:
+            self.state = "dodge"
         elif self.invulnerable > 0:
             self.state = "hurt"
         elif self.heavy_timer > 0:
@@ -650,6 +669,19 @@ class RPGWorld:
             chapter["number"],
             self.profile,
         )
+        self.combat_v27 = CombatPresentationV27()
+        self.world_v27 = WorldQualityIII(
+            chapter["number"],
+            self.profile,
+        )
+        self.quest_v27 = QuestSystemII(
+            chapter["number"],
+            self.profile,
+        )
+        self.obstacles.extend(
+            self.world_v27.collision_rects()
+        )
+        self.v27_boss_phase2 = False
         self.vendor_items = vendor_stock(
             chapter["number"],
             self.rng,
@@ -808,7 +840,7 @@ class RPGWorld:
 
     def _update_music_state(self):
         chapter = self.chapter["number"]
-        if self.living.interior:
+        if self.living.interior or self.world_v27.interior:
             self.music_state = f"music_interior_{chapter}"
             return
         boss = self.boss()
@@ -838,6 +870,10 @@ class RPGWorld:
         )
         resolved, label = self.combat_v25.incoming(amount)
         if label:
+            if "PARRY" in label:
+                self.combat_v27.on_parry()
+            else:
+                self.combat_v27.on_dodge()
             self.notice = label
             self.notice_timer = 1.2
             self.events.append(
@@ -849,7 +885,14 @@ class RPGWorld:
                 flash=0.05,
             )
             return False
-        return self.player.damage(resolved)
+        damaged = self.player.damage(resolved)
+        if damaged:
+            heavy = resolved >= 18
+            self.combat_v27.on_hit(heavy=heavy)
+            if resolved >= 24:
+                self.player.knockdown_timer = 0.48
+                self.combat_v27.on_knockdown()
+        return damaged
 
     def _status_from_rune(self):
         rune = self.profile.get("equipped", {}).get("rune")
@@ -866,6 +909,8 @@ class RPGWorld:
 
     def parry(self):
         if self.combat_v25.activate_parry():
+            self.player.parry_timer = 0.34
+            self.combat_v27.on_parry()
             self.notice = "PARRY — janela ativa"
             self.notice_timer = 0.7
             self.events.append("shield")
@@ -885,6 +930,8 @@ class RPGWorld:
             self.notice_timer = 1.0
             return
         self.combat_v25.execute()
+        self.player.execute_timer = 0.95
+        self.combat_v27.on_execution()
         damage = int(boss.max_hp * 0.22)
         died = boss.hit(damage)
         self.notice = f"EXECUÇÃO RÚNICA • {damage} dano"
@@ -912,6 +959,7 @@ class RPGWorld:
         self.player.energy -= 20
         self.player.heavy_timer = 0.72
         self.player.attack_timer = 0.52
+        self.combat_v27.on_attack("heavy")
         self.events.append("axe_whoosh")
         attack_center = self.player.pos + self.player.facing * 68
         stats = equipment_stats(self.profile)
@@ -958,6 +1006,24 @@ class RPGWorld:
                     self._enemy_defeated(enemy)
 
     def handle_key(self, event):
+        if self.world_v27.interior:
+            result = self.world_v27.handle_key(
+                event.key,
+                self,
+            )
+            if result:
+                message, sfx = result
+                if message == "__upgrade_weapon__":
+                    ok, message = upgrade_equipped(
+                        self.profile,
+                        "weapon",
+                    )
+                    sfx = "blacksmith" if ok else "error"
+                self.notice = message
+                self.notice_timer = 2.4
+                self.events.append(sfx)
+            return
+
         if self.v26.pending_choice:
             choice_keys = {
                 pygame.K_1: 1,
@@ -970,6 +1036,13 @@ class RPGWorld:
                     choice_keys[event.key]
                 )
                 if message:
+                    consequence = self.profile[
+                        "v26_consequences"
+                    ].get(str(self.chapter["number"]))
+                    if consequence:
+                        self.quest_v27.on_choice(
+                            consequence
+                        )
                     self.notice = message
                     self.dialogue = (
                         "ESCOLHA DE VALDRAK",
@@ -1013,6 +1086,7 @@ class RPGWorld:
                 pygame.K_t,
                 pygame.K_o,
                 pygame.K_h,
+                pygame.K_l,
             }
             if event.key in close_keys:
                 self.overlay_screen = None
@@ -1079,6 +1153,16 @@ class RPGWorld:
                     self.notice = f"Dificuldade: {mode}"
                     self.notice_timer = 1.4
                     return
+            if self.overlay_screen == "factions":
+                if event.key in number_map:
+                    message = self.quest_v27.accept_optional(
+                        number_map[event.key]
+                    )
+                    self.notice = message
+                    self.notice_timer = 2.2
+                    self.events.append("quest_complete")
+                return
+
             if self.overlay_screen == "contracts":
                 if event.key in number_map:
                     message = self.v26.accept_contract(
@@ -1138,6 +1222,11 @@ class RPGWorld:
             self.events.append("choice")
             return
 
+        if event.key == pygame.K_l:
+            self.overlay_screen = "factions"
+            self.events.append("quest_complete")
+            return
+
         if event.key == pygame.K_h:
             self.overlay_screen = "contracts"
             self.events.append("contract")
@@ -1179,6 +1268,19 @@ class RPGWorld:
             return
 
         if event.key == pygame.K_e:
+            building = self.world_v27.nearest_door(
+                self.player.pos
+            )
+            if building:
+                result = self.world_v27.enter(
+                    building,
+                    self.player.pos,
+                )
+                self.notice = result["text"]
+                self.notice_timer = 2.2
+                self.events.append(result["sfx"])
+                return
+
             v26_result = self.v26.interact(self)
             if v26_result:
                 self.notice = (
@@ -1402,6 +1504,7 @@ class RPGWorld:
             self.player.attack_combo + 1
         ) % 2
         self.player.attack_timer = 0.42
+        self.combat_v27.on_attack("normal")
         self.events.append("sword")
         self._tutorial_advance(
             1,
@@ -1475,6 +1578,7 @@ class RPGWorld:
             return
         self.player.energy -= 24
         self.player.pulse_timer = 0.80
+        self.combat_v27.on_attack("power")
         self._tutorial_advance(
             2,
             "Pulso dominado • experimente SHIFT",
@@ -1506,6 +1610,8 @@ class RPGWorld:
 
         self.player.energy -= 15
         self.combat_v25.activate_dodge()
+        self.player.dodge_anim_timer = 0.30
+        self.combat_v27.on_dodge()
         self.player.dash_timer = 0.7
         self._tutorial_advance(
             3,
@@ -1536,6 +1642,13 @@ class RPGWorld:
         )
         if self.profile["kills"] % 8 == 0:
             self.profile["skill_points"] += 1
+        for message in self.quest_v27.on_kill(
+            enemy.archetype
+        ):
+            self.notice = message
+            self.notice_timer = 3.0
+            self.events.append("quest_complete")
+
         for message in self.v26.on_enemy_defeated(
             enemy.archetype
         ):
@@ -1555,6 +1668,13 @@ class RPGWorld:
         )
 
         if enemy.boss:
+            if self.chapter["number"] == 7:
+                ending = self.quest_v27.finalize_ending()
+                self.dialogue = (
+                    "DESTINO DE VALDRAK",
+                    ending,
+                )
+                self.events.append("ending_good")
             self.cinematic_v26.start(
                 "GUARDIÃO DERROTADO",
                 f"{enemy.name} caiu. A região reage à vitória.",
@@ -1789,6 +1909,10 @@ class RPGWorld:
     def update(self, dt, keys):
         self.notice_timer = max(0.0, self.notice_timer - dt)
         self.cinematic_v26.update(dt)
+        self.combat_v27.update(
+            dt,
+            self.player,
+        )
         self.combat_v25.update(
             dt,
             moving=self.player.is_moving,
@@ -1812,6 +1936,21 @@ class RPGWorld:
         if self.inventory_open:
             return
 
+        ambient_event = self.world_v27.update(
+            dt,
+            self.v26.hour,
+        )
+        if ambient_event:
+            self.events.append(ambient_event)
+
+        self.player.speed = (
+            250
+            * self.world_v27.movement_multiplier()
+        )
+        drain = self.world_v27.stamina_drain()
+        if drain:
+            self.combat_v25.stamina -= drain * dt
+
         self.player.update(
             dt,
             keys,
@@ -1826,7 +1965,9 @@ class RPGWorld:
             self.player.is_moving
             and self.step_timer <= 0
         ):
-            self.events.append("footstep")
+            self.events.append(
+                self.world_v27.footstep_event()
+            )
             self.step_timer = 0.34
 
         self.ally_cooldown = max(
@@ -1903,6 +2044,27 @@ class RPGWorld:
                 kind="boss",
             )
             self.events.append("voice_warrior")
+
+        if (
+            boss
+            and not boss.dead
+            and not self.v27_boss_phase2
+            and boss.hp <= boss.max_hp * 0.5
+        ):
+            self.v27_boss_phase2 = True
+            self.combat_v27.on_boss_phase(
+                boss.name,
+                2,
+            )
+            self.cinematic_v26.start(
+                f"{boss.name} — FASE 2",
+                "O Guardião muda o ritmo. Novos ataques e menos janelas seguras.",
+                duration=3.0,
+                kind="boss_phase",
+            )
+            self.events.extend(
+                ["voice_warrior", "thunder"]
+            )
 
         boss_event = self.boss_combat.update(
             dt,
@@ -2006,6 +2168,14 @@ class RPGWorld:
         seconds = pygame.time.get_ticks() / 1000
         theme = self.theme
 
+        if self.world_v27.interior:
+            self.world_v27.draw_interior(
+                surface,
+                fonts,
+                seconds,
+            )
+            return
+
         if self.living.interior:
             self.living.draw_interior(
                 surface,
@@ -2042,6 +2212,14 @@ class RPGWorld:
             self.camera,
             seconds,
             theme["accent"],
+        )
+        self.world_v27.draw_exterior(
+            surface,
+            self.camera,
+            fonts,
+            seconds,
+            self.v26.hour,
+            self.player.pos,
         )
 
         items = []
@@ -2173,6 +2351,13 @@ class RPGWorld:
             seconds,
             self.player.pos,
         )
+        self.quest_v27.draw_markers(
+            surface,
+            self.camera,
+            fonts,
+            self.v26,
+            self.enemies,
+        )
 
         for loot in self.loots:
             loot.draw(surface, self.camera, seconds)
@@ -2188,6 +2373,20 @@ class RPGWorld:
         self.art_v26.draw_foreground(
             surface,
             self,
+            seconds,
+        )
+        self.combat_v27.draw_world_fx(
+            surface,
+            self.camera,
+            self.player,
+            theme["accent"],
+        )
+        self.world_v27.draw_day_night(
+            surface,
+            self.v26.hour,
+        )
+        self.world_v27.draw_weather(
+            surface,
             seconds,
         )
         self._draw_boss_telegraph(
@@ -2226,7 +2425,13 @@ class RPGWorld:
             self._draw_inventory(surface, fonts, theme)
 
         if self.overlay_screen:
-            if self.overlay_screen == "contracts":
+            if self.overlay_screen == "factions":
+                self.quest_v27.draw_overlay(
+                    surface,
+                    fonts,
+                    theme["accent"],
+                )
+            elif self.overlay_screen == "contracts":
                 self.v26.draw_contracts(
                     surface,
                     fonts,
@@ -2250,6 +2455,11 @@ class RPGWorld:
                     theme,
                 )
 
+        self.combat_v27.draw_screen_fx(
+            surface,
+            fonts,
+            theme["accent"],
+        )
         self.cinematic_v26.draw(
             surface,
             fonts,

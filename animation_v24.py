@@ -16,6 +16,11 @@ STATE_FPS = {
     "death": 6,
     "power": 10,
     "pulse": 10,
+    "parry": 14,
+    "dodge": 16,
+    "knockdown": 7,
+    "execute": 12,
+    "phase2": 8,
 }
 
 
@@ -53,6 +58,16 @@ def pose(state, seconds):
         return {"bob": 0, "lean": 7, "weapon": -145}
     if state in {"power", "pulse"}:
         return {"bob": -2, "lean": 0, "weapon": -20}
+    if state == "parry":
+        return {"bob": 0, "lean": -2, "weapon": -20 + swing * 8}
+    if state == "dodge":
+        return {"bob": 0, "lean": 10, "weapon": -150}
+    if state == "execute":
+        return {"bob": -1, "lean": 8, "weapon": -120 + swing * 75}
+    if state == "knockdown":
+        return {"bob": 7, "lean": 22, "weapon": 82}
+    if state == "phase2":
+        return {"bob": -2, "lean": 0, "weapon": swing * 25}
     if state == "hurt":
         return {"bob": 1, "lean": -6, "weapon": 12}
     if state == "death":

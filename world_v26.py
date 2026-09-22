@@ -3,6 +3,8 @@ import random
 
 import pygame
 
+from npc_art_v27 import draw_npc_v27
+
 
 REGION_TITLES = {
     1: "Estrada de Valdrak",
@@ -278,6 +280,19 @@ class Villager:
         y = int(self.pos.y - camera.y)
         if not (-80 < x < 1360 and -100 < y < 810):
             return
+        draw_npc_v27(
+            surface,
+            (x, y),
+            self.role,
+            self.facing,
+            seconds,
+            index=self.index,
+            near=near,
+            name=self.name,
+            fonts=fonts,
+        )
+        return
+
         bob = int(abs(math.sin(seconds * 5 + self.phase)) * 2)
         pygame.draw.ellipse(surface, (0, 0, 0), (x - 18, y + 18, 36, 10))
         cape = tuple(max(0, c - 28) for c in self.color)

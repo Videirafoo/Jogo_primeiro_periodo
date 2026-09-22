@@ -18,6 +18,11 @@ VALDRAK_AUDIO = (
     / "audio"
     / "valdrak"
 )
+VOICE_ROOT = (
+    Path(__file__).with_name("assets")
+    / "audio"
+    / "voices"
+)
 
 VALDRAK_SFX = {
     "footstep": [
@@ -285,6 +290,16 @@ class Audio:
                 except pygame.error:
                     pass
 
+        if name.startswith("voice_"):
+            voice_path = VOICE_ROOT / f"{name}.wav"
+            if voice_path.exists():
+                try:
+                    return pygame.mixer.Sound(
+                        str(voice_path)
+                    )
+                except pygame.error:
+                    pass
+
         profiles = {
             "intro": (220, 0.45, "tone"),
             "dream_fall": (120, 0.70, "sweep"),
@@ -322,6 +337,18 @@ class Audio:
             "rare_event": (248, 0.62, "sweep"),
             "contract": (430, 0.32, "tone"),
             "quest_complete": (820, 0.72, "victory"),
+            "footstep_grass": (115, 0.11, "footstep_soft"),
+            "footstep_stone": (210, 0.10, "footstep_hard"),
+            "footstep_wood": (165, 0.12, "footstep_wood"),
+            "footstep_snow": (92, 0.13, "footstep_snow"),
+            "footstep_water": (260, 0.14, "rain_hit"),
+            "village": (350, 0.32, "village"),
+            "village_night": (220, 0.34, "village_night"),
+            "tavern": (180, 0.38, "tavern"),
+            "blacksmith": (96, 0.34, "blacksmith"),
+            "door_wood": (72, 0.28, "door_wood"),
+            "creature_raven": (720, 0.35, "crow"),
+            "creature_wolf": (128, 0.50, "wolf"),
         }
 
         frequency, duration, kind = profiles.get(
@@ -333,7 +360,11 @@ class Audio:
 
     def _create_ambience(self, name):
         sample_rate = 44100
-        duration = 3.0
+        duration = (
+            6.0
+            if name.startswith("music_")
+            else 3.0
+        )
         count = int(sample_rate * duration)
         data = array("h")
         rng = random.Random(f"ambience-{name}")
@@ -551,7 +582,94 @@ class Audio:
             envelope = max(0.0, 1.0 - progress)
             value = 0.0
 
-            if kind == "voice":
+            if kind == "footstep_soft":
+                value = (
+                    rng.uniform(-1, 1)
+                    * 0.18
+                    * math.exp(-t * 24)
+                )
+                value += (
+                    math.sin(
+                        2 * math.pi * frequency * t
+                    )
+                    * 0.08
+                    * math.exp(-t * 18)
+                )
+
+            elif kind == "footstep_hard":
+                value = (
+                    math.sin(
+                        2 * math.pi * frequency * t
+                    )
+                    * 0.22
+                    * math.exp(-t * 28)
+                )
+                value += (
+                    rng.uniform(-1, 1)
+                    * 0.08
+                    * math.exp(-t * 30)
+                )
+
+            elif kind == "footstep_wood":
+                value = (
+                    math.sin(
+                        2 * math.pi * frequency * t
+                    )
+                    * 0.16
+                    * math.exp(-t * 18)
+                )
+                value += (
+                    math.sin(
+                        2 * math.pi * frequency * 2.2 * t
+                    )
+                    * 0.07
+                    * math.exp(-t * 20)
+                )
+
+            elif kind == "footstep_snow":
+                value = (
+                    rng.uniform(-1, 1)
+                    * 0.14
+                    * math.exp(-t * 13)
+                )
+
+            elif kind in {
+                "village",
+                "village_night",
+                "tavern",
+                "blacksmith",
+                "door_wood",
+            }:
+                base = (
+                    math.sin(
+                        2 * math.pi * frequency * t
+                    )
+                    * 0.08
+                )
+                noise = rng.uniform(-1, 1) * 0.04
+                if kind == "blacksmith":
+                    base += (
+                        math.sin(
+                            2 * math.pi * 880 * t
+                        )
+                        * 0.13
+                        * math.exp(
+                            -((t % 0.18) * 18)
+                        )
+                    )
+                elif kind == "tavern":
+                    base += (
+                        math.sin(
+                            2 * math.pi * 260 * t
+                        )
+                        * 0.04
+                    )
+                elif kind == "door_wood":
+                    base *= math.exp(-t * 9)
+                    noise *= math.exp(-t * 11)
+                value = base + noise
+
+            elif kind == "voice":
                 formant = (
                     math.sin(
                         2 * math.pi * frequency * t

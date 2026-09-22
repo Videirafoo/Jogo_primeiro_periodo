@@ -103,3 +103,13 @@ Após atualizar a branch, execute python eternos.py. A aventura começa imediata
 - 1/2: decisões de quests quando solicitado;
 - E: conversar, investigar segredos e ativar encontros únicos;
 - os demais controles V2.5 continuam válidos.
+
+## Controles V2.7
+
+- L: facções, reputação, quests opcionais e destino provável;
+- 1/2 dentro do painel L: aceitar quests opcionais;
+- E nas portas: entrar em tavernas, lojas, casas, salão e ferreiro;
+- 1 na taverna: descansar;
+- 1 na loja: comprar poção;
+- U no ferreiro: melhorar arma;
+- os controles anteriores continuam válidos.

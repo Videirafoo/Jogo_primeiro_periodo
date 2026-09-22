@@ -175,3 +175,7 @@ A V2.5 é o maior passe de RPG da linha V2: sprite-sheets autorais com oito dire
 ## World & Quest Quality Pass V2.6
 
 A V2.6 adiciona vilas com rotinas, horário persistente, diálogos condicionais, quests multi-etapa com escolhas e consequências, contratos, caçadas, segredos, lore e encontros únicos. O World Art II acrescenta rios, montanhas, cachoeira, lava, cidades, castelos, templos e landmarks. Cinemáticas in-engine e trilhas regionais/boss completam o passe.
+
+## Combat, Animation & World Quality V2.7
+
+A V2.7 aumenta a animação para seis frames, adiciona estados visuais de parry/dodge/knockdown/execução, melhora NPCs por profissão e conecta prédios a interiores reais. Reputação, facções, quests opcionais e finais dependentes das escolhas ampliam o RPG. O áudio passa a diferenciar superfícies e ambientes, mantendo suporte opcional a voice acting gravado.

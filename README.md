@@ -507,3 +507,52 @@ Cada região recebe uma quest multi-etapa com objetivo, retorno ao NPC, decisão
 - perigo, interiores e boss por região.
 
 Nenhuma dependência nova foi adicionada ao requirements.txt.
+
+## V2.7 — Combat, Animation & World Quality
+
+A V2.7 é um passe de qualidade sobre a V2.6.
+
+### V2.6.1 Visual QA
+- regressão automática de sobreposição dos seis Eternos;
+- teste de clipping das portas/colisões;
+- validação dos cinco interiores por região;
+- smoke nativo incluído no gate.
+
+### NPC Art Pass
+Cada profissão possui roupa, paleta, rosto, cabelo e acessório próprios:
+- vidente;
+- ferreiro;
+- caçador;
+- mercador;
+- guarda;
+- curandeira;
+- viajante.
+
+### Combat & Animation Quality
+- sprite-sheets passam de 4 para 6 frames;
+- parry, dodge, knockdown e execução entram como estados;
+- anticipation / active / recovery;
+- hit reaction;
+- weapon trails;
+- perfect-dodge ghost;
+- feedback visual de parry;
+- câmera/impact feedback;
+- cinemática de fase 2 dos bosses.
+
+### World Quality III
+Cada região possui taverna, ferreiro, loja, casa e salão com portas, colisão coerente e interiores conectados. Existem moradores nos interiores, ciclo dia/noite, janelas e tochas noturnas, além de clima com impacto real em movimento e stamina.
+
+### Quest System II
+- marcadores de objetivo;
+- reputação;
+- três facções;
+- duas quests opcionais por região;
+- escolhas alimentam reputação;
+- final de Valdrak calculado a partir do estado do mundo.
+
+### Audio Production Pass
+- loops regionais mais longos;
+- layers procedurais;
+- passos em grama, pedra, madeira e neve;
+- sons de vila, noite, taverna, ferreiro e portas;
+- hooks para voice acting em assets/audio/voices, com fallback procedural.

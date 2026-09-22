@@ -28,6 +28,12 @@ jobs:
           SDL_AUDIODRIVER: dummy
         run: python -m unittest -q
 
+      - name: Native Windows visual smoke
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: python eternos.py --smoke
+
       - name: Build EXE
         run: pyinstaller --noconfirm OsEternos.spec
 

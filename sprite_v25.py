@@ -8,7 +8,7 @@ from animation_v24 import DIRECTIONS_8, direction8, frame_index
 
 FRAME_W = 56
 FRAME_H = 72
-FRAMES = 4
+FRAMES = 6
 CHAR_STATES = (
     "idle",
     "walk",
@@ -20,9 +20,27 @@ CHAR_STATES = (
     "hurt",
     "death",
     "power",
+    "parry",
+    "dodge",
+    "knockdown",
+    "execute",
 )
-ENEMY_STATES = ("idle", "walk", "attack", "hurt")
-BOSS_STATES = ("idle", "walk", "attack", "power")
+ENEMY_STATES = (
+    "idle",
+    "walk",
+    "attack",
+    "hurt",
+    "knockdown",
+)
+BOSS_STATES = (
+    "idle",
+    "walk",
+    "attack",
+    "power",
+    "hurt",
+    "knockdown",
+    "phase2",
+)
 
 ROOT = Path(__file__).with_name("assets") / "valdrak" / "sprites_v25"
 
@@ -152,7 +170,7 @@ def _draw_humanoid(frame, body, accent, hair, gear, facing, state, tick, boss=Fa
     if state == "run":
         walk *= 1.45
 
-    if state == "death":
+    if state in {"death", "knockdown"}:
         pygame.draw.ellipse(frame, (0, 0, 0, 90), (cx - 22, cy + 17, 44, 10))
         pygame.draw.ellipse(frame, body, (cx - 23, cy + 5, 46, 16))
         pygame.draw.circle(frame, (207, 171, 141), (cx + 17, cy + 9), 8)
@@ -225,10 +243,24 @@ def _draw_humanoid(frame, body, accent, hair, gear, facing, state, tick, boss=Fa
     if boss:
         pygame.draw.circle(frame, accent, (cx, cy - 5), int(24 * scale), 2)
         pygame.draw.circle(frame, _shade(accent, 35), (cx, cy - 5), int(28 * scale), 1)
+        if state == "phase2":
+            pygame.draw.circle(
+                frame,
+                _shade(accent, 70),
+                (cx, cy - 5),
+                int((31 + tick) * scale),
+                2,
+            )
 
     swing = 0.15
-    if state in {"attack1", "attack", "power"}:
-        swing = -1.4 + tick * 0.65
+    if state in {"attack1", "attack", "power", "phase2"}:
+        swing = -1.4 + tick * 0.46
+    elif state == "parry":
+        swing = -0.35
+    elif state == "dodge":
+        swing = -2.45
+    elif state == "execute":
+        swing = -2.1 + tick * 0.72
     elif state == "attack2":
         swing = 1.4 - tick * 0.65
     elif state == "heavy":
