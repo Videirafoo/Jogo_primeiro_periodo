@@ -24,8 +24,8 @@ class MapScene:
         self.tmx = None
         self.surface = None
         self.collision_rects = []
-        self.width = 1800
-        self.height = 1080
+        self.width = 3648
+        self.height = 2208
         if self.available:
             self._load()
 
@@ -107,6 +107,34 @@ class MapScene:
                         int(obj.height),
                     )
                 )
+
+        # V2.8 expands every TMX region to four connected sectors.
+        # Reusing authored tiles keeps the seven visual identities while
+        # increasing traversable area from 1.82x1.10k to 3.65x2.21k.
+        base_surface = self.surface
+        base_width = self.width
+        base_height = self.height
+        base_collisions = list(self.collision_rects)
+
+        expanded = pygame.Surface(
+            (base_width * 2, base_height * 2),
+            pygame.SRCALPHA,
+        )
+        expanded_collisions = []
+        for row in range(2):
+            for col in range(2):
+                ox = col * base_width
+                oy = row * base_height
+                expanded.blit(base_surface, (ox, oy))
+                for rect in base_collisions:
+                    expanded_collisions.append(
+                        rect.move(ox, oy)
+                    )
+
+        self.surface = expanded
+        self.width = base_width * 2
+        self.height = base_height * 2
+        self.collision_rects = expanded_collisions
 
     def draw(self, surface, camera):
         if self.surface is None:

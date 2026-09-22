@@ -37,3 +37,50 @@ def draw_final_ui_frame(surface, accent):
     pygame.draw.rect(surface, (6, 10, 15), (14, 14, 1252, 692), 2, border_radius=18)
     pygame.draw.line(surface, accent, (36, 36), (170, 36), 2)
     pygame.draw.line(surface, accent, (1110, 684), (1244, 684), 2)
+
+
+def draw_player_equipment_v28(surface, center, profile, facing):
+    equipped = profile.get("equipped", {})
+    weapon = equipped.get("weapon")
+    armor = equipped.get("armor")
+    amulet = equipped.get("amulet")
+    rune = equipped.get("rune")
+    x, y = int(center[0]), int(center[1])
+
+    rarity_colors = {
+        "Comum": (175, 184, 193),
+        "Raro": (72, 161, 255),
+        "Épico": (165, 95, 255),
+        "Lendário": (235, 183, 67),
+    }
+
+    if armor:
+        color = rarity_colors.get(armor.get("rarity", "Comum"), (175, 184, 193))
+        pygame.draw.arc(surface, color, (x - 25, y - 18, 50, 48), 0.15, math.pi - 0.15, 3)
+
+    direction = pygame.Vector2(facing)
+    if not direction.length_squared():
+        direction.update(0, 1)
+    direction = direction.normalize()
+    normal = pygame.Vector2(-direction.y, direction.x)
+
+    if weapon:
+        color = rarity_colors.get(weapon.get("rarity", "Comum"), (197, 203, 210))
+        grip = pygame.Vector2(x, y) + normal * 16 - direction * 2
+        tip = grip + direction * 42 + normal * 3
+        pygame.draw.line(surface, (112, 75, 44), grip, tip, 4)
+        pygame.draw.polygon(
+            surface,
+            color,
+            [
+                (int(tip.x), int(tip.y)),
+                (int(tip.x + normal.x * 13 - direction.x * 7), int(tip.y + normal.y * 13 - direction.y * 7)),
+                (int(tip.x - normal.x * 13 - direction.x * 7), int(tip.y - normal.y * 13 - direction.y * 7)),
+            ],
+        )
+
+    if amulet:
+        pygame.draw.circle(surface, (231, 190, 93), (x, y - 2), 4, 1)
+
+    if rune:
+        pygame.draw.circle(surface, (158, 116, 255), (x - 25, y - 12), 7, 2)

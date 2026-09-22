@@ -582,6 +582,9 @@ class GameApp:
                 if (
                     self.world.overlay_screen
                     or self.world.living.interior
+                    or self.world.world_v27.interior
+                    or self.world.dungeon_v28.active
+                    or self.world.adventure_v28.current_site
                     or self.world.inventory_open
                 ):
                     self.world.handle_key(event)

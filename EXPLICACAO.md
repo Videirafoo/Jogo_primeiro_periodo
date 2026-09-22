@@ -179,3 +179,7 @@ A V2.6 adiciona vilas com rotinas, horário persistente, diálogos condicionais,
 ## Combat, Animation & World Quality V2.7
 
 A V2.7 aumenta a animação para seis frames, adiciona estados visuais de parry/dodge/knockdown/execução, melhora NPCs por profissão e conecta prédios a interiores reais. Reputação, facções, quests opcionais e finais dependentes das escolhas ampliam o RPG. O áudio passa a diferenciar superfícies e ambientes, mantendo suporte opcional a voice acting gravado.
+
+## Adventure Depth V2.8
+
+A V2.8 quadruplica a área física dos mapas TMX e integra oito tipos de local de aventura. Dungeon III, Combat 3.0, RPG Depth II e Companion System passam a trabalhar sobre o mesmo perfil persistente, portanto saves existentes continuam compatíveis e os novos estados são gravados automaticamente.

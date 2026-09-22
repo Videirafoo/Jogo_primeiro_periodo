@@ -23,6 +23,11 @@ VOICE_ROOT = (
     / "audio"
     / "voices"
 )
+MUSIC_V28_ROOT = (
+    Path(__file__).with_name("assets")
+    / "audio"
+    / "music_v28"
+)
 
 VALDRAK_SFX = {
     "footstep": [
@@ -260,6 +265,19 @@ class Audio:
         self.current_ambience = None
 
     def _create_sound(self, name, variant=0):
+        if name.startswith("theme_"):
+            theme_path = (
+                MUSIC_V28_ROOT
+                / f"{name}.wav"
+            )
+            if theme_path.exists():
+                try:
+                    return pygame.mixer.Sound(
+                        str(theme_path)
+                    )
+                except pygame.error:
+                    pass
+
         variants = VALDRAK_SFX.get(name)
         if variants:
             filename = variants[variant % len(variants)]
@@ -359,6 +377,18 @@ class Audio:
         return pygame.mixer.Sound(buffer=data.tobytes())
 
     def _create_ambience(self, name):
+        authored_path = (
+            MUSIC_V28_ROOT
+            / f"{name}.wav"
+        )
+        if authored_path.exists():
+            try:
+                return pygame.mixer.Sound(
+                    str(authored_path)
+                )
+            except pygame.error:
+                pass
+
         sample_rate = 44100
         duration = (
             6.0

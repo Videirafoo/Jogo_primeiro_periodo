@@ -556,3 +556,65 @@ Cada região possui taverna, ferreiro, loja, casa e salão com portas, colisão 
 - passos em grama, pedra, madeira e neve;
 - sons de vila, noite, taverna, ferreiro e portas;
 - hooks para voice acting em assets/audio/voices, com fallback procedural.
+
+## V2.8 — Adventure Depth
+
+A V2.8 transforma Valdrak em uma aventura maior e mais profunda.
+
+### Mapa e exploração
+- o mapa físico de cada região passa de 1824x1104 para 3648x2208;
+- quatro setores TMX conectados por região;
+- três sub-regiões por capítulo;
+- estradas longas;
+- acampamentos;
+- fortalezas;
+- cavernas profundas;
+- ruínas;
+- catacumbas;
+- costa;
+- navios;
+- ilhas secretas.
+
+### Dungeon System III
+- salas procedurais;
+- atalhos;
+- puzzles de quatro runas;
+- armadilhas móveis;
+- mini-boss;
+- chaves especiais;
+- loot lendário exclusivo por capítulo.
+
+### Combat 3.0
+- hitboxes retangulares reais por janela ativa;
+- cancel windows;
+- stamina por dificuldade;
+- parry timing por arquétipo;
+- enemy/boss combo patterns;
+- projéteis;
+- grabs com escape;
+- finishers em inimigos enfraquecidos.
+
+### RPG Depth II
+- inventário visual avançado;
+- comparação de itens;
+- equipamento visível no protagonista;
+- três builds;
+- atributos;
+- skill trees dos seis Eternos;
+- sinergias.
+
+### Companion System
+- dois Eternos ativos;
+- troca de formação;
+- modos agressivo/guarda/suporte;
+- combo com aliados;
+- amizade;
+- quests pessoais.
+
+### Production Art / Audio II
+- retratos definitivos estilizados para os Eternos;
+- moldura final de UI;
+- equipamento renderizado;
+- temas autorais procedurais por região, perigo, interior e Guardião;
+- tema musical curto de cada Eterno;
+- voice acting real continua opcional por arquivo WAV.

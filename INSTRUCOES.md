@@ -113,3 +113,18 @@ Após atualizar a branch, execute python eternos.py. A aventura começa imediata
 - 1 na loja: comprar poção;
 - U no ferreiro: melhorar arma;
 - os controles anteriores continuam válidos.
+
+## Controles V2.8
+
+- E em um local de aventura: entrar/explorar;
+- D, seta direita ou Espaço dentro de local: avançar;
+- Dungeon III: A/D navega, S abre atalhos, 1-4 resolve puzzles;
+- X: finisher quando inimigo está com pouca vida; mantém execução de Guardião como fallback;
+- SHIFT durante grab: escapar;
+- Y: RPG Depth II / inventário / build;
+- B dentro do painel Y: trocar build;
+- Z: Companion System;
+- Espaço no painel Z: trocar o Eterno do slot selecionado;
+- C no painel Z: trocar modo dos companheiros;
+- T no painel Z: gastar ponto em skill do Eterno;
+- os controles anteriores continuam válidos.

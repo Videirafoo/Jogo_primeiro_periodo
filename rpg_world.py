@@ -17,6 +17,15 @@ from combat_v25 import CombatV25
 from combat_v27 import CombatPresentationV27
 from quest_v27 import QuestSystemII
 from world_v27 import WorldQualityIII
+from adventure_v28 import AdventureDepthV28
+from combat_v28 import CombatCoreV28
+from companion_v28 import CompanionSystemV28
+from dungeon_v28 import DungeonSystemIII
+from production_art_v28 import (
+    draw_final_ui_frame,
+    draw_player_equipment_v28,
+)
+from rpg_depth_v28 import RPGDepthII, total_stats
 from meta_v25 import (
     RECIPES,
     TALENTS,
@@ -56,8 +65,8 @@ from world_expansion import (
 )
 
 
-WORLD_W = 1800
-WORLD_H = 1080
+WORLD_W = 3648
+WORLD_H = 2208
 PLAYER_SIZE = 42
 
 INK = (236, 242, 248)
@@ -682,6 +691,29 @@ class RPGWorld:
             self.world_v27.collision_rects()
         )
         self.v27_boss_phase2 = False
+
+        self.adventure_v28 = AdventureDepthV28(
+            chapter["number"],
+            self.profile,
+        )
+        self.dungeon_v28 = DungeonSystemIII(
+            chapter["number"],
+            self.profile,
+            seed=chapter["number"] * 281,
+        )
+        self.combat_v28 = CombatCoreV28(
+            self.profile,
+        )
+        self.rpg_v28 = RPGDepthII(
+            self.profile,
+        )
+        self.companion_v28 = CompanionSystemV28(
+            self.profile,
+        )
+        self.companion_v28.sync(
+            self.engine.ally_names()
+        )
+
         self.vendor_items = vendor_stock(
             chapter["number"],
             self.rng,
@@ -872,6 +904,13 @@ class RPGWorld:
         if label:
             if "PARRY" in label:
                 self.combat_v27.on_parry()
+                self.profile["v28_perfect_parries"] = (
+                    self.profile.get(
+                        "v28_perfect_parries",
+                        0,
+                    )
+                    + 1
+                )
             else:
                 self.combat_v27.on_dodge()
             self.notice = label
@@ -908,17 +947,111 @@ class RPGWorld:
         return None
 
     def parry(self):
-        if self.combat_v25.activate_parry():
-            self.player.parry_timer = 0.34
-            self.combat_v27.on_parry()
-            self.notice = "PARRY — janela ativa"
-            self.notice_timer = 0.7
-            self.events.append("shield")
-        else:
+        difficulty = self.profile.get(
+            "difficulty",
+            "Normal",
+        )
+        cost = self.combat_v28.stamina_cost(
+            "parry",
+            difficulty,
+        )
+        if self.combat_v25.stamina < cost:
             self.notice = "Stamina insuficiente"
             self.notice_timer = 1.0
+            return
+
+        nearby = [
+            enemy
+            for enemy in self.enemies
+            if (
+                not enemy.dead
+                and enemy.pos.distance_to(
+                    self.player.pos
+                )
+                <= 180
+            )
+        ]
+        target = (
+            min(
+                nearby,
+                key=lambda enemy: enemy.pos.distance_to(
+                    self.player.pos
+                ),
+            )
+            if nearby
+            else None
+        )
+        archetype = (
+            "boss"
+            if target and target.boss
+            else target.archetype
+            if target
+            else "raider"
+        )
+        window = self.combat_v28.parry_window(
+            archetype
+        )
+        self.combat_v25.stamina -= cost
+        self.combat_v25.parry_window = window
+        self.player.parry_timer = window + 0.08
+        self.combat_v27.on_parry()
+        self.notice = (
+            f"PARRY • janela {int(window * 1000)}ms"
+        )
+        self.notice_timer = 0.8
+        self.events.append("shield")
 
     def execute_boss(self):
+        finishable = [
+            enemy
+            for enemy in self.enemies
+            if self.combat_v28.finisher_available(
+                enemy,
+                self.player,
+            )
+        ]
+        if finishable:
+            target = min(
+                finishable,
+                key=lambda enemy: enemy.pos.distance_to(
+                    self.player.pos
+                ),
+            )
+            cost = self.combat_v28.stamina_cost(
+                "finisher",
+                self.profile.get(
+                    "difficulty",
+                    "Normal",
+                ),
+            )
+            if self.combat_v25.stamina < cost:
+                self.notice = "Stamina insuficiente"
+                self.notice_timer = 1.0
+                return
+            self.combat_v25.stamina -= cost
+            damage = self.combat_v28.finisher(
+                target
+            )
+            self.player.execute_timer = 0.95
+            self.combat_v27.on_execution()
+            died = target.hit(damage)
+            self.notice = (
+                f"FINISHER • {target.archetype} • "
+                f"{damage} dano"
+            )
+            self.notice_timer = 1.8
+            self.events.extend(
+                ["blade_hit", "rune"]
+            )
+            self.impact_feedback(
+                strength=17,
+                stop=0.13,
+                flash=0.16,
+            )
+            if died:
+                self._enemy_defeated(target)
+            return
+
         boss = self.boss()
         if not boss or boss.dead:
             return
@@ -948,10 +1081,18 @@ class RPGWorld:
     def heavy_attack(self):
         if self.player.heavy_timer > 0:
             return
-        if not self.combat_v25.spend_heavy():
+        heavy_cost = self.combat_v28.stamina_cost(
+            "heavy",
+            self.profile.get(
+                "difficulty",
+                "Normal",
+            ),
+        )
+        if self.combat_v25.stamina < heavy_cost:
             self.notice = "Stamina insuficiente"
             self.notice_timer = 1.0
             return
+        self.combat_v25.stamina -= heavy_cost
         if self.player.energy < 20:
             self.notice = "Energia insuficiente"
             self.notice_timer = 1.0
@@ -962,7 +1103,12 @@ class RPGWorld:
         self.combat_v27.on_attack("heavy")
         self.events.append("axe_whoosh")
         attack_center = self.player.pos + self.player.facing * 68
-        stats = equipment_stats(self.profile)
+        hitbox = self.combat_v28.attack_hitbox(
+            self.player,
+            heavy=True,
+            frame_phase="active",
+        )
+        stats = total_stats(self.profile)
         difficulty = balance(self.profile)
         damage = int(
             (
@@ -979,8 +1125,21 @@ class RPGWorld:
         for enemy in self.enemies:
             if enemy.dead:
                 continue
-            if enemy.pos.distance_to(attack_center) <= 112:
+            enemy_box = pygame.Rect(
+                0,
+                0,
+                enemy.radius * 2,
+                enemy.radius * 2,
+            )
+            enemy_box.center = (
+                int(enemy.pos.x),
+                int(enemy.pos.y),
+            )
+            if hitbox.colliderect(enemy_box):
                 died = enemy.hit(damage)
+                self.combat_v28.open_cancel_window(
+                    0.18
+                )
                 self._burst(enemy.pos, GOLD, 16)
                 self.impact_feedback(
                     strength=14 if enemy.boss else 9,
@@ -1006,6 +1165,36 @@ class RPGWorld:
                     self._enemy_defeated(enemy)
 
     def handle_key(self, event):
+        if self.dungeon_v28.active:
+            result = self.dungeon_v28.handle_key(
+                event.key,
+                self,
+            )
+            if result:
+                message, sfx = result
+                self.notice = message
+                self.notice_timer = 2.6
+                if sfx:
+                    self.events.append(sfx)
+            return
+
+        if self.adventure_v28.current_site:
+            result = self.adventure_v28.handle_key(
+                event.key,
+                self,
+            )
+            if result:
+                message, sfx = result
+                if message == "__open_dungeon_v28__":
+                    self.notice = "Masmorra profunda aberta"
+                    self.notice_timer = 2.2
+                else:
+                    self.notice = message
+                    self.notice_timer = 2.6
+                if sfx:
+                    self.events.append(sfx)
+            return
+
         if self.world_v27.interior:
             result = self.world_v27.handle_key(
                 event.key,
@@ -1076,6 +1265,102 @@ class RPGWorld:
             return
 
         if self.overlay_screen:
+            if self.overlay_screen == "rpg_v28":
+                if event.key in {
+                    pygame.K_ESCAPE,
+                    pygame.K_y,
+                }:
+                    self.overlay_screen = None
+                    return
+                if event.key in {
+                    pygame.K_LEFT,
+                    pygame.K_a,
+                }:
+                    self.rpg_v28.cycle_compare(-1)
+                elif event.key in {
+                    pygame.K_RIGHT,
+                    pygame.K_d,
+                }:
+                    self.rpg_v28.cycle_compare(1)
+                elif event.key == pygame.K_SPACE:
+                    self.notice = (
+                        self.rpg_v28.equip_comparison()
+                    )
+                    self.notice_timer = 2.0
+                    self.events.append("inventory")
+                elif event.key == pygame.K_b:
+                    build = self.rpg_v28.cycle_build()
+                    self.notice = f"Build: {build}"
+                    self.notice_timer = 1.8
+                    self.events.append("rune")
+                return
+
+            if self.overlay_screen == "companions":
+                available = self.engine.ally_names()
+                self.companion_v28.sync(available)
+                if event.key in {
+                    pygame.K_ESCAPE,
+                    pygame.K_z,
+                }:
+                    self.overlay_screen = None
+                    return
+                if event.key in {
+                    pygame.K_UP,
+                    pygame.K_w,
+                }:
+                    self.companion_v28.cycle_selected(-1)
+                elif event.key in {
+                    pygame.K_DOWN,
+                    pygame.K_s,
+                }:
+                    self.companion_v28.cycle_selected(1)
+                elif event.key == pygame.K_SPACE:
+                    self.notice = (
+                        self.companion_v28.swap_selected(
+                            available
+                        )
+                    )
+                    self.notice_timer = 1.8
+                    if self.companion_v28.active:
+                        ally = self.companion_v28.active[
+                            self.companion_v28.selected
+                            % len(self.companion_v28.active)
+                        ]
+                        self.events.append(
+                            f"theme_{ally.lower()}"
+                        )
+                elif event.key == pygame.K_c:
+                    mode = self.companion_v28.cycle_mode()
+                    self.notice = (
+                        f"Comando dos Eternos: {mode}"
+                    )
+                    self.notice_timer = 1.8
+                elif event.key == pygame.K_t:
+                    active = self.companion_v28.active
+                    if active:
+                        ally = active[
+                            self.companion_v28.selected
+                            % len(active)
+                        ]
+                        points = self.profile.get(
+                            "skill_points",
+                            0,
+                        )
+                        ok, message = (
+                            self.rpg_v28.unlock_ally_skill(
+                                ally,
+                                points,
+                            )
+                        )
+                        if ok:
+                            self.profile["skill_points"] -= 1
+                        self.notice = message
+                        self.notice_timer = 2.0
+                        self.events.append(
+                            "rune" if ok else "error"
+                        )
+                return
+
             close_keys = {
                 pygame.K_ESCAPE,
                 pygame.K_m,
@@ -1189,6 +1474,16 @@ class RPGWorld:
                 return
             return
 
+        if event.key == pygame.K_y:
+            self.overlay_screen = "rpg_v28"
+            self.events.append("inventory")
+            return
+
+        if event.key == pygame.K_z:
+            self.overlay_screen = "companions"
+            self.events.append("rune")
+            return
+
         if event.key == pygame.K_p:
             self.parry()
             return
@@ -1268,6 +1563,22 @@ class RPGWorld:
             return
 
         if event.key == pygame.K_e:
+            site = self.adventure_v28.nearest_site(
+                self.player.pos
+            )
+            if site:
+                message = self.adventure_v28.enter(
+                    site
+                )
+                self.notice = message
+                self.dialogue = (
+                    site.name,
+                    message,
+                )
+                self.notice_timer = 3.5
+                self.events.append("rune")
+                return
+
             building = self.world_v27.nearest_door(
                 self.player.pos
             )
@@ -1497,8 +1808,26 @@ class RPGWorld:
         return False
 
     def attack(self):
-        if self.player.attack_timer > 0:
+        if (
+            self.player.attack_timer > 0
+            and not self.combat_v28.can_cancel(
+                self.player
+            )
+        ):
             return
+
+        cost = self.combat_v28.stamina_cost(
+            "attack",
+            self.profile.get(
+                "difficulty",
+                "Normal",
+            ),
+        )
+        if self.combat_v25.stamina < cost:
+            self.notice = "Stamina insuficiente"
+            self.notice_timer = 0.8
+            return
+        self.combat_v25.stamina -= cost
 
         self.player.attack_combo = (
             self.player.attack_combo + 1
@@ -1511,14 +1840,32 @@ class RPGWorld:
             "Ataque dominado • use Q para o Pulso de Código",
         )
         attack_center = self.player.pos + self.player.facing * 55
+        hitbox = self.combat_v28.attack_hitbox(
+            self.player,
+            heavy=False,
+            frame_phase="active",
+        )
 
         hit_any = False
         for enemy in self.enemies:
             if enemy.dead:
                 continue
-            if enemy.pos.distance_to(attack_center) <= 90:
+            enemy_box = pygame.Rect(
+                0,
+                0,
+                enemy.radius * 2,
+                enemy.radius * 2,
+            )
+            enemy_box.center = (
+                int(enemy.pos.x),
+                int(enemy.pos.y),
+            )
+            if hitbox.colliderect(enemy_box):
                 hit_any = True
-                stats = equipment_stats(self.profile)
+                stats = total_stats(self.profile)
+                self.combat_v28.open_cancel_window(
+                    0.14
+                )
                 crit = self.rng.random() < (
                     0.06 + stats["crit"]
                 )
@@ -1605,11 +1952,30 @@ class RPGWorld:
                     self._enemy_defeated(enemy)
 
     def dash(self):
+        if self.combat_v28.grab_timer > 0:
+            if self.combat_v28.break_grab():
+                self.notice = "AGARRE QUEBRADO"
+                self.notice_timer = 1.0
+                self.events.append("shield")
+            return
+
         if self.player.dash_timer > 0 or self.player.energy < 15:
             return
 
+        dodge_cost = self.combat_v28.stamina_cost(
+            "dodge",
+            self.profile.get(
+                "difficulty",
+                "Normal",
+            ),
+        )
+        if self.combat_v25.stamina < dodge_cost:
+            self.notice = "Stamina insuficiente"
+            self.notice_timer = 0.8
+            return
         self.player.energy -= 15
-        self.combat_v25.activate_dodge()
+        self.combat_v25.stamina -= dodge_cost
+        self.combat_v25.dodge_window = 0.24
         self.player.dodge_anim_timer = 0.30
         self.combat_v27.on_dodge()
         self.player.dash_timer = 0.7
@@ -1655,6 +2021,18 @@ class RPGWorld:
             self.notice = message
             self.notice_timer = 3.0
             self.events.append("contract")
+
+        for ally in self.companion_v28.active:
+            message = (
+                self.companion_v28.friendship_gain(
+                    ally,
+                    1,
+                )
+            )
+            if message:
+                self.notice = message
+                self.notice_timer = 2.4
+                self.events.append("quest_complete")
 
         if self.profile["kills"] % 2 == 0:
             self.advance_story_echo()
@@ -1851,60 +2229,22 @@ class RPGWorld:
 
     def _ally_assist(self):
         allies = self.engine.ally_names()
-        if not allies:
-            return
-
-        targets = [
-            enemy
-            for enemy in self.enemies
-            if (
-                not enemy.dead
-                and enemy.pos.distance_to(self.player.pos) <= 300
-            )
-        ]
-        if not targets:
-            return
-
-        target = min(
-            targets,
-            key=lambda enemy: enemy.pos.distance_to(self.player.pos),
+        self.companion_v28.sync(allies)
+        result = self.companion_v28.assist(
+            self
         )
-        ally_name = allies[
-            self.profile["kills"] % len(allies)
-        ]
-        style = ALLY_STYLES.get(ally_name, {})
-        power = style.get("power", "Poder Desperto")
-        color = style.get("color", CYAN)
-
-        damage = 10 + self.profile["level"] * 2
-        died = target.hit(damage)
-        self._burst(target.pos, color, 9)
-        self.notice = f"{ally_name}: {power}"
-        self.notice_timer = 1.0
-
-        sfx = {
-            "Thorvald": "thunder",
-            "Aurel": "lightning",
-            "Kaion": "sword",
-            "Brenor": "fire",
-            "Eiran": "heal",
-            "Noctar": "shadow",
-        }.get(ally_name, "rune")
-        self.events.append(sfx)
+        if not result:
+            return
+        message, sfx = result
+        self.notice = message
+        self.notice_timer = 1.4
+        if sfx:
+            self.events.append(sfx)
         self.impact_feedback(
-            strength=5 if not target.boss else 8,
-            stop=0.035,
+            strength=7,
+            stop=0.04,
             flash=0.06,
         )
-
-        if ally_name == "Eiran":
-            self.player.health = min(
-                self.profile["max_health"],
-                self.player.health + 4,
-            )
-
-        if died:
-            self._enemy_defeated(target)
 
     def update(self, dt, keys):
         self.notice_timer = max(0.0, self.notice_timer - dt)
@@ -1917,6 +2257,11 @@ class RPGWorld:
             dt,
             moving=self.player.is_moving,
         )
+        self.combat_v28.update(
+            dt,
+            self,
+        )
+        self.dungeon_v28.update(dt)
         for defeated in self.combat_v25.update_statuses(dt):
             if defeated.dead:
                 self._enemy_defeated(defeated)
@@ -1951,10 +2296,17 @@ class RPGWorld:
         if drain:
             self.combat_v25.stamina -= drain * dt
 
-        self.player.update(
-            dt,
-            keys,
-            self.obstacles,
+        if self.combat_v28.grab_timer <= 0:
+            self.player.update(
+                dt,
+                keys,
+                self.obstacles,
+            )
+        else:
+            self.player.is_moving = False
+
+        self.adventure_v28.update_position(
+            self.player.pos
         )
 
         self.step_timer = max(
@@ -2099,14 +2451,102 @@ class RPGWorld:
             if enemy.dead:
                 continue
 
-            distance = enemy.pos.distance_to(self.player.pos)
-            if distance <= enemy.radius + 25 and enemy.attack_cd <= 0:
-                if self._damage_player(enemy.damage):
-                    enemy.attack_cd = 0.9
+            distance = enemy.pos.distance_to(
+                self.player.pos
+            )
+            phase = (
+                2
+                if enemy.boss
+                and self.v27_boss_phase2
+                else 1
+            )
+            combo = self.combat_v28.enemy_combo(
+                enemy.archetype,
+                phase=phase,
+            )
+            combo_index = getattr(
+                enemy,
+                "v28_combo_index",
+                0,
+            )
+            action = combo[
+                combo_index % len(combo)
+            ]
+
+            if (
+                enemy.archetype
+                in {"archer", "rune_mage", "raven"}
+                and 95 <= distance <= 380
+                and enemy.attack_cd <= 0
+            ):
+                self.combat_v28.spawn_enemy_projectile(
+                    enemy,
+                    self.player,
+                )
+                enemy.v28_combo_index = (
+                    combo_index + 1
+                ) % len(combo)
+                enemy.attack_cd = (
+                    1.15
+                    if action == "projectile"
+                    else 0.9
+                )
+                self.events.append(
+                    "sword"
+                    if enemy.archetype == "archer"
+                    else "rune"
+                )
+                continue
+
+            if (
+                distance <= enemy.radius + 29
+                and enemy.attack_cd <= 0
+            ):
+                if (
+                    action in {"heavy", "lunge"}
+                    and self.rng.random() < 0.22
+                    and self.combat_v28.try_grab(
+                        enemy,
+                        self.player,
+                    )
+                ):
+                    self.notice = (
+                        "AGARRADO • SHIFT para escapar"
+                    )
+                    self.notice_timer = 1.2
+                    self.events.append("shield")
+                    enemy.attack_cd = 1.25
+                    continue
+
+                multiplier = {
+                    "heavy": 1.45,
+                    "bite": 1.20,
+                    "lunge": 1.28,
+                    "burst": 1.35,
+                }.get(action, 1.0)
+                damage = max(
+                    1,
+                    int(enemy.damage * multiplier),
+                )
+                if self._damage_player(damage):
+                    enemy.v28_combo_index = (
+                        combo_index + 1
+                    ) % len(combo)
+                    enemy.attack_cd = (
+                        0.68
+                        if len(combo) >= 3
+                        else 0.88
+                    )
                     self.events.append("wolf")
-                    self._burst(self.player.pos, RED, 9)
+                    self._burst(
+                        self.player.pos,
+                        RED,
+                        9,
+                    )
                     self.impact_feedback(
-                        strength=12 if enemy.boss else 7,
+                        strength=(
+                            12 if enemy.boss else 7
+                        ),
                         stop=0.065,
                         flash=0.12,
                     )
@@ -2168,6 +2608,23 @@ class RPGWorld:
         seconds = pygame.time.get_ticks() / 1000
         theme = self.theme
 
+        if self.dungeon_v28.active:
+            self.dungeon_v28.draw(
+                surface,
+                fonts,
+                theme["accent"],
+            )
+            return
+
+        if self.adventure_v28.current_site:
+            self.adventure_v28.draw_site(
+                surface,
+                fonts,
+                theme["accent"],
+                seconds,
+            )
+            return
+
         if self.world_v27.interior:
             self.world_v27.draw_interior(
                 surface,
@@ -2221,6 +2678,13 @@ class RPGWorld:
             self.v26.hour,
             self.player.pos,
         )
+        self.adventure_v28.draw_exterior(
+            surface,
+            self.camera,
+            fonts,
+            seconds,
+            self.player.pos,
+        )
 
         items = []
 
@@ -2250,8 +2714,14 @@ class RPGWorld:
                 items.append((enemy.pos.y, "enemy", enemy))
         items.append((self.player.pos.y, "player", self.player))
 
-        ally_names = self.engine.ally_names()
-        for index, ally_name in enumerate(ally_names[:6]):
+        available_allies = self.engine.ally_names()
+        self.companion_v28.sync(
+            available_allies
+        )
+        ally_names = self.companion_v28.active
+        for index, ally_name in enumerate(
+            ally_names[:2]
+        ):
             pos = self._ally_pos(index)
             items.append((pos.y, "ally", (ally_name, pos, index)))
 
@@ -2326,7 +2796,26 @@ class RPGWorld:
             elif kind == "enemy":
                 item.draw(surface, self.camera)
             elif kind == "player":
-                item.draw(surface, self.camera, theme["accent"])
+                item.draw(
+                    surface,
+                    self.camera,
+                    theme["accent"],
+                )
+                draw_player_equipment_v28(
+                    surface,
+                    (
+                        int(
+                            self.player.pos.x
+                            - self.camera.x
+                        ),
+                        int(
+                            self.player.pos.y
+                            - self.camera.y
+                        ),
+                    ),
+                    self.profile,
+                    self.player.facing,
+                )
             else:
                 draw_ally(
                     surface,
@@ -2364,6 +2853,12 @@ class RPGWorld:
 
         for particle in self.particles:
             particle.draw(surface, self.camera)
+
+        self.combat_v28.draw(
+            surface,
+            self.camera,
+            fonts,
+        )
 
         self.visual_v25.draw_lighting(
             surface,
@@ -2425,7 +2920,22 @@ class RPGWorld:
             self._draw_inventory(surface, fonts, theme)
 
         if self.overlay_screen:
-            if self.overlay_screen == "factions":
+            if self.overlay_screen == "rpg_v28":
+                self.rpg_v28.draw_inventory(
+                    surface,
+                    fonts,
+                    theme["accent"],
+                    self.companion_v28.active,
+                )
+            elif self.overlay_screen == "companions":
+                self.companion_v28.draw(
+                    surface,
+                    fonts,
+                    theme["accent"],
+                    self.engine.ally_names(),
+                    self.rpg_v28,
+                )
+            elif self.overlay_screen == "factions":
                 self.quest_v27.draw_overlay(
                     surface,
                     fonts,
@@ -2463,6 +2973,11 @@ class RPGWorld:
         self.cinematic_v26.draw(
             surface,
             fonts,
+            theme["accent"],
+        )
+
+        draw_final_ui_frame(
+            surface,
             theme["accent"],
         )
 
@@ -2580,6 +3095,18 @@ class RPGWorld:
             1,
         )
     def interaction_hint(self):
+        site = self.adventure_v28.nearest_site(
+            self.player.pos
+        )
+        if site:
+            return f"E — explorar: {site.name}"
+
+        building = self.world_v27.nearest_door(
+            self.player.pos
+        )
+        if building:
+            return f"E — entrar: {building.name}"
+
         v26_nearest = self.v26.nearest(
             self.player.pos
         )
