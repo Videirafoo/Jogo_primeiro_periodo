@@ -133,9 +133,20 @@ func _physics_process(delta: float) -> void:
 		0.0,
 		transition_lock_time - delta
 	)
+	if phone_root and phone_action_time > 0.0:
+		_update_phone_pose()
+
 	if phone_root and phone_action_time <= 0.0:
-		phone_root.visible = false
-		if phone_ik:
+		if phone_root.visible:
+			phone_root.visible = false
+			_refresh_weapon_visibility()
+		if (
+			phone_ik
+			and (
+				not weapon_unlocked
+				or weapon_index != 2
+			)
+		):
 			phone_ik.influence = 0.0
 
 	if combo_window <= 0.0 and attack_time <= 0.0:
@@ -147,6 +158,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_update_weapon_idle_pose(delta)
+	_update_offhand_pose(delta)
 	_validate_lock_target()
 	_update_lock_camera(delta)
 	var input := Input.get_vector(
@@ -437,6 +449,12 @@ func _deal_attack_hit(
 		if not node is Node3D:
 			continue
 		var enemy := node as Node3D
+		if not enemy.visible:
+			continue
+		if int(enemy.health) <= 0:
+			continue
+		if not enemy.is_physics_processing():
+			continue
 		var offset := enemy.global_position - global_position
 		var planar := Vector3(offset.x, 0.0, offset.z)
 		var distance := planar.length()
@@ -525,11 +543,21 @@ func _toggle_lock() -> void:
 func _find_nearest_enemy() -> Node3D:
 	var best: Node3D = null
 	var best_score := LOCK_RANGE
-	for node in get_tree().get_nodes_in_group("enemies"):
+	for node in get_tree().get_nodes_in_group(
+		"enemies"
+	):
 		if not node is Node3D:
 			continue
 		var enemy := node as Node3D
-		var distance := global_position.distance_to(enemy.global_position)
+		if not enemy.visible:
+			continue
+		if int(enemy.health) <= 0:
+			continue
+		if not enemy.is_physics_processing():
+			continue
+		var distance := global_position.distance_to(
+			enemy.global_position
+		)
 		if distance < best_score:
 			best = enemy
 			best_score = distance
@@ -539,7 +567,20 @@ func _validate_lock_target() -> void:
 	if not is_instance_valid(lock_target):
 		lock_target = null
 		return
-	if global_position.distance_to(lock_target.global_position) > LOCK_RANGE * 1.35:
+	if not lock_target.visible:
+		lock_target = null
+		return
+	if int(lock_target.health) <= 0:
+		lock_target = null
+		return
+	if not lock_target.is_physics_processing():
+		lock_target = null
+		return
+	if (
+		global_position.distance_to(
+			lock_target.global_position
+		) > LOCK_RANGE * 1.35
+	):
 		lock_target = null
 
 func _face_lock_target() -> void:
@@ -815,8 +856,8 @@ func _build_phone() -> void:
 	if not skeleton:
 		return
 	var attachment := BoneAttachment3D.new()
-	attachment.name = "LeftHandPhone"
-	attachment.bone_name = "Fist.L"
+	attachment.name = "RightHandPhone"
+	attachment.bone_name = "Fist.R"
 	skeleton.add_child(attachment)
 
 	phone_root = Node3D.new()
@@ -826,8 +867,15 @@ func _build_phone() -> void:
 		0.001
 	)
 	phone_root.scale = Vector3.ONE / inherited_scale
-	phone_root.position = Vector3(0.0, 0.07, -0.015) / inherited_scale
-	phone_root.rotation_degrees = Vector3(0, 0, 0)
+	phone_root.position = (
+		Vector3(0.015, 0.055, -0.018)
+		/ inherited_scale
+	)
+	phone_root.rotation_degrees = Vector3(
+		-8,
+		-6,
+		10
+	)
 	attachment.add_child(phone_root)
 	phone_root.visible = false
 
@@ -1269,14 +1317,19 @@ func _refresh_weapon_visibility() -> void:
 
 func unlock_starting_sword() -> void:
 	weapon_unlocked = true
-	unlocked_weapon_count = maxi(unlocked_weapon_count, 1)
+	unlocked_weapon_count = maxi(
+		unlocked_weapon_count,
+		1
+	)
 	weapon_index = 0
+	_apply_weapon_grip_profile()
 	_refresh_weapon_visibility()
 
 func unlock_weapons() -> void:
 	weapon_unlocked = true
 	unlocked_weapon_count = 3
 	weapon_index = clampi(weapon_index, 0, 2)
+	_apply_weapon_grip_profile()
 	_refresh_weapon_visibility()
 	var director := get_tree().get_first_node_in_group(
 		"game_director"
@@ -1293,8 +1346,50 @@ func equip_weapon(index: int) -> void:
 		return
 	if index < 0 or index >= unlocked_weapon_count:
 		return
-	weapon_index = clampi(index, 0, weapon_roots.size() - 1)
+	weapon_index = clampi(
+		index,
+		0,
+		weapon_roots.size() - 1
+	)
+	_apply_weapon_grip_profile()
 	_refresh_weapon_visibility()
+
+func _apply_weapon_grip_profile() -> void:
+	if weapon_roots.size() < 3:
+		return
+
+	weapon_roots[0].position = Vector3(
+		0.010,
+		0.010,
+		-0.006
+	)
+	weapon_roots[0].rotation_degrees = Vector3(
+		4,
+		-2,
+		-20
+	)
+
+	weapon_roots[1].position = Vector3(
+		0.008,
+		0.022,
+		0.0
+	)
+	weapon_roots[1].rotation_degrees = Vector3(
+		2,
+		3,
+		-15
+	)
+
+	weapon_roots[2].position = Vector3(
+		0.0,
+		0.040,
+		0.008
+	)
+	weapon_roots[2].rotation_degrees = Vector3(
+		-2,
+		1,
+		-10
+	)
 
 func get_weapon_name() -> String:
 	if not weapon_unlocked:
@@ -1474,29 +1569,45 @@ func _present_phone(duration: float) -> void:
 	if phone_holo_root:
 		phone_holo_root.visible = runic_mode
 
-	if phone_ik and left_hand_target:
-		left_hand_target.global_position = _combat_target_world(
-			Vector3(-0.30, 0.98, 0.38)
-		)
-		phone_ik.influence = 0.94
-		if not phone_ik.is_running():
-			phone_ik.start(false)
+	if phone_ik:
+		phone_ik.influence = 0.0
 
-	var target_rotation := Vector3(-10, -4, -8)
-	if runic_mode:
-		target_rotation = Vector3(-18, -8, -12)
-	var tween := create_tween()
-	tween.set_trans(
-		Tween.TRANS_QUAD
+	for root in weapon_roots:
+		root.visible = false
+	if weapon_rune_light:
+		weapon_rune_light.visible = false
+
+	if attack_anim_node:
+		attack_anim_node.animation = ANIM_ATTACK_SWORD
+		_set_attack_rate(0.18)
+		_fire_one_shot("AttackShot")
+
+	_update_phone_pose()
+
+func _update_phone_pose() -> void:
+	if not phone_root or not phone_root.visible:
+		return
+	if not camera:
+		return
+
+	var target := (
+		camera.global_position
+		+ Vector3.UP * 0.06
 	)
-	tween.set_ease(
-		Tween.EASE_OUT
+	if (
+		phone_root.global_position.distance_to(
+			target
+		) < 0.05
+	):
+		return
+
+	phone_root.look_at(
+		target,
+		Vector3.UP
 	)
-	tween.tween_property(
-		phone_root,
-		"rotation_degrees",
-		target_rotation,
-		0.16
+	phone_root.rotate_object_local(
+		Vector3.FORWARD,
+		deg_to_rad(-4.0)
 	)
 
 func _build_phone_hologram() -> void:
@@ -1583,19 +1694,62 @@ func _update_zone_safety_and_camera(delta: float) -> void:
 		else -1
 	)
 
+	var indoor := (
+		phase < 0
+		or global_position.y > 14.0
+	)
+
 	var target_arm := 4.15
 	var target_fov := 64.0
-	if phase < 0:
-		target_arm = 2.15
-		target_fov = 59.0
-	elif global_position.y > 14.0:
-		target_arm = 2.65
-		target_fov = 61.5
+	var target_shoulder_x := 0.44
+	var target_camera_y := 0.08
+	var target_margin := 0.24
 
+	if indoor:
+		target_arm = 2.35
+		target_fov = 59.0
+		target_shoulder_x = 0.27
+		target_camera_y = 0.10
+		target_margin = 0.16
+
+	if phase < 0:
+		target_arm = 2.08
+		target_fov = 58.0
+		target_shoulder_x = 0.24
+
+	if is_instance_valid(lock_target):
+		target_arm = (
+			2.85
+			if indoor
+			else 3.65
+		)
+		target_fov = 61.0
+		target_shoulder_x = 0.48
+
+	var arm_blend := clampf(
+		delta * 8.0,
+		0.0,
+		1.0
+	)
 	spring_arm.spring_length = lerpf(
 		spring_arm.spring_length,
 		target_arm,
-		clampf(delta * 8.0, 0.0, 1.0)
+		arm_blend
+	)
+	spring_arm.margin = lerpf(
+		spring_arm.margin,
+		target_margin,
+		arm_blend
+	)
+	camera.position.x = lerpf(
+		camera.position.x,
+		target_shoulder_x,
+		clampf(delta * 7.0, 0.0, 1.0)
+	)
+	camera.position.y = lerpf(
+		camera.position.y,
+		target_camera_y,
+		clampf(delta * 7.0, 0.0, 1.0)
 	)
 	camera.fov = lerpf(
 		camera.fov,
@@ -1698,6 +1852,7 @@ func _build_combat_ik() -> void:
 	weapon_ik.name = "WeaponArmIK"
 	weapon_ik.root_bone = "UpperArm.R"
 	weapon_ik.tip_bone = "Fist.R"
+	weapon_ik.interpolation = 1.0
 	weapon_ik.influence = 0.0
 	skeleton.add_child(weapon_ik)
 	weapon_ik.target_node = weapon_ik.get_path_to(
@@ -1709,6 +1864,7 @@ func _build_combat_ik() -> void:
 	phone_ik.name = "PhoneArmIK"
 	phone_ik.root_bone = "UpperArm.L"
 	phone_ik.tip_bone = "Fist.L"
+	phone_ik.interpolation = 1.0
 	phone_ik.influence = 0.0
 	skeleton.add_child(phone_ik)
 	phone_ik.target_node = phone_ik.get_path_to(
@@ -1746,6 +1902,14 @@ func _update_weapon_idle_pose(delta: float) -> void:
 	if not weapon_ik or not right_hand_target:
 		return
 
+	if phone_action_time > 0.0:
+		weapon_ik.influence = lerpf(
+			weapon_ik.influence,
+			0.0,
+			clampf(delta * 12.0, 0.0, 1.0)
+		)
+		return
+
 	if not weapon_unlocked:
 		weapon_ik.influence = lerpf(
 			weapon_ik.influence,
@@ -1778,6 +1942,43 @@ func _update_weapon_idle_pose(delta: float) -> void:
 		weapon_ik.influence,
 		0.34,
 		clampf(delta * 7.5, 0.0, 1.0)
+	)
+
+func _update_offhand_pose(delta: float) -> void:
+	if not phone_ik or not left_hand_target:
+		return
+
+	if phone_action_time > 0.0:
+		return
+
+	var use_two_hands := (
+		weapon_unlocked
+		and weapon_index == 2
+		and dodge_time <= 0.0
+		and parry_time <= 0.0
+	)
+
+	if not use_two_hands:
+		phone_ik.influence = lerpf(
+			phone_ik.influence,
+			0.0,
+			clampf(delta * 9.0, 0.0, 1.0)
+		)
+		return
+
+	if not phone_ik.is_running():
+		phone_ik.start(false)
+
+	var hammer_root := weapon_roots[2]
+	left_hand_target.global_position = (
+		hammer_root.to_global(
+			Vector3(0.0, 0.34, -0.012)
+		)
+	)
+	phone_ik.influence = lerpf(
+		phone_ik.influence,
+		0.90,
+		clampf(delta * 10.0, 0.0, 1.0)
 	)
 
 func _play_weapon_ik(heavy: bool) -> void:
@@ -1831,6 +2032,7 @@ func _play_weapon_ik(heavy: bool) -> void:
 		0.0,
 		recover_time
 	)
+
 
 
 func _play_sfx(id: String) -> void:

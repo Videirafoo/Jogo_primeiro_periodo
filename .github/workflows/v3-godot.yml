@@ -54,6 +54,7 @@ jobs:
             interaction_safety.gd
             interior_door_integrity.gd
             scale_integrity.gd
+            combat_presentation_integrity.gd
             equipment_integrity.gd
             forge_quest_integrity.gd
             enemy_grounding.gd

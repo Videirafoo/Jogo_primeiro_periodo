@@ -99,20 +99,20 @@ func _run() -> void:
 	player.phone_owned = true
 	player._present_phone(2.0)
 	await process_frame
-	var phone_target: Vector3 = (
-		player.left_hand_target.global_position
+	var phone_hand: Vector3 = player._bone_world_position(
+		"Fist.R"
 	)
 	print(
-		"PHONE_TARGET_DISTANCE=",
+		"PHONE_HAND_DISTANCE=",
 		player.phone_root.global_position.distance_to(
-			phone_target
+			phone_hand
 		)
 	)
 	check(
 		player.phone_root.global_position.distance_to(
-			phone_target
-		) < 0.16,
-		"phone_follows_left_hand_ik_target"
+			phone_hand
+		) < 0.18,
+		"phone_attached_to_presenting_hand"
 	)
 	check(
 		player.phone_root.visible,
