@@ -1,10 +1,12 @@
 extends Node3D
 
 const INTERACTION := preload("res://scripts/interaction_area.gd")
-const VIKING := preload("res://assets/characters/viking/Viking_Male.glb")
+const EIRIK := preload("res://assets/characters/npcs/Eirik.glb")
+const ASTRID := preload("res://assets/characters/npcs/Astrid.glb")
 
 const FORGE_ORIGIN := Vector3(0, 18, 82)
 const ARCHIVE_ORIGIN := Vector3(24, 18, 82)
+const TAVERN_ORIGIN := Vector3(-24, 18, 82)
 
 var wood := StandardMaterial3D.new()
 var stone := StandardMaterial3D.new()
@@ -16,6 +18,7 @@ func _ready() -> void:
 	_build_story_zones()
 	_build_forge_interior()
 	_build_archive_interior()
+	_build_tavern_interior()
 
 func _build_materials() -> void:
 	wood.albedo_color = Color("4b3022")
@@ -97,6 +100,23 @@ func _build_story_zones() -> void:
 	)
 
 	_make_quest_board(Vector3(-5.8, 0.0, -4.2))
+
+	_make_interaction(
+		"TavernDoor",
+		Vector3(-12.8, 1.0, 4.4),
+		1.55,
+		"Entrar na Taverna do Corvo",
+		"tavern_enter",
+		false,
+		false,
+		true,
+		TAVERN_ORIGIN + Vector3(0, 0.25, 4.2)
+	)
+	_make_marker(
+		Vector3(-12.8, 2.7, 4.4),
+		"TAVERNA DO CORVO",
+		Color("efc778")
+	)
 
 func _build_forge_interior() -> void:
 	_build_room(
@@ -272,10 +292,11 @@ func _build_blacksmith(pos: Vector3) -> void:
 	root.position = pos
 	add_child(root)
 
-	var model := VIKING.instantiate()
-	model.scale = Vector3.ONE * 1.18
+	var model := EIRIK.instantiate()
+	model.scale = Vector3.ONE * 0.50
 	model.rotation.y = PI
 	root.add_child(model)
+	_fix_npc_materials(model, "eirik")
 
 	var anim := model.find_child(
 		"AnimationPlayer",
@@ -283,11 +304,11 @@ func _build_blacksmith(pos: Vector3) -> void:
 		false
 	) as AnimationPlayer
 	if anim:
-		anim.play("CharacterArmature|Idle")
+		anim.play("CharacterArmature|CharacterArmature|Idle")
 
 	var label := Label3D.new()
 	label.text = "EIRIK // FERREIRO"
-	label.position = Vector3(0, 2.5, 0)
+	label.position = Vector3(0, 2.08, 0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 28
 	label.outline_size = 8
@@ -296,8 +317,8 @@ func _build_blacksmith(pos: Vector3) -> void:
 
 	_make_interaction(
 		"TalkEirik",
-		pos + Vector3(0, 1.0, 0),
-		1.7,
+		pos + Vector3(0, 0.9, 0),
+		1.45,
 		"Falar com Eirik",
 		"blacksmith_talk"
 	)
@@ -536,3 +557,211 @@ func _make_quest_board(pos: Vector3) -> void:
 	label.outline_size = 6
 	label.modulate = Color("f2c879")
 	board.add_child(label)
+
+func _build_tavern_interior() -> void:
+	_build_room(
+		TAVERN_ORIGIN,
+		Vector2(15.0, 11.0),
+		"TAVERNA DO CORVO"
+	)
+
+	_make_interaction(
+		"TavernExit",
+		TAVERN_ORIGIN + Vector3(0, 1.0, 4.65),
+		1.35,
+		"Sair para Valdrak",
+		"",
+		false,
+		false,
+		true,
+		Vector3(-12.6, 0.25, 6.2)
+	)
+
+	_make_box(
+		TAVERN_ORIGIN + Vector3(-4.8, 0.78, -2.4),
+		Vector3(4.0, 0.18, 1.0),
+		wood
+	)
+	for pos in [
+		Vector3(-2.8, 0.65, 0.7),
+		Vector3(1.0, 0.65, 1.4),
+		Vector3(3.4, 0.65, -1.3)
+	]:
+		_make_table(
+			TAVERN_ORIGIN + pos,
+			Vector3(2.1, 0.16, 1.15)
+		)
+		_make_bench(
+			TAVERN_ORIGIN + pos + Vector3(0, -0.22, 0.95)
+		)
+		_make_bench(
+			TAVERN_ORIGIN + pos + Vector3(0, -0.22, -0.95)
+		)
+
+	_build_innkeeper(
+		TAVERN_ORIGIN + Vector3(-4.4, 0.0, -1.6)
+	)
+	_make_dream_phone_echo(
+		TAVERN_ORIGIN + Vector3(2.6, 0.95, -3.5)
+	)
+	_make_hearth(
+		TAVERN_ORIGIN + Vector3(5.6, 0.35, -3.7)
+	)
+func _make_bench(pos: Vector3) -> void:
+	_make_box(
+		pos,
+		Vector3(1.75, 0.16, 0.42),
+		wood
+	)
+	for x in [-0.62, 0.62]:
+		_make_box(
+			pos + Vector3(x, -0.34, 0),
+			Vector3(0.12, 0.68, 0.12),
+			wood
+		)
+
+func _build_innkeeper(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	add_child(root)
+
+	var model := ASTRID.instantiate()
+	model.scale = Vector3.ONE * 0.55
+	model.rotation.y = PI
+	root.add_child(model)
+	_fix_npc_materials(model, "astrid")
+
+	var anim := model.find_child(
+		"AnimationPlayer",
+		true,
+		false
+	) as AnimationPlayer
+	if anim:
+		anim.play(
+			"CharacterArmature|CharacterArmature|Idle"
+		)
+
+	var label := Label3D.new()
+	label.text = "ASTRID // HOSPEDEIRA"
+	label.position = Vector3(0, 2.02, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 26
+	label.outline_size = 7
+	label.modulate = Color("efc778")
+	root.add_child(label)
+
+	_make_interaction(
+		"TalkAstrid",
+		pos + Vector3(0, 0.88, 0),
+		1.45,
+		"Falar com Astrid",
+		"astrid_talk"
+	)
+
+func _make_dream_phone_echo(pos: Vector3) -> void:
+	var area := _make_interaction(
+		"DreamPhoneEcho",
+		pos,
+		1.35,
+		"Ler notificação impossível",
+		"dream_echo_1",
+		false,
+		false
+	)
+
+	var phone := MeshInstance3D.new()
+	var phone_mesh := BoxMesh.new()
+	phone_mesh.size = Vector3(0.18, 0.035, 0.34)
+	phone.mesh = phone_mesh
+	phone.position = Vector3(0, -0.08, 0)
+	var phone_mat := StandardMaterial3D.new()
+	phone_mat.albedo_color = Color("121a20")
+	phone_mat.metallic = 0.7
+	phone_mat.roughness = 0.24
+	phone.material_override = phone_mat
+	area.add_child(phone)
+
+	var screen := MeshInstance3D.new()
+	var screen_mesh := BoxMesh.new()
+	screen_mesh.size = Vector3(0.15, 0.008, 0.29)
+	screen.mesh = screen_mesh
+	screen.position = Vector3(0, -0.057, 0)
+	var screen_mat := StandardMaterial3D.new()
+	screen_mat.albedo_color = Color("66efff")
+	screen_mat.emission_enabled = true
+	screen_mat.emission = Color("27d9ee")
+	screen_mat.emission_energy_multiplier = 3.0
+	screen.material_override = screen_mat
+	area.add_child(screen)
+
+	var light := OmniLight3D.new()
+	light.light_color = Color("66efff")
+	light.light_energy = 1.8
+	light.omni_range = 2.6
+	light.position = Vector3(0, 0.25, 0)
+	area.add_child(light)
+
+func _fix_npc_materials(
+	model: Node3D,
+	variant: String
+) -> void:
+	var palette := {
+		"Skin": Color("855942"),
+		"Shirt": (
+			Color("5a2f2b")
+			if variant == "eirik"
+			else Color("385748")
+		),
+		"Pants": Color("292e32"),
+		"Belt": Color("593827"),
+		"Face": Color("f1f1e8"),
+		"Hair": (
+			Color("3a2922")
+			if variant == "eirik"
+			else Color("6a3a2a")
+		)
+	}
+
+	for node in model.find_children(
+		"*",
+		"MeshInstance3D",
+		true,
+		false
+	):
+		var mesh_instance := node as MeshInstance3D
+		if not mesh_instance.mesh:
+			continue
+		for surface in range(
+			mesh_instance.mesh.get_surface_count()
+		):
+			var source := mesh_instance.get_active_material(
+				surface
+			)
+			if not source is StandardMaterial3D:
+				continue
+			var material := source.duplicate() as StandardMaterial3D
+			material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			var color := material.albedo_color
+			var mat_name := str(material.resource_name)
+			if palette.has(mat_name):
+				color = palette[mat_name]
+			color.a = 1.0
+			material.albedo_color = color
+			material.roughness = 0.76
+			mesh_instance.set_surface_override_material(
+				surface,
+				material
+			)
+
+	var npc_skeleton := model.find_child(
+		"Skeleton3D",
+		true,
+		false
+	) as Skeleton3D
+	if npc_skeleton:
+		var head := npc_skeleton.find_bone("Head")
+		if head >= 0:
+			npc_skeleton.set_bone_pose_scale(
+				head,
+				Vector3(0.72, 0.72, 0.72)
+			)

@@ -31,6 +31,14 @@ const CODEX := {
 	"guardioes": {
 		"title": "Os Sete Guardiões",
 		"body": "Cada grande região possui um guardião ligado ao juramento dos Eternos."
+	},
+	"sonhadores": {
+		"title": "Os Despertos",
+		"body": "Pessoas do mundo real que adormeceram e acordaram em Valdrak. Alguns estão presos há anos."
+	},
+	"telefone": {
+		"title": "Telefone Desperto",
+		"body": "O celular do estudante atravessou o sonho. Sem rede, ele recebe sinais, mapas e mensagens que ainda não aconteceram."
 	}
 }
 var level := 1

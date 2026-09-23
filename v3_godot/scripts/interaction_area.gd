@@ -10,6 +10,7 @@ extends Area3D
 var consumed := false
 
 func _ready() -> void:
+	add_to_group("interactables")
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 

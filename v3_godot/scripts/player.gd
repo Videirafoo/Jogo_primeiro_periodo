@@ -19,8 +19,14 @@ const LIGHT_DURATION: Array[float] = [0.34, 0.39, 0.48]
 const LIGHT_HIT_DELAY: Array[float] = [0.10, 0.12, 0.16]
 const LIGHT_ANIM_RATE: Array[float] = [1.34, 1.16, 0.96]
 
-const VIKING := preload("res://assets/characters/viking/Viking_Male.glb")
+const STUDENT := preload("res://assets/characters/student/Student_Male.glb")
 const AXE := preload("res://assets/weapons/SimpleAxe.obj")
+const STUDENT_SCALE := 0.56
+
+const ANIM_IDLE := &"CharacterArmature|CharacterArmature|Idle"
+const ANIM_WALK := &"CharacterArmature|CharacterArmature|Walk"
+const ANIM_ATTACK := &"CharacterArmature|CharacterArmature|Punch"
+const ANIM_HIT := &"CharacterArmature|CharacterArmature|RecieveHit"
 
 var health := 120
 var stamina := MAX_STAMINA
@@ -40,6 +46,10 @@ var anim_player: AnimationPlayer
 var animation_tree: AnimationTree
 var weapon_pivot: Node3D
 var skeleton: Skeleton3D
+var phone_root: Node3D
+var phone_screen: MeshInstance3D
+var phone_light: OmniLight3D
+var weapon_rune_light: OmniLight3D
 var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(-12.0)
 var camera_manual_timer := 0.0
@@ -53,7 +63,9 @@ func _ready() -> void:
 	add_to_group("player")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_collision()
-	_build_viking()
+	_build_student()
+	_build_backpack()
+	_build_phone()
 	_build_weapon()
 	_build_animation_tree()
 	spring_arm.add_excluded_object(get_rid())
@@ -157,6 +169,8 @@ func _physics_process(delta: float) -> void:
 		_toggle_lock()
 	if Input.is_action_just_pressed("interact"):
 		_interact()
+	if Input.is_action_just_pressed("phone_scan"):
+		_phone_scan()
 
 func _camera_relative_direction(input: Vector2) -> Vector3:
 	if input.length_squared() <= 0.01:
@@ -227,7 +241,18 @@ func _visual_motion(
 		clampf(delta * 4.5, 0.0, 1.0)
 	)
 	camera.position.x = 0.52 + sin(motion_phase) * 0.018 * amount
-	camera.position.y = 0.10 + absf(sin(motion_phase * 2.0)) * 0.012 * amount
+	camera.position.y = 0.08 + absf(sin(motion_phase * 2.0)) * 0.010 * amount
+
+	if weapon_rune_light:
+		weapon_rune_light.light_energy = (
+			0.72
+			+ absf(sin(motion_phase * 1.7)) * 0.34
+		)
+	if phone_light:
+		phone_light.light_energy = (
+			0.48
+			+ absf(sin(motion_phase * 1.15)) * 0.16
+		)
 
 func _rotate_model(delta: float) -> void:
 	if not model_root or facing.length_squared() <= 0.01:
@@ -388,17 +413,18 @@ func _face_lock_target() -> void:
 
 func _build_collision() -> void:
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.38
-	capsule.height = 1.75
+	capsule.radius = 0.32
+	capsule.height = 1.74
 	$CollisionShape3D.shape = capsule
-	$CollisionShape3D.position.y = 0.88
+	$CollisionShape3D.position.y = 0.87
 
-func _build_viking() -> void:
-	model_root = VIKING.instantiate()
-	model_root.name = "VikingModel"
-	model_root.scale = Vector3.ONE * 1.28
+func _build_student() -> void:
+	model_root = STUDENT.instantiate()
+	model_root.name = "StudentModel"
+	model_root.scale = Vector3.ONE * STUDENT_SCALE
 	model_root.rotation.y = PI
 	add_child(model_root)
+	_fix_student_materials()
 
 	anim_player = model_root.find_child(
 		"AnimationPlayer",
@@ -414,8 +440,8 @@ func _build_viking() -> void:
 
 	if anim_player:
 		for anim_name in [
-			"CharacterArmature|Idle",
-			"CharacterArmature|Walk"
+			ANIM_IDLE,
+			ANIM_WALK
 		]:
 			var anim := anim_player.get_animation(anim_name)
 			if anim:
@@ -445,11 +471,17 @@ func _build_weapon() -> void:
 	attachment.add_child(weapon_pivot)
 
 	var axe := MeshInstance3D.new()
-	axe.name = "VikingAxe"
+	axe.name = "CodeAxe"
 	axe.mesh = AXE
 	axe.scale = Vector3.ONE * 0.24
 	axe.position = Vector3(0.0, -0.17, 0.0)
+	var steel := StandardMaterial3D.new()
+	steel.albedo_color = Color("58646c")
+	steel.metallic = 0.72
+	steel.roughness = 0.30
+	axe.material_overlay = steel
 	weapon_pivot.add_child(axe)
+	_build_weapon_details()
 
 func _build_animation_tree() -> void:
 	if not anim_player:
@@ -466,19 +498,19 @@ func _build_animation_tree() -> void:
 	locomotion.max_space = 1.0
 
 	var idle := AnimationNodeAnimation.new()
-	idle.animation = &"CharacterArmature|Idle"
+	idle.animation = ANIM_IDLE
 	var walk := AnimationNodeAnimation.new()
-	walk.animation = &"CharacterArmature|Walk"
+	walk.animation = ANIM_WALK
 	locomotion.add_blend_point(idle, 0.0, -1, &"Idle")
 	locomotion.add_blend_point(walk, 1.0, -1, &"Walk")
 
 	var locomotion_rate := AnimationNodeTimeScale.new()
 	var attack_anim := AnimationNodeAnimation.new()
-	attack_anim.animation = &"CharacterArmature|Punch"
+	attack_anim.animation = ANIM_ATTACK
 	var attack_rate := AnimationNodeTimeScale.new()
 	var attack_shot := AnimationNodeOneShot.new()
 	var hit_anim := AnimationNodeAnimation.new()
-	hit_anim.animation = &"CharacterArmature|RecieveHit"
+	hit_anim.animation = ANIM_HIT
 	var hit_shot := AnimationNodeOneShot.new()
 	blend_tree.add_node("Locomotion", locomotion, Vector2(0, 0))
 	blend_tree.add_node("LocomotionRate", locomotion_rate, Vector2(210, 0))
@@ -540,14 +572,14 @@ func _apply_character_proportions() -> void:
 	if head >= 0:
 		skeleton.set_bone_pose_scale(
 			head,
-			Vector3(0.58, 0.58, 0.58)
+			Vector3(0.69, 0.69, 0.69)
 		)
 
 	var neck := skeleton.find_bone("Neck")
 	if neck >= 0:
 		skeleton.set_bone_pose_scale(
 			neck,
-			Vector3(0.93, 1.02, 0.93)
+			Vector3(0.90, 1.0, 0.90)
 		)
 
 func set_interactable(node: Node) -> void:
@@ -579,3 +611,289 @@ func teleport_to(target: Vector3) -> void:
 	camera_manual_timer = 0.0
 	camera_pitch = deg_to_rad(-12.0)
 	_apply_camera_rotation()
+
+func _build_backpack() -> void:
+	if not model_root:
+		return
+	var pack := Node3D.new()
+	pack.name = "StudentBackpack"
+	pack.scale = Vector3.ONE / STUDENT_SCALE
+	pack.position = Vector3(0, 1.12, 0.13) / STUDENT_SCALE
+	model_root.add_child(pack)
+
+	var fabric := StandardMaterial3D.new()
+	fabric.albedo_color = Color("18232d")
+	fabric.roughness = 0.92
+
+	var accent := StandardMaterial3D.new()
+	accent.albedo_color = Color("263b4a")
+	accent.roughness = 0.84
+
+	_add_box_part(pack, Vector3.ZERO, Vector3(0.28, 0.34, 0.12), fabric)
+	_add_box_part(pack, Vector3(0, 0.135, -0.01), Vector3(0.30, 0.085, 0.13), accent)
+	for x in [-0.10, 0.10]:
+		_add_box_part(
+			pack,
+			Vector3(x, 0.0, -0.105),
+			Vector3(0.042, 0.33, 0.028),
+			accent
+		)
+
+	var badge := MeshInstance3D.new()
+	var badge_mesh := BoxMesh.new()
+	badge_mesh.size = Vector3(0.065, 0.065, 0.010)
+	badge.mesh = badge_mesh
+	badge.position = Vector3(0.075, 0.035, -0.071)
+	var badge_mat := StandardMaterial3D.new()
+	badge_mat.albedo_color = Color("55e6f0")
+	badge_mat.emission_enabled = true
+	badge_mat.emission = Color("1aa9c0")
+	badge.material_override = badge_mat
+	pack.add_child(badge)
+
+func _add_box_part(
+	parent: Node3D,
+	pos: Vector3,
+	size: Vector3,
+	material: Material
+) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	part.mesh = mesh
+	part.position = pos
+	part.material_override = material
+	parent.add_child(part)
+	return part
+
+func _build_phone() -> void:
+	if not skeleton:
+		return
+	var attachment := BoneAttachment3D.new()
+	attachment.name = "LeftHandPhone"
+	attachment.bone_name = "Fist.L"
+	skeleton.add_child(attachment)
+
+	phone_root = Node3D.new()
+	phone_root.name = "DreamPhone"
+	var inherited_scale := maxf(
+		attachment.global_basis.get_scale().x,
+		0.001
+	)
+	phone_root.scale = Vector3.ONE / inherited_scale
+	phone_root.position = Vector3(0.02, -0.01, 0.04) / inherited_scale
+	phone_root.rotation_degrees = Vector3(8, -18, 8)
+	attachment.add_child(phone_root)
+
+	var shell := MeshInstance3D.new()
+	var shell_mesh := BoxMesh.new()
+	shell_mesh.size = Vector3(0.078, 0.148, 0.016)
+	shell.mesh = shell_mesh
+	var shell_mat := StandardMaterial3D.new()
+	shell_mat.albedo_color = Color("10161c")
+	shell_mat.metallic = 0.62
+	shell_mat.roughness = 0.28
+	shell.material_override = shell_mat
+	phone_root.add_child(shell)
+
+	phone_screen = MeshInstance3D.new()
+	var screen_mesh := BoxMesh.new()
+	screen_mesh.size = Vector3(0.067, 0.126, 0.004)
+	phone_screen.mesh = screen_mesh
+	phone_screen.position.z = -0.010
+	var screen_mat := StandardMaterial3D.new()
+	screen_mat.albedo_color = Color("5cf1ff")
+	screen_mat.emission_enabled = true
+	screen_mat.emission = Color("21d9f2")
+	screen_mat.emission_energy_multiplier = 2.4
+	screen_mat.roughness = 0.12
+	phone_screen.material_override = screen_mat
+	phone_root.add_child(phone_screen)
+
+	phone_light = OmniLight3D.new()
+	phone_light.light_color = Color("55e6f0")
+	phone_light.light_energy = 0.55
+	phone_light.omni_range = 1.2
+	phone_light.position = Vector3(0, 0, -0.035)
+	phone_root.add_child(phone_light)
+
+func _build_weapon_details() -> void:
+	if not weapon_pivot:
+		return
+	var rune_mat := StandardMaterial3D.new()
+	rune_mat.albedo_color = Color("70f2ff")
+	rune_mat.emission_enabled = true
+	rune_mat.emission = Color("2edcf2")
+	rune_mat.emission_energy_multiplier = 2.8
+	rune_mat.metallic = 0.25
+	rune_mat.roughness = 0.20
+
+	var core := MeshInstance3D.new()
+	var core_mesh := SphereMesh.new()
+	core_mesh.radius = 0.045
+	core_mesh.height = 0.09
+	core.mesh = core_mesh
+	core.position = Vector3(0.0, 0.05, 0.035)
+	core.material_override = rune_mat
+	weapon_pivot.add_child(core)
+
+	for y in [-0.31, -0.24, -0.17]:
+		var wrap := MeshInstance3D.new()
+		var wrap_mesh := TorusMesh.new()
+		wrap_mesh.inner_radius = 0.025
+		wrap_mesh.outer_radius = 0.038
+		wrap_mesh.rings = 12
+		wrap_mesh.ring_segments = 6
+		wrap.mesh = wrap_mesh
+		wrap.position = Vector3(0, y, 0)
+		wrap.rotation_degrees.x = 90
+		var wrap_mat := StandardMaterial3D.new()
+		wrap_mat.albedo_color = Color("5a3528")
+		wrap_mat.roughness = 0.88
+		wrap.material_override = wrap_mat
+		weapon_pivot.add_child(wrap)
+
+	var rune_strip := MeshInstance3D.new()
+	var strip_mesh := BoxMesh.new()
+	strip_mesh.size = Vector3(0.018, 0.22, 0.028)
+	rune_strip.mesh = strip_mesh
+	rune_strip.position = Vector3(0.035, -0.02, 0.025)
+	rune_strip.material_override = rune_mat
+	weapon_pivot.add_child(rune_strip)
+
+	weapon_rune_light = OmniLight3D.new()
+	weapon_rune_light.light_color = Color("4feaff")
+	weapon_rune_light.light_energy = 0.85
+	weapon_rune_light.omni_range = 1.4
+	weapon_rune_light.position = Vector3(0, 0.05, 0.04)
+	weapon_pivot.add_child(weapon_rune_light)
+func _phone_scan() -> void:
+	_spawn_phone_scan_pulse()
+	if phone_light:
+		phone_light.light_energy = 3.5
+		var tween := create_tween()
+		tween.tween_property(
+			phone_light,
+			"light_energy",
+			0.55,
+			0.55
+		)
+
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if not director:
+		return
+
+	var message := _phone_objective_hint(
+		str(director.objective_id)
+	)
+	director.show_story(
+		"CELULAR // SCANNER",
+		message,
+		4.2
+	)
+
+func _phone_objective_hint(objective: String) -> String:
+	match objective:
+		"reach_bonfire":
+			return "SINAL FRACO // calor e runas detectados à frente. Siga a fumaça."
+		"enter_forge":
+			return "ESTRUTURA DETECTADA // ferraria ativa no setor leste de Valdrak."
+		"talk_eirik":
+			return "ASSINATURA HUMANA // Eirik apresenta alta ressonância rúnica."
+		"collect_rune":
+			return "OBJETO ANÔMALO // Runa Partida detectada dentro da ferraria."
+		"clear_village":
+			return "AMEAÇAS MARCADAS // elimine os invasores antes de seguir."
+		"reach_gate":
+			return "ROTA ATUALIZADA // Portão dos Eternos ao norte."
+		"defeat_boss":
+			return "ENERGIA EXTREMA // Jarl Vorun está ligado ao núcleo do juramento."
+		"complete":
+			return "SINAL DO MUNDO REAL // seis regiões ainda bloqueiam o despertar."
+		_:
+			return "SEM SINAL // Valdrak está interferindo com o aparelho."
+
+func _fix_student_materials() -> void:
+	if not model_root:
+		return
+
+	var palette := {
+		"Skin": Color("8c5f49"),
+		"Shirt": Color("263b52"),
+		"Pants": Color("202a33"),
+		"Belt": Color("5a3927"),
+		"Face": Color("f4f4ee"),
+		"Hair": Color("382b24")
+	}
+
+	for node in model_root.find_children(
+		"*",
+		"MeshInstance3D",
+		true,
+		false
+	):
+		var mesh_instance := node as MeshInstance3D
+		if not mesh_instance.mesh:
+			continue
+		for surface in range(
+			mesh_instance.mesh.get_surface_count()
+		):
+			var source := mesh_instance.get_active_material(
+				surface
+			)
+			if not source is StandardMaterial3D:
+				continue
+
+			var material := source.duplicate() as StandardMaterial3D
+			material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			var color := material.albedo_color
+			var name := str(material.resource_name)
+			if palette.has(name):
+				color = palette[name]
+			color.a = 1.0
+			material.albedo_color = color
+			material.roughness = 0.72
+			mesh_instance.set_surface_override_material(
+				surface,
+				material
+			)
+
+func _spawn_phone_scan_pulse() -> void:
+	var ring := MeshInstance3D.new()
+	ring.name = "PhoneScanPulse"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.46
+	torus.outer_radius = 0.52
+	torus.rings = 32
+	torus.ring_segments = 8
+	ring.mesh = torus
+
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(0.28, 0.92, 1.0, 0.82)
+	material.emission_enabled = true
+	material.emission = Color("32dff4")
+	material.emission_energy_multiplier = 2.2
+	ring.material_override = material
+
+	get_parent().add_child(ring)
+	ring.global_position = global_position + Vector3.UP * 0.05
+	ring.scale = Vector3.ONE * 0.35
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(
+		ring,
+		"scale",
+		Vector3.ONE * 11.0,
+		0.72
+	)
+	tween.tween_property(
+		ring,
+		"transparency",
+		1.0,
+		0.72
+	)
+	tween.chain().tween_callback(ring.queue_free)

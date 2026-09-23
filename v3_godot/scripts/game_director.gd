@@ -206,6 +206,36 @@ func handle_event(event_id: String) -> void:
 			)
 			if quests:
 				quests.interact_board()
+		"tavern_enter":
+			var profile := _profile()
+			if profile and not profile.discoveries.has("tavern_corvo"):
+				profile.register_discovery("tavern_corvo")
+				profile.unlock_codex("sonhadores")
+				show_story(
+					"CELULAR // 03:17",
+					"SEM REDE. Mesmo assim, uma notificação surgiu: 'Você vai para a aula amanhã?'",
+					5.5
+				)
+		"astrid_talk":
+			var profile := _profile()
+			if profile:
+				profile.unlock_codex("sonhadores")
+			show_story(
+				"ASTRID",
+				"Vocês chegam com roupas estranhas e objetos que brilham. Todos dizem a mesma coisa: estavam dormindo antes de Valdrak.",
+				6.5
+			)
+		"dream_echo_1":
+			var profile := _profile()
+			if profile and not profile.discoveries.has("phone_echo_faculdade"):
+				profile.register_discovery("phone_echo_faculdade")
+				profile.unlock_codex("telefone")
+				profile.add_xp(25)
+			show_story(
+				"CELULAR // GRUPO DA FACULDADE",
+				"07:42 — 'A prova começa em vinte minutos. Você está vindo?' A mensagem está datada de amanhã.",
+				6.5
+			)
 		"lore_house":
 			var profile := _profile()
 			if profile:
