@@ -14,6 +14,8 @@ const AXE := preload("res://assets/weapons/SimpleAxe.obj")
 @export var attack_damage := 16
 @export var aggro_range := 14.0
 @export var active_phase := 1
+@export var activation_objective := ""
+@export var encounter_id := ""
 @export var model_scale := 0.49
 @export var body_height := 1.80
 @export var archetype := 0
@@ -51,14 +53,35 @@ func _bind_phase_state() -> void:
 		"game_director"
 	)
 	if game_director:
-		var cb := Callable(self, "_on_phase_changed")
-		if not game_director.phase_changed.is_connected(cb):
-			game_director.phase_changed.connect(cb)
+		var phase_cb := Callable(self, "_on_phase_changed")
+		if not game_director.phase_changed.is_connected(
+			phase_cb
+		):
+			game_director.phase_changed.connect(phase_cb)
+
+		var objective_cb := Callable(
+			self,
+			"_on_objective_changed"
+		)
+		if not game_director.objective_changed.is_connected(
+			objective_cb
+		):
+			game_director.objective_changed.connect(
+				objective_cb
+			)
 	_refresh_phase_state()
 
 func _on_phase_changed(
 	_index: int,
 	_chapter: String
+) -> void:
+	_refresh_phase_state()
+
+func _on_objective_changed(
+	_chapter: String,
+	_title: String,
+	_detail: String,
+	_progress: String
 ) -> void:
 	_refresh_phase_state()
 
@@ -534,6 +557,13 @@ func _is_active() -> bool:
 	)
 	if not director:
 		return true
+
+	if activation_objective != "":
+		return (
+			str(director.objective_id)
+			== activation_objective
+		)
+
 	return int(director.phase_index) >= active_phase
 
 func _set_combat_visuals(enabled: bool) -> void:
