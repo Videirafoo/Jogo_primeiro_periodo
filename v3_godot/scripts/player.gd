@@ -12,6 +12,7 @@ const RUN_DRAIN := 17.0
 const STAMINA_REGEN := 23.0
 const DODGE_COST := 25.0
 const HEAVY_COST := 34.0
+const PARRY_COST := 16.0
 const LOCK_RANGE := 15.0
 const LIGHT_COSTS: Array[float] = [6.0, 7.0, 9.0]
 const LIGHT_DAMAGE: Array[int] = [24, 30, 40]
@@ -26,6 +27,8 @@ const STUDENT_SCALE := 0.56
 const ANIM_IDLE := &"CharacterArmature|CharacterArmature|Idle"
 const ANIM_WALK := &"CharacterArmature|CharacterArmature|Walk"
 const ANIM_ATTACK := &"CharacterArmature|CharacterArmature|Punch"
+const ANIM_ATTACK_SWORD := &"CharacterArmature|CharacterArmature|Shoot_OneHanded"
+const ANIM_ATTACK_HAMMER := &"CharacterArmature|CharacterArmature|PickUp"
 const ANIM_HIT := &"CharacterArmature|CharacterArmature|RecieveHit"
 
 var health := 120
@@ -33,6 +36,7 @@ var stamina := MAX_STAMINA
 var attack_time := 0.0
 var dodge_time := 0.0
 var invuln_time := 0.0
+var parry_time := 0.0
 var combo_window := 0.0
 var combo_step := 0
 var stamina_regen_delay := 0.0
@@ -45,6 +49,7 @@ var respawn_position := Vector3(120, 30.25, 122.0)
 var model_root: Node3D
 var anim_player: AnimationPlayer
 var animation_tree: AnimationTree
+var attack_anim_node: AnimationNodeAnimation
 var weapon_pivot: Node3D
 var weapon_roots: Array[Node3D] = []
 var weapon_index := 0
@@ -104,6 +109,7 @@ func _physics_process(delta: float) -> void:
 	attack_time = maxf(0.0, attack_time - delta)
 	dodge_time = maxf(0.0, dodge_time - delta)
 	invuln_time = maxf(0.0, invuln_time - delta)
+	parry_time = maxf(0.0, parry_time - delta)
 	combo_window = maxf(0.0, combo_window - delta)
 	stamina_regen_delay = maxf(0.0, stamina_regen_delay - delta)
 	camera_manual_timer = maxf(0.0, camera_manual_timer - delta)
@@ -170,6 +176,8 @@ func _physics_process(delta: float) -> void:
 		_heavy_attack()
 	if Input.is_action_just_pressed("dodge"):
 		_dodge()
+	if Input.is_action_just_pressed("parry"):
+		_parry()
 	if Input.is_action_just_pressed("lock_on"):
 		_toggle_lock()
 	if Input.is_action_just_pressed("interact"):
@@ -242,8 +250,23 @@ func _visual_motion(
 	var sway := sin(motion_phase) * 0.012 * amount
 	if model_root:
 		model_root.position.y = bob
-		model_root.rotation.z = sway
-		model_root.rotation.x = -0.035 * amount * speed_scale
+		if dodge_time > 0.0:
+			var dodge_ratio := clampf(
+				dodge_time / 0.30,
+				0.0,
+				1.0
+			)
+			model_root.rotation.z = (
+				sin((1.0 - dodge_ratio) * PI)
+				* 0.62
+			)
+			model_root.rotation.x = -0.38
+		elif parry_time > 0.0:
+			model_root.rotation.z = sway * 0.35
+			model_root.rotation.x = -0.10
+		else:
+			model_root.rotation.z = sway
+			model_root.rotation.x = -0.035 * amount * speed_scale
 
 	var target_fov := 69.0 if running and amount > 0.1 else 64.0
 	camera.fov = lerpf(
@@ -308,8 +331,10 @@ func _light_attack() -> void:
 	attack_time = duration
 	combo_window = 0.68
 	_face_lock_target()
+	_set_weapon_attack_animation(false)
 	_set_attack_rate(anim_rate)
 	_fire_one_shot("AttackShot")
+	_play_weapon_arc(false)
 	_queue_attack_hit(
 		damage,
 		hit_delay,
@@ -342,8 +367,10 @@ func _heavy_attack() -> void:
 	combo_window = 0.0
 	combo_step = 0
 	_face_lock_target()
+	_set_weapon_attack_animation(true)
 	_set_attack_rate(0.70 * speed_mult)
 	_fire_one_shot("AttackShot")
+	_play_weapon_arc(true)
 	_queue_attack_hit(
 		damage,
 		0.29 / speed_mult,
@@ -397,6 +424,18 @@ func _deal_attack_hit(
 			target.take_hit(damage, facing.normalized())
 
 func take_hit(amount: int) -> void:
+	if parry_time > 0.0:
+		parry_time = 0.0
+		invuln_time = 0.30
+		stamina = minf(
+			MAX_STAMINA,
+			stamina + 8.0
+		)
+		var enemy := _find_nearest_enemy()
+		if enemy and enemy.has_method("apply_stagger"):
+			enemy.apply_stagger(0.95)
+		_play_parry_flash()
+		return
 	if invuln_time > 0.0 or dodge_time > 0.0:
 		return
 	invuln_time = 0.45
@@ -406,6 +445,21 @@ func take_hit(amount: int) -> void:
 		health = 120
 		stamina = MAX_STAMINA
 		teleport_to(respawn_position)
+
+func _parry() -> void:
+	if not weapon_unlocked:
+		return
+	if parry_time > 0.0 or attack_time > 0.0 or dodge_time > 0.0:
+		return
+	if stamina < PARRY_COST:
+		return
+	_spend_stamina(PARRY_COST, 0.48)
+	parry_time = 0.26
+	invuln_time = maxf(invuln_time, 0.10)
+	_set_weapon_attack_animation(false)
+	_set_attack_rate(0.55)
+	_fire_one_shot("AttackShot")
+	_play_weapon_guard()
 
 func _dodge() -> void:
 	if dodge_time > 0.0 or attack_time > 0.25:
@@ -551,8 +605,8 @@ func _build_animation_tree() -> void:
 	locomotion.add_blend_point(walk, 1.0, -1, &"Walk")
 
 	var locomotion_rate := AnimationNodeTimeScale.new()
-	var attack_anim := AnimationNodeAnimation.new()
-	attack_anim.animation = ANIM_ATTACK
+	attack_anim_node = AnimationNodeAnimation.new()
+	attack_anim_node.animation = ANIM_ATTACK
 	var attack_rate := AnimationNodeTimeScale.new()
 	var attack_shot := AnimationNodeOneShot.new()
 	var hit_anim := AnimationNodeAnimation.new()
@@ -560,7 +614,7 @@ func _build_animation_tree() -> void:
 	var hit_shot := AnimationNodeOneShot.new()
 	blend_tree.add_node("Locomotion", locomotion, Vector2(0, 0))
 	blend_tree.add_node("LocomotionRate", locomotion_rate, Vector2(210, 0))
-	blend_tree.add_node("AttackAnim", attack_anim, Vector2(190, 150))
+	blend_tree.add_node("AttackAnim", attack_anim_node, Vector2(190, 150))
 	blend_tree.add_node("AttackRate", attack_rate, Vector2(390, 150))
 	blend_tree.add_node("AttackShot", attack_shot, Vector2(570, 60))
 	blend_tree.add_node("HitAnim", hit_anim, Vector2(560, 220))
@@ -1183,3 +1237,106 @@ func _weapon_reach() -> float:
 			return 2.95
 		_:
 			return 2.55
+
+
+func _set_weapon_attack_animation(heavy: bool) -> void:
+	if not attack_anim_node:
+		return
+	if weapon_index == 0:
+		attack_anim_node.animation = (
+			ANIM_ATTACK_HAMMER
+			if heavy
+			else ANIM_ATTACK_SWORD
+		)
+	elif weapon_index == 1:
+		attack_anim_node.animation = ANIM_ATTACK
+	else:
+		attack_anim_node.animation = (
+			ANIM_ATTACK_HAMMER
+			if heavy
+			else ANIM_ATTACK
+		)
+
+func _play_weapon_arc(heavy: bool) -> void:
+	if not weapon_pivot:
+		return
+	var start := weapon_pivot.rotation_degrees
+	var windup := Vector3(-22, 42, -132)
+	var impact := Vector3(18, 118, -38)
+
+	match weapon_index:
+		0:
+			windup = Vector3(-8, 34, -145)
+			impact = Vector3(12, 132, -42)
+		1:
+			windup = Vector3(-34, 18, -122)
+			impact = Vector3(30, 110, -28)
+		2:
+			windup = Vector3(-58, 14, -152)
+			impact = Vector3(42, 98, -18)
+
+	var windup_time := 0.10 if not heavy else 0.18
+	var impact_time := 0.12 if not heavy else 0.20
+	var recover_time := 0.14 if not heavy else 0.24
+
+	var tween := create_tween()
+	tween.tween_property(
+		weapon_pivot,
+		"rotation_degrees",
+		windup,
+		windup_time
+	)
+	tween.tween_property(
+		weapon_pivot,
+		"rotation_degrees",
+		impact,
+		impact_time
+	)
+	tween.tween_property(
+		weapon_pivot,
+		"rotation_degrees",
+		start,
+		recover_time
+	)
+
+func _play_weapon_guard() -> void:
+	if not weapon_pivot:
+		return
+	var start := weapon_pivot.rotation_degrees
+	var guard := Vector3(-18, 20, -38)
+	if weapon_index == 2:
+		guard = Vector3(-28, 18, -22)
+	var tween := create_tween()
+	tween.tween_property(
+		weapon_pivot,
+		"rotation_degrees",
+		guard,
+		0.08
+	)
+	tween.tween_interval(0.16)
+	tween.tween_property(
+		weapon_pivot,
+		"rotation_degrees",
+		start,
+		0.12
+	)
+
+func _play_parry_flash() -> void:
+	var flash := OmniLight3D.new()
+	flash.light_color = Color("8ff8ff")
+	flash.light_energy = 5.0
+	flash.omni_range = 3.2
+	add_child(flash)
+	flash.global_position = (
+		global_position
+		+ Vector3.UP * 1.1
+		+ facing * 0.55
+	)
+	var tween := create_tween()
+	tween.tween_property(
+		flash,
+		"light_energy",
+		0.0,
+		0.18
+	)
+	tween.tween_callback(flash.queue_free)

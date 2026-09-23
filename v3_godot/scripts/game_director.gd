@@ -41,12 +41,23 @@ func _ready() -> void:
 func _bootstrap() -> void:
 	await get_tree().process_frame
 	_bind_enemies()
+	_bind_relationships()
 	_emit_objective()
 	show_story(
 		"23:18 // QUARTO",
 		"Livros abertos, mochila pronta e uma prova amanhã. Só falta responder as mensagens e dormir.",
 		5.5
 	)
+func _bind_relationships() -> void:
+	var relationships := get_tree().get_first_node_in_group(
+		"relationships"
+	)
+	if not relationships:
+		return
+	var cb := Callable(self, "_on_choice_recorded")
+	if not relationships.choice_recorded.is_connected(cb):
+		relationships.choice_recorded.connect(cb)
+
 func _bind_enemies() -> void:
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if node.has_signal("died"):
@@ -55,6 +66,22 @@ func _bind_enemies() -> void:
 				node.died.connect(callback)
 
 func handle_event(event_id: String) -> void:
+	var quest_manager := get_tree().get_first_node_in_group(
+		"quest_manager"
+	)
+	if quest_manager and quest_manager.has_method("notify_event"):
+		quest_manager.notify_event(event_id)
+
+	if event_id.begins_with("npc_"):
+		var character := event_id.trim_prefix("npc_")
+		character = character.capitalize()
+		var dialogue := get_tree().get_first_node_in_group(
+			"dialogue_manager"
+		)
+		if dialogue:
+			dialogue.start(character)
+		return
+
 	match event_id:
 		"real_phone":
 			if objective_id == "check_phone":
@@ -338,6 +365,64 @@ func handle_event(event_id: String) -> void:
 				"Os Eternos não eram deuses. Eram guerreiros que se recusaram a morrer.",
 				6.0
 			)
+		"crowwood_gate":
+			if phase_index >= 3:
+				phase_index = maxi(phase_index, 4)
+				chapter_name = "CAPÍTULO V // BOSQUE DOS CORVOS"
+				phase_changed.emit(phase_index, chapter_name)
+				_set_objective(
+					"enter_crow_dungeon",
+					"A voz sob as raízes",
+					"Explore o Bosque dos Corvos e encontre a entrada da masmorra sob as ruínas.",
+					"0 / 1"
+				)
+				var profile := _profile()
+				if profile:
+					if not profile.visited_regions.has(4):
+						profile.visited_regions.append(4)
+					profile.register_discovery("crowwood")
+					profile.profile_changed.emit()
+				transition_requested.emit(
+					"BOSQUE DOS CORVOS",
+					"A luz muda. Até o celular perde sinal entre as árvores negras.",
+					3.2
+				)
+		"crow_dungeon":
+			if phase_index >= 4:
+				phase_index = maxi(phase_index, 5)
+				chapter_name = "CAPÍTULO VI // SOB AS RAÍZES"
+				phase_changed.emit(phase_index, chapter_name)
+				_set_objective(
+					"defeat_raven_warden",
+					"O Guardião Corvino",
+					"Derrote o guardião que protege a câmara sob o Bosque dos Corvos.",
+					"0 / 1"
+				)
+				transition_requested.emit(
+					"MASMORRA DOS CORVOS",
+					"Runas antigas acendem quando o telefone atravessa o limiar.",
+					3.0
+				)
+		"region_two_gate":
+			if phase_index >= 6:
+				phase_index = 7
+				chapter_name = "CAPÍTULO VII // ALÉM DE VALDRAK"
+				phase_changed.emit(phase_index, chapter_name)
+				_set_objective(
+					"region_two_arrival",
+					"Região II",
+					"A nova fronteira foi aberta. O próximo arco começa além das montanhas.",
+					"DESBLOQUEADA"
+				)
+				var profile := _profile()
+				if profile and not profile.visited_regions.has(5):
+					profile.visited_regions.append(5)
+					profile.profile_changed.emit()
+				transition_requested.emit(
+					"REGIÃO II DESBLOQUEADA",
+					"O mapa do celular desenha uma área que não existia antes.",
+					4.0
+				)
 		_:
 			pass
 
@@ -351,10 +436,13 @@ func show_story(
 func _on_enemy_died(enemy: Node) -> void:
 	if bool(enemy.boss):
 		if objective_id == "defeat_boss":
-			_complete_story()
+			_complete_region_one()
+		elif objective_id == "defeat_raven_warden":
+			_complete_crowwood()
 		return
 	if objective_id == "clear_village":
 		call_deferred("_evaluate_regular_enemies")
+
 func _evaluate_regular_enemies() -> void:
 	await get_tree().process_frame
 	var alive := 0
@@ -362,6 +450,8 @@ func _evaluate_regular_enemies() -> void:
 		if not is_instance_valid(node):
 			continue
 		if bool(node.boss):
+			continue
+		if int(node.active_phase) > 1:
 			continue
 		if int(node.health) > 0:
 			alive += 1
@@ -384,14 +474,17 @@ func _evaluate_regular_enemies() -> void:
 			5.0
 		)
 
-func _complete_story() -> void:
-	completed = true
-	chapter_name = "EPÍLOGO // VALDRAK RESPIRA"
-	objective_id = "complete"
-	objective_title = "Valdrak está livre"
-	objective_detail = "Vertical slice concluído. Novas regiões serão abertas a partir daqui."
-	objective_progress = "CONCLUÍDO"
-	_emit_objective()
+func _complete_region_one() -> void:
+	completed = false
+	phase_index = 3
+	chapter_name = "CAPÍTULO IV // OS SEIS ECOS"
+	phase_changed.emit(phase_index, chapter_name)
+	_set_objective(
+		"choose_ally",
+		"Quem você vai ouvir?",
+		"Fale com Thorvald, Aurel, Kaion, Brenor, Eiran ou Noctar. Sua resposta terá consequência.",
+		"0 / 1"
+	)
 	var profile := _profile()
 	if profile:
 		profile.add_xp(250)
@@ -399,10 +492,49 @@ func _complete_story() -> void:
 		profile.unlock_codex("guardioes")
 	show_story(
 		"EIRIK",
-		"Um Jarl caiu. Seis regiões ainda carregam o mesmo juramento.",
+		"Vorun caiu, mas o juramento continua. Seis pessoas esperam por você na aldeia. Escolha com cuidado quem ouvir primeiro.",
 		7.0
 	)
-	game_completed.emit()
+
+func _on_choice_recorded(
+	character: String,
+	choice_id: String
+) -> void:
+	if phase_index != 3 or objective_id != "choose_ally":
+		return
+	_set_objective(
+		"reach_crowwood",
+		"Bosque dos Corvos",
+		"%s marcou no seu mapa uma passagem a oeste. Siga até o bosque." % character,
+		"0 / 1"
+	)
+	show_story(
+		"CELULAR // MAPA",
+		"Novo ponto detectado: BOSQUE DOS CORVOS. A rota apareceu sem conexão de rede.",
+		5.0
+	)
+
+func _complete_crowwood() -> void:
+	completed = false
+	phase_index = 6
+	chapter_name = "CAPÍTULO VI // O ECO QUE SOBROU"
+	phase_changed.emit(phase_index, chapter_name)
+	_set_objective(
+		"region_two_gate",
+		"Além das montanhas",
+		"O Guardião Corvino caiu. O celular detectou um novo caminho no extremo leste.",
+		"0 / 1"
+	)
+	var profile := _profile()
+	if profile:
+		profile.add_xp(320)
+		profile.add_coins(160)
+		profile.register_discovery("raven_warden")
+	show_story(
+		"CELULAR // SINAL",
+		"Uma nova região apareceu no mapa. A mensagem é curta: 'Você já esteve aqui.'",
+		7.0
+	)
 func _set_objective(
 	id: String,
 	title: String,

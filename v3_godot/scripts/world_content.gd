@@ -3,11 +3,13 @@ extends Node3D
 const INTERACTION := preload("res://scripts/interaction_area.gd")
 const EIRIK := preload("res://assets/characters/npcs/Eirik.glb")
 const ASTRID := preload("res://assets/characters/npcs/Astrid.glb")
+const VIKING := preload("res://assets/characters/viking/Viking_Male.glb")
 
 const FORGE_ORIGIN := Vector3(0, 18, 82)
 const ARCHIVE_ORIGIN := Vector3(24, 18, 82)
 const TAVERN_ORIGIN := Vector3(-24, 18, 82)
 const LOST_ROOM_ORIGIN := Vector3(48, 18, 82)
+const CROW_DUNGEON_ORIGIN := Vector3(72, 18, 82)
 const REAL_ROOM_ORIGIN := Vector3(120, 30, 120)
 
 var wood := StandardMaterial3D.new()
@@ -23,6 +25,9 @@ func _ready() -> void:
 	_build_archive_interior()
 	_build_tavern_interior()
 	_build_lost_student_house()
+	_build_six_echoes()
+	_build_crowwood_access()
+	_build_crow_dungeon()
 
 func _build_materials() -> void:
 	wood.albedo_color = Color("4b3022")
@@ -1096,3 +1101,316 @@ func _make_phone_prop(
 	light.light_energy = 1.0
 	light.omni_range = 1.8
 	parent.add_child(light)
+
+func _build_six_echoes() -> void:
+	var configs := [
+		{
+			"name":"Thorvald",
+			"role":"GUARDIÃO DOS CLÃS",
+			"pos":Vector3(4.8, 0.0, -2.8),
+			"model":2,
+			"scale":0.49,
+			"color":Color("e8c27a")
+		},
+		{
+			"name":"Aurel",
+			"role":"CRONISTA RÚNICO",
+			"pos":Vector3(-8.8, 0.0, -8.8),
+			"model":0,
+			"scale":0.50,
+			"color":Color("a98cff")
+		},
+		{
+			"name":"Kaion",
+			"role":"BATEDOR",
+			"pos":Vector3(-16.2, 0.0, 9.8),
+			"model":2,
+			"scale":0.49,
+			"color":Color("6fe6b2")
+		},
+		{
+			"name":"Brenor",
+			"role":"FERREIRO DE GUERRA",
+			"pos":Vector3(14.4, 0.0, 5.8),
+			"model":0,
+			"scale":0.51,
+			"color":Color("f49a61")
+		},
+		{
+			"name":"Eiran",
+			"role":"CURANDEIRA DOS DESPERTOS",
+			"pos":Vector3(-5.8, 0.0, 7.2),
+			"model":1,
+			"scale":0.55,
+			"color":Color("80d8ff")
+		},
+		{
+			"name":"Noctar",
+			"role":"EXILADO DO VAZIO",
+			"pos":Vector3(22.0, 0.0, -15.0),
+			"model":2,
+			"scale":0.50,
+			"color":Color("d66cff")
+		}
+	]
+	for cfg in configs:
+		_build_story_npc(cfg)
+
+func _build_story_npc(cfg: Dictionary) -> void:
+	var root := Node3D.new()
+	root.name = str(cfg.name)
+	root.position = cfg.pos
+	add_child(root)
+
+	var packed: PackedScene
+	match int(cfg.model):
+		1:
+			packed = ASTRID
+		2:
+			packed = VIKING
+		_:
+			packed = EIRIK
+
+	var model := packed.instantiate()
+	model.scale = Vector3.ONE * float(cfg.scale)
+	model.rotation.y = PI
+	root.add_child(model)
+	_apply_story_npc_accent(
+		model,
+		cfg.color
+	)
+
+	var anim := model.find_child(
+		"AnimationPlayer",
+		true,
+		false
+	) as AnimationPlayer
+	if anim and anim.has_animation(
+		"CharacterArmature|CharacterArmature|Idle"
+	):
+		anim.play(
+			"CharacterArmature|CharacterArmature|Idle"
+		)
+	elif anim and anim.has_animation(
+		"CharacterArmature|Idle"
+	):
+		anim.play("CharacterArmature|Idle")
+
+	var label := Label3D.new()
+	label.text = "%s // %s" % [
+		str(cfg.name).to_upper(),
+		str(cfg.role)
+	]
+	label.position = Vector3(0, 2.02, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 20
+	label.outline_size = 7
+	label.modulate = cfg.color
+	root.add_child(label)
+
+	_add_npc_signature(
+		root,
+		cfg.color,
+		int(cfg.model)
+	)
+
+	_make_interaction(
+		"Talk%s" % str(cfg.name),
+		root.position + Vector3(0, 0.92, 0),
+		1.6,
+		"Falar com %s" % str(cfg.name),
+		"npc_%s" % str(cfg.name).to_lower()
+	)
+
+func _apply_story_npc_accent(
+	model: Node3D,
+	color: Color
+) -> void:
+	var overlay := StandardMaterial3D.new()
+	overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	overlay.albedo_color = Color(
+		color.r,
+		color.g,
+		color.b,
+		0.10
+	)
+	overlay.emission_enabled = true
+	overlay.emission = color.darkened(0.78)
+	for node in model.find_children(
+		"*",
+		"MeshInstance3D",
+		true,
+		false
+	):
+		(node as MeshInstance3D).material_overlay = overlay
+
+	var npc_skeleton := model.find_child(
+		"Skeleton3D",
+		true,
+		false
+	) as Skeleton3D
+	if npc_skeleton:
+		var head := npc_skeleton.find_bone("Head")
+		if head >= 0:
+			npc_skeleton.set_bone_pose_scale(
+				head,
+				Vector3.ONE * 0.72
+			)
+func _add_npc_signature(
+	root: Node3D,
+	color: Color,
+	model_key: int
+) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color.darkened(0.28)
+	mat.metallic = 0.28
+	mat.roughness = 0.46
+	mat.emission_enabled = true
+	mat.emission = color.darkened(0.72)
+
+	if model_key == 1:
+		var staff := MeshInstance3D.new()
+		var staff_mesh := CylinderMesh.new()
+		staff_mesh.top_radius = 0.035
+		staff_mesh.bottom_radius = 0.045
+		staff_mesh.height = 1.72
+		staff.mesh = staff_mesh
+		staff.position = Vector3(0.42, 0.86, 0.05)
+		staff.material_override = mat
+		root.add_child(staff)
+
+		var orb := MeshInstance3D.new()
+		var orb_mesh := SphereMesh.new()
+		orb_mesh.radius = 0.10
+		orb_mesh.height = 0.20
+		orb.mesh = orb_mesh
+		orb.position = Vector3(0.42, 1.76, 0.05)
+		orb.material_override = mat
+		root.add_child(orb)
+	elif model_key == 2:
+		var mantle := MeshInstance3D.new()
+		var mantle_mesh := BoxMesh.new()
+		mantle_mesh.size = Vector3(0.72, 0.12, 0.22)
+		mantle.mesh = mantle_mesh
+		mantle.position = Vector3(0, 1.45, 0.08)
+		mantle.material_override = mat
+		root.add_child(mantle)
+	else:
+		var rune_plate := MeshInstance3D.new()
+		var plate_mesh := BoxMesh.new()
+		plate_mesh.size = Vector3(0.30, 0.38, 0.06)
+		rune_plate.mesh = plate_mesh
+		rune_plate.position = Vector3(0, 1.28, -0.18)
+		rune_plate.material_override = mat
+		root.add_child(rune_plate)
+
+func _build_crowwood_access() -> void:
+	_make_interaction(
+		"CrowwoodGate",
+		Vector3(-44.0, 1.45, -8.0),
+		3.2,
+		"Entrar no Bosque dos Corvos",
+		"crowwood_gate"
+	)
+	_make_marker(
+		Vector3(-44.0, 3.65, -8.0),
+		"BOSQUE DOS CORVOS",
+		Color("79d6b0")
+	)
+
+	_make_interaction(
+		"CrowDungeonDoor",
+		Vector3(-72.0, -0.05, -24.0),
+		2.2,
+		"Descer para a masmorra",
+		"crow_dungeon",
+		false,
+		false,
+		true,
+		CROW_DUNGEON_ORIGIN + Vector3(
+			0,
+			0.30,
+			6.4
+		)
+	)
+	_make_marker(
+		Vector3(-72.0, 1.85, -24.0),
+		"RUÍNAS SOB AS RAÍZES",
+		Color("b38aff")
+	)
+
+	_make_interaction(
+		"RegionTwoGate",
+		Vector3(72.0, 5.0, 42.0),
+		2.8,
+		"Atravessar para a Região II",
+		"region_two_gate"
+	)
+	_make_marker(
+		Vector3(72.0, 7.4, 42.0),
+		"PASSAGEM DAS MONTANHAS",
+		Color("7fefff")
+	)
+func _build_crow_dungeon() -> void:
+	_build_room(
+		CROW_DUNGEON_ORIGIN,
+		Vector2(20.0, 16.0),
+		"MASMORRA DOS CORVOS"
+	)
+
+	_make_interaction(
+		"CrowDungeonExit",
+		CROW_DUNGEON_ORIGIN + Vector3(
+			0,
+			1.0,
+			6.9
+		),
+		1.6,
+		"Voltar ao Bosque dos Corvos",
+		"",
+		false,
+		false,
+		true,
+		Vector3(-69.5, 0.35, -21.5)
+	)
+
+	for x in [-7.2, -3.6, 0.0, 3.6, 7.2]:
+		_make_box(
+			CROW_DUNGEON_ORIGIN + Vector3(
+				x,
+				1.5,
+				-4.8
+			),
+			Vector3(0.75, 3.0, 0.75),
+			stone,
+			true
+		)
+
+	for z in [-2.5, 1.0, 4.0]:
+		var light := OmniLight3D.new()
+		light.position = (
+			CROW_DUNGEON_ORIGIN
+			+ Vector3(0, 2.4, z)
+		)
+		light.light_color = Color("7957ff")
+		light.light_energy = 2.0
+		light.omni_range = 7.0
+		add_child(light)
+
+	var altar := _make_box(
+		CROW_DUNGEON_ORIGIN + Vector3(
+			0,
+			0.45,
+			-5.8
+		),
+		Vector3(3.2, 0.9, 1.8),
+		stone,
+		true
+	)
+	var rune_mark := MeshInstance3D.new()
+	var rune_mesh := BoxMesh.new()
+	rune_mesh.size = Vector3(1.8, 0.08, 0.55)
+	rune_mark.mesh = rune_mesh
+	rune_mark.position = Vector3(0, 0.52, 0)
+	rune_mark.material_override = rune
+	altar.add_child(rune_mark)

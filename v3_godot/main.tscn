@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource path="res://scripts/world.gd" type="Script" id="1"]
 [ext_resource path="res://scripts/player.gd" type="Script" id="2"]
@@ -10,6 +10,9 @@
 [ext_resource path="res://scripts/game_profile.gd" type="Script" id="8"]
 [ext_resource path="res://scripts/system_menu.gd" type="Script" id="9"]
 [ext_resource path="res://scripts/quest_manager.gd" type="Script" id="10"]
+[ext_resource path="res://scripts/relationship_manager.gd" type="Script" id="11"]
+[ext_resource path="res://scripts/dialogue_manager.gd" type="Script" id="12"]
+[ext_resource path="res://scripts/companion_manager.gd" type="Script" id="13"]
 
 [sub_resource type="SphereShape3D" id="CameraShape"]
 radius = 0.34
@@ -25,6 +28,15 @@ script = ExtResource("8")
 
 [node name="QuestManager" type="Node" parent="."]
 script = ExtResource("10")
+
+[node name="RelationshipManager" type="Node" parent="."]
+script = ExtResource("11")
+
+[node name="DialogueManager" type="Node" parent="."]
+script = ExtResource("12")
+
+[node name="CompanionManager" type="Node" parent="."]
+script = ExtResource("13")
 
 [node name="NarrativeContent" type="Node3D" parent="."]
 script = ExtResource("7")
@@ -143,6 +155,97 @@ weapon_type = 2
 boss = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="JarlBoss"]
+
+[node name="CrowStalkerLeft" type="CharacterBody3D" parent="."]
+position = Vector3(-54.0, 0.66, -11.0)
+script = ExtResource("3")
+display_name = "VIGIA CORVINO"
+max_health = 135
+move_speed = 3.15
+attack_range = 1.72
+attack_cooldown = 0.95
+attack_damage = 18
+aggro_range = 11.0
+active_phase = 4
+model_scale = 0.50
+body_height = 1.84
+archetype = 3
+weapon_type = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CrowStalkerLeft"]
+
+[node name="CrowStalkerRight" type="CharacterBody3D" parent="."]
+position = Vector3(-63.0, -0.50, -18.5)
+script = ExtResource("3")
+display_name = "CAÇADOR DO BOSQUE"
+max_health = 155
+move_speed = 2.95
+attack_range = 1.85
+attack_cooldown = 1.05
+attack_damage = 21
+aggro_range = 11.5
+active_phase = 4
+model_scale = 0.53
+body_height = 1.94
+archetype = 3
+weapon_type = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CrowStalkerRight"]
+
+[node name="CrowAcolyteOne" type="CharacterBody3D" parent="."]
+position = Vector3(68.0, 18.10, 82.0)
+script = ExtResource("3")
+display_name = "ACÓLITO CORVINO"
+max_health = 170
+move_speed = 2.75
+attack_range = 1.85
+attack_cooldown = 1.05
+attack_damage = 22
+aggro_range = 10.0
+active_phase = 5
+model_scale = 0.52
+body_height = 1.90
+archetype = 4
+weapon_type = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CrowAcolyteOne"]
+
+[node name="CrowAcolyteTwo" type="CharacterBody3D" parent="."]
+position = Vector3(76.0, 18.10, 82.0)
+script = ExtResource("3")
+display_name = "ACÓLITO DAS RAÍZES"
+max_health = 185
+move_speed = 2.65
+attack_range = 1.95
+attack_cooldown = 1.10
+attack_damage = 24
+aggro_range = 10.0
+active_phase = 5
+model_scale = 0.54
+body_height = 1.98
+archetype = 4
+weapon_type = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CrowAcolyteTwo"]
+
+[node name="RavenWarden" type="CharacterBody3D" parent="."]
+position = Vector3(72.0, 18.18, 76.2)
+script = ExtResource("3")
+display_name = "GUARDIÃO CORVINO"
+max_health = 560
+move_speed = 2.25
+attack_range = 2.35
+attack_cooldown = 1.30
+attack_damage = 36
+aggro_range = 12.0
+active_phase = 5
+model_scale = 0.78
+body_height = 2.88
+archetype = 4
+weapon_type = 2
+boss = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RavenWarden"]
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("4")

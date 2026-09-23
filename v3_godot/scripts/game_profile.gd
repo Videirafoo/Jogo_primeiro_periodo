@@ -116,6 +116,9 @@ func save_game() -> bool:
 	var quest_manager := get_tree().get_first_node_in_group(
 		"quest_manager"
 	)
+	var relationships := get_tree().get_first_node_in_group(
+		"relationships"
+	)
 	var data := {
 		"version": 1,
 		"level": level,
@@ -128,6 +131,11 @@ func save_game() -> bool:
 		"discoveries": discoveries,
 		"opened_chests": opened_chests,
 		"reputation": reputation,
+		"relationships": (
+			relationships.export_state()
+			if relationships
+			else {}
+		),
 		"optional_quests": (
 			quest_manager.export_state()
 			if quest_manager
@@ -189,6 +197,13 @@ func load_game() -> bool:
 	var loaded_rep = parsed.get("reputation", {})
 	if loaded_rep is Dictionary:
 		reputation = loaded_rep
+	var relationships := get_tree().get_first_node_in_group(
+		"relationships"
+	)
+	if relationships:
+		relationships.import_state(
+			parsed.get("relationships", {})
+		)
 	var quest_manager := get_tree().get_first_node_in_group(
 		"quest_manager"
 	)

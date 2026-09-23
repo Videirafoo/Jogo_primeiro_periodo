@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const MINIMAP := preload("res://scripts/minimap_control.gd")
+
 var player: Node
 var director: Node
 
@@ -8,6 +10,7 @@ var health_label: Label
 var stamina_bar: ProgressBar
 var stamina_label: Label
 var weapon_label: Label
+var companion_label: Label
 
 var target_panel: PanelContainer
 var target_bar: ProgressBar
@@ -32,6 +35,12 @@ var transition_title: Label
 var transition_subtitle: Label
 var region_tag: Label
 
+var choice_panel: PanelContainer
+var choice_title: Label
+var choice_buttons: Array[Button] = []
+var choice_options: Array = []
+var dialogue_manager: Node
+
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	director = get_tree().get_first_node_in_group("game_director")
@@ -43,6 +52,8 @@ func _ready() -> void:
 	_build_transition_layer()
 	_build_crosshair()
 	_build_region_tag()
+	_build_minimap()
+	_build_choice_panel()
 	call_deferred("_bind_director")
 func _bind_director() -> void:
 	director = get_tree().get_first_node_in_group("game_director")
@@ -68,6 +79,7 @@ func _bind_director() -> void:
 			transition_cb
 		)
 
+	_bind_dialogue()
 	_on_objective_changed(
 		str(director.chapter_name),
 		str(director.objective_title),
@@ -101,10 +113,23 @@ func _update_player_status() -> void:
 	if weapon_label and player.has_method("get_weapon_name"):
 		weapon_label.text = "ARMA  %s" % player.get_weapon_name()
 
+	if companion_label:
+		var relationships := get_tree().get_first_node_in_group(
+			"relationships"
+		)
+		if relationships and str(relationships.active_companion) != "":
+			var companion := str(relationships.active_companion)
+			companion_label.text = "ALIADO  %s // %s" % [
+				companion.to_upper(),
+				relationships.affinity_text(companion)
+			]
+		else:
+			companion_label.text = "ALIADO  NENHUM"
+
 func _build_status_panel() -> void:
 	var panel := PanelContainer.new()
 	panel.position = Vector2(22, 22)
-	panel.custom_minimum_size = Vector2(340, 184)
+	panel.custom_minimum_size = Vector2(340, 206)
 	panel.add_theme_stylebox_override(
 		"panel",
 		_panel_style(Color(0.018, 0.035, 0.045, 0.94))
@@ -158,8 +183,17 @@ func _build_status_panel() -> void:
 	)
 	box.add_child(weapon_label)
 
+	companion_label = Label.new()
+	companion_label.text = "ALIADO  NENHUM"
+	companion_label.add_theme_font_size_override("font_size", 11)
+	companion_label.add_theme_color_override(
+		"font_color",
+		Color("bfcbd0")
+	)
+	box.add_child(companion_label)
+
 	var controls := Label.new()
-	controls.text = "WASD mover • R interagir • T celular • 1 espada • 2 machado • 3 martelo"
+	controls.text = "WASD mover • R interagir • T celular • F aparar • 1 espada • 2 machado • 3 martelo"
 	controls.add_theme_font_size_override("font_size", 10)
 	controls.add_theme_color_override(
 		"font_color",
@@ -524,3 +558,185 @@ func _on_transition_requested(
 			)
 			transition_layer.modulate = Color.WHITE
 	)
+
+
+func _build_minimap() -> void:
+	var minimap := Control.new()
+	minimap.name = "Minimap"
+	minimap.set_script(MINIMAP)
+	minimap.set_anchors_preset(
+		Control.PRESET_TOP_RIGHT
+	)
+	minimap.position = Vector2(-216, 58)
+	minimap.custom_minimum_size = Vector2(180, 180)
+	add_child(minimap)
+
+func _build_choice_panel() -> void:
+	choice_panel = PanelContainer.new()
+	choice_panel.set_anchors_preset(
+		Control.PRESET_CENTER
+	)
+	choice_panel.position = Vector2(-360, -110)
+	choice_panel.custom_minimum_size = Vector2(720, 220)
+	choice_panel.add_theme_stylebox_override(
+		"panel",
+		_panel_style(
+			Color(0.012, 0.024, 0.030, 0.98)
+		)
+	)
+	choice_panel.visible = false
+	add_child(choice_panel)
+
+	var margin := _margin(20, 20, 18, 18)
+	choice_panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override(
+		"separation",
+		10
+	)
+	margin.add_child(box)
+
+	choice_title = Label.new()
+	choice_title.text = "ESCOLHA"
+	choice_title.horizontal_alignment = (
+		HORIZONTAL_ALIGNMENT_CENTER
+	)
+	choice_title.add_theme_font_size_override(
+		"font_size",
+		18
+	)
+	choice_title.add_theme_color_override(
+		"font_color",
+		Color("89f2ff")
+	)
+	box.add_child(choice_title)
+
+	for i in range(3):
+		var button := Button.new()
+		button.text = "%d. ..." % (i + 1)
+		button.custom_minimum_size = Vector2(
+			660,
+			42
+		)
+		button.add_theme_font_size_override(
+			"font_size",
+			14
+		)
+		button.pressed.connect(
+			func(index := i):
+				_select_dialogue_choice(index)
+		)
+		choice_buttons.append(button)
+		box.add_child(button)
+
+func _bind_dialogue() -> void:
+	dialogue_manager = get_tree().get_first_node_in_group(
+		"dialogue_manager"
+	)
+	if not dialogue_manager:
+		return
+
+	var line_cb := Callable(
+		self,
+		"_on_dialogue_line"
+	)
+	if not dialogue_manager.dialogue_line.is_connected(
+		line_cb
+	):
+		dialogue_manager.dialogue_line.connect(
+			line_cb
+		)
+
+	var choice_cb := Callable(
+		self,
+		"_on_choice_requested"
+	)
+	if not dialogue_manager.choice_requested.is_connected(
+		choice_cb
+	):
+		dialogue_manager.choice_requested.connect(
+			choice_cb
+		)
+
+	var close_cb := Callable(
+		self,
+		"_on_dialogue_closed"
+	)
+	if not dialogue_manager.dialogue_closed.is_connected(
+		close_cb
+	):
+		dialogue_manager.dialogue_closed.connect(
+			close_cb
+		)
+
+func _on_dialogue_line(
+	speaker: String,
+	text: String
+) -> void:
+	_on_story_message(
+		speaker,
+		text,
+		6.0
+	)
+
+func _on_choice_requested(
+	character: String,
+	prompt: String,
+	options: Array
+) -> void:
+	choice_options = options.duplicate(true)
+	choice_title.text = "%s // %s" % [
+		character.to_upper(),
+		prompt
+	]
+	for i in range(choice_buttons.size()):
+		var button := choice_buttons[i]
+		if i < choice_options.size():
+			button.visible = true
+			button.disabled = false
+			button.text = "%d. %s" % [
+				i + 1,
+				str(choice_options[i].get(
+					"text",
+					"..."
+				))
+			]
+		else:
+			button.visible = false
+			button.disabled = true
+	choice_panel.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _select_dialogue_choice(index: int) -> void:
+	if not choice_panel.visible:
+		return
+	if index < 0 or index >= choice_options.size():
+		return
+	if not dialogue_manager:
+		return
+	var option: Dictionary = choice_options[index]
+	choice_panel.visible = false
+	dialogue_manager.choose_with_option(option)
+	choice_options.clear()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _on_dialogue_closed() -> void:
+	if choice_panel.visible:
+		return
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not choice_panel or not choice_panel.visible:
+		return
+	if not event is InputEventKey:
+		return
+	if not event.pressed or event.echo:
+		return
+	match event.physical_keycode:
+		KEY_1:
+			_select_dialogue_choice(0)
+		KEY_2:
+			_select_dialogue_choice(1)
+		KEY_3:
+			_select_dialogue_choice(2)

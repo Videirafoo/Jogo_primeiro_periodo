@@ -19,6 +19,7 @@ func _ready() -> void:
 	_village_props()
 	_road_lanterns()
 	_forest_edge()
+	_crowwood_region()
 	_ruin_outpost()
 	_landmark()
 	_boss_arena()
@@ -580,3 +581,113 @@ func _ground_y(x: float, z: float) -> float:
 		if terrain and terrain.has_method("_height_at"):
 			return float(terrain._height_at(x, z))
 	return 0.0
+
+
+func _crowwood_region() -> void:
+	var crow_leaf := StandardMaterial3D.new()
+	crow_leaf.albedo_color = Color("102820")
+	crow_leaf.roughness = 0.98
+
+	var crow_trunk := StandardMaterial3D.new()
+	crow_trunk.albedo_color = Color("241c1a")
+	crow_trunk.roughness = 0.95
+
+	for i in range(34):
+		var angle := float(i) * 2.399963
+		var radius := 6.0 + float((i * 9) % 21)
+		var x := -58.0 + cos(angle) * radius
+		var z := -14.0 + sin(angle) * radius
+		if absf(x + 58.0) < 4.5 and absf(z + 14.0) < 6.0:
+			continue
+		var y := _ground_y(x, z)
+
+		var root := StaticBody3D.new()
+		root.position = Vector3(x, y, z)
+		root.rotation.y = angle * 0.37
+		var scale_value := 0.90 + float(i % 5) * 0.10
+		root.scale = Vector3.ONE * scale_value
+
+		var trunk := MeshInstance3D.new()
+		var trunk_mesh := CylinderMesh.new()
+		trunk_mesh.top_radius = 0.16
+		trunk_mesh.bottom_radius = 0.28
+		trunk_mesh.height = 3.8
+		trunk.mesh = trunk_mesh
+		trunk.position.y = 1.9
+		trunk.material_override = crow_trunk
+		root.add_child(trunk)
+
+		var collision := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = 0.30
+		shape.height = 3.7
+		collision.shape = shape
+		collision.position.y = 1.85
+		root.add_child(collision)
+
+		for tier in range(4):
+			var leaves := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.top_radius = 0.0
+			cone.bottom_radius = 1.55 - float(tier) * 0.20
+			cone.height = 2.35
+			leaves.mesh = cone
+			leaves.position.y = 3.05 + float(tier) * 0.82
+			leaves.material_override = crow_leaf
+			root.add_child(leaves)
+
+		add_child(root)
+
+	# Estrada lateral até o bosque.
+	var path_mat := StandardMaterial3D.new()
+	path_mat.albedo_color = Color("2f2a25")
+	path_mat.roughness = 0.98
+	var path := MeshInstance3D.new()
+	var path_mesh := BoxMesh.new()
+	path_mesh.size = Vector3(42.0, 0.08, 2.6)
+	path.mesh = path_mesh
+	path.position = Vector3(-24.0, 0.06, -7.0)
+	path.rotation.y = deg_to_rad(1.5)
+	path.material_override = path_mat
+	add_child(path)
+
+	# Névoa/luz local que diferencia o bosque.
+	var crow_light := OmniLight3D.new()
+	crow_light.position = Vector3(-58.0, 4.0, -14.0)
+	crow_light.light_color = Color("5d8cff")
+	crow_light.light_energy = 1.25
+	crow_light.omni_range = 24.0
+	add_child(crow_light)
+
+	for i in range(8):
+		var rune_root := Node3D.new()
+		var angle := TAU * float(i) / 8.0
+		rune_root.position = Vector3(
+			-58.0 + cos(angle) * 11.0,
+			_ground_y(
+				-58.0 + cos(angle) * 11.0,
+				-14.0 + sin(angle) * 11.0
+			),
+			-14.0 + sin(angle) * 11.0
+		)
+		var stone := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.48, 1.5, 0.36)
+		stone.mesh = mesh
+		stone.position.y = 0.75
+		stone.material_override = stone_material
+		rune_root.add_child(stone)
+
+		var mark := MeshInstance3D.new()
+		var mark_mesh := BoxMesh.new()
+		mark_mesh.size = Vector3(0.10, 0.64, 0.03)
+		mark.mesh = mark_mesh
+		mark.position = Vector3(0, 0.82, -0.20)
+		var mark_mat := StandardMaterial3D.new()
+		mark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mark_mat.albedo_color = Color("745cff")
+		mark_mat.emission_enabled = true
+		mark_mat.emission = Color("684dff")
+		mark.material_override = mark_mat
+		rune_root.add_child(mark)
+		add_child(rune_root)

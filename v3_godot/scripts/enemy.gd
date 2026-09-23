@@ -24,6 +24,7 @@ var health := 100
 var home_position := Vector3.ZERO
 var attack_cd := 0.0
 var swing_time := 0.0
+var stagger_time := 0.0
 var knockback := Vector3.ZERO
 var player: Node3D
 var anim_player: AnimationPlayer
@@ -45,6 +46,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	attack_cd = maxf(0.0, attack_cd - delta)
 	swing_time = maxf(0.0, swing_time - delta)
+	stagger_time = maxf(0.0, stagger_time - delta)
 	knockback = knockback.move_toward(
 		Vector3.ZERO,
 		18.0 * delta
@@ -57,6 +59,12 @@ func _physics_process(delta: float) -> void:
 	if not _is_active():
 		_set_combat_visuals(false)
 		_return_home()
+		return
+
+	if stagger_time > 0.0:
+		velocity = Vector3.ZERO
+		_play_loop("CharacterArmature|RecieveHit")
+		move_and_slide()
 		return
 
 	var offset := player.global_position - global_position
@@ -116,6 +124,18 @@ func _attack_player() -> void:
 	if player and player.has_method("take_hit"):
 		if global_position.distance_to(player.global_position) <= attack_range + 0.45:
 			player.take_hit(attack_damage)
+
+func apply_stagger(duration: float) -> void:
+	stagger_time = maxf(stagger_time, duration)
+	attack_cd = maxf(attack_cd, duration + 0.25)
+	swing_time = 0.0
+	if anim_player:
+		anim_player.play(
+			"CharacterArmature|RecieveHit",
+			0.03,
+			0.72
+		)
+	_hit_pulse()
 
 func take_hit(amount: int, direction: Vector3) -> void:
 	if not _is_active():
@@ -356,8 +376,14 @@ func _update_status() -> void:
 	]
 
 func _archetype_color() -> Color:
+	if boss and archetype >= 4:
+		return Color("7f5dff")
 	if boss:
 		return Color("d86cff")
+	if archetype == 3:
+		return Color("59d8a0")
+	if archetype == 4:
+		return Color("8b72ff")
 	if archetype == 1:
 		return Color("ff9f43")
 	return Color("ff5d67")
