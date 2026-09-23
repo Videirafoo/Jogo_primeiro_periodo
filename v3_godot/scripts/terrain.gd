@@ -1,7 +1,7 @@
 extends Node3D
 
 const SIZE := 190.0
-const SEGMENTS := 72
+const SEGMENTS := 56
 const UV_SCALE := 14.0
 const HALF := SIZE * 0.5
 
@@ -229,7 +229,7 @@ func _build_road_details() -> void:
 	pebble_mat.albedo_color = Color("58534a")
 	pebble_mat.roughness = 0.92
 
-	for i in range(70):
+	for i in range(32):
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var z := 62.0 - float(i) * 1.2
 		var x := side * (2.8 + float((i * 7) % 9) * 0.18)
@@ -247,8 +247,8 @@ func _build_road_details() -> void:
 		pebble.material_override = pebble_mat
 		add_child(pebble)
 func _build_rocks() -> void:
-	for i in range(86):
-		var angle := TAU * float(i) / 86.0 + float(i % 7) * 0.17
+	for i in range(42):
+		var angle := TAU * float(i) / 42.0 + float(i % 7) * 0.17
 		var radius := 30.0 + float((i * 13) % 52)
 		if i % 9 == 0:
 			radius *= 0.72
@@ -300,11 +300,11 @@ func _build_shrubs() -> void:
 
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.instance_count = 150
+	multi.instance_count = 72
 	multi.mesh = mesh
 
 	var written := 0
-	for i in range(260):
+	for i in range(170):
 		if written >= multi.instance_count:
 			break
 		var angle := float(i) * 2.399963
@@ -341,7 +341,7 @@ func _build_shrubs() -> void:
 	instance.material_override = shrub_material
 	add_child(instance)
 func _build_stream() -> void:
-	for i in range(15):
+	for i in range(9):
 		var z := -58.0 + float(i) * 8.0
 		var x := -42.0 + sin(float(i) * 0.58) * 4.2
 		var y := _height_at(x, z) + 0.035
@@ -359,8 +359,8 @@ func _build_distant_mountains() -> void:
 	mountain_material.albedo_color = Color("253337")
 	mountain_material.roughness = 1.0
 
-	for i in range(24):
-		var angle := TAU * float(i) / 24.0
+	for i in range(14):
+		var angle := TAU * float(i) / 14.0
 		var radius := 103.0 + float(i % 4) * 4.5
 		var height := 24.0 + float((i * 7) % 14)
 		var width := 9.0 + float(i % 5) * 2.2

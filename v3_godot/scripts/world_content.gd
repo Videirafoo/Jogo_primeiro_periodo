@@ -4,6 +4,8 @@ const INTERACTION := preload("res://scripts/interaction_area.gd")
 const EIRIK := preload("res://assets/characters/npcs/Eirik.glb")
 const ASTRID := preload("res://assets/characters/npcs/Astrid.glb")
 const VIKING := preload("res://assets/characters/viking/Viking_Male.glb")
+const LONG_SWORD := preload("res://assets/weapons/LongSword.obj")
+const SIMPLE_AXE := preload("res://assets/weapons/SimpleAxe.obj")
 
 const FORGE_ORIGIN := Vector3(0, 18, 82)
 const ARCHIVE_ORIGIN := Vector3(24, 18, 82)
@@ -17,6 +19,10 @@ var stone := StandardMaterial3D.new()
 var metal := StandardMaterial3D.new()
 var rune := StandardMaterial3D.new()
 
+var story_npc_roots: Array[Node3D] = []
+var story_npc_areas: Array[Area3D] = []
+var last_story_phase := -999
+
 func _ready() -> void:
 	_build_materials()
 	_build_real_world_room()
@@ -28,6 +34,35 @@ func _ready() -> void:
 	_build_six_echoes()
 	_build_crowwood_access()
 	_build_crow_dungeon()
+	call_deferred("_refresh_story_npc_visibility")
+
+func _process(_delta: float) -> void:
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if not director:
+		return
+	var phase := int(director.phase_index)
+	if phase == last_story_phase:
+		return
+	last_story_phase = phase
+	_refresh_story_npc_visibility()
+
+func _refresh_story_npc_visibility() -> void:
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	var enabled := (
+		director != null
+		and int(director.phase_index) >= 3
+	)
+	for root in story_npc_roots:
+		if is_instance_valid(root):
+			root.visible = enabled
+	for area in story_npc_areas:
+		if is_instance_valid(area):
+			area.set_deferred("monitoring", enabled)
+			area.set_deferred("monitorable", enabled)
 
 func _build_materials() -> void:
 	wood.albedo_color = Color("4b3022")
@@ -73,7 +108,7 @@ func _build_story_zones() -> void:
 		false,
 		false,
 		true,
-		FORGE_ORIGIN + Vector3(0, 0.25, 2.7)
+		FORGE_ORIGIN + Vector3(0, 0.08, 3.55)
 	)
 	_make_marker(
 		Vector3(10.3, 2.8, 6.7),
@@ -90,6 +125,15 @@ func _build_story_zones() -> void:
 		true,
 		false
 	)
+	_make_interaction(
+		"ArenaEntry",
+		Vector3(0, 1.0, -25.1),
+		2.3,
+		"",
+		"arena_entry",
+		true,
+		false
+	)
 
 	_make_interaction(
 		"ArchiveDoor",
@@ -100,7 +144,7 @@ func _build_story_zones() -> void:
 		false,
 		false,
 		true,
-		ARCHIVE_ORIGIN + Vector3(0, 0.25, 2.7)
+		ARCHIVE_ORIGIN + Vector3(0, 0.08, 2.7)
 	)
 	_make_marker(
 		Vector3(-10.8, 2.8, -10.2),
@@ -119,7 +163,7 @@ func _build_story_zones() -> void:
 		false,
 		false,
 		true,
-		TAVERN_ORIGIN + Vector3(0, 0.25, 4.2)
+		TAVERN_ORIGIN + Vector3(0, 0.08, 4.2)
 	)
 	_make_marker(
 		Vector3(-12.8, 2.7, 4.4),
@@ -129,17 +173,17 @@ func _build_story_zones() -> void:
 
 	_make_interaction(
 		"LostStudentDoor",
-		Vector3(18.7, 1.0, 12.4),
-		1.55,
+		Vector3(18.7, 1.0, 10.25),
+		1.75,
 		"Entrar na Casa do Desperto",
 		"lost_student_enter",
 		false,
 		false,
 		true,
-		LOST_ROOM_ORIGIN + Vector3(0, 0.25, 3.4)
+		LOST_ROOM_ORIGIN + Vector3(0, 0.08, 3.25)
 	)
 	_make_marker(
-		Vector3(18.7, 2.65, 12.4),
+		Vector3(18.7, 2.65, 10.35),
 		"CASA DO DESPERTO",
 		Color("8ae8ff")
 	)
@@ -154,13 +198,64 @@ func _build_forge_interior() -> void:
 	_make_interaction(
 		"ForgeExit",
 		FORGE_ORIGIN + Vector3(0, 1.0, 4.15),
-		1.35,
+		2.15,
 		"Sair para Valdrak",
 		"",
 		false,
 		false,
 		true,
-		Vector3(10.0, 0.25, 8.2)
+		Vector3(10.3, 0.08, 7.85)
+	)
+
+	# Porta de saída visível e proporcional. O vão da sala continua livre.
+	var forge_door_mat := StandardMaterial3D.new()
+	forge_door_mat.albedo_color = Color("4b2f20")
+	forge_door_mat.roughness = 0.90
+	var forge_frame_mat := StandardMaterial3D.new()
+	forge_frame_mat.albedo_color = Color("241a14")
+	forge_frame_mat.roughness = 0.86
+	for x in [-0.72, 0.72]:
+		_make_box(
+			FORGE_ORIGIN + Vector3(x, 1.22, 4.78),
+			Vector3(0.14, 2.44, 0.16),
+			forge_frame_mat
+		)
+	_make_box(
+		FORGE_ORIGIN + Vector3(0, 2.38, 4.78),
+		Vector3(1.58, 0.16, 0.16),
+		forge_frame_mat
+	)
+	var forge_door := _make_box(
+		FORGE_ORIGIN + Vector3(0.92, 1.10, 4.55),
+		Vector3(1.18, 2.20, 0.11),
+		forge_door_mat
+	)
+	forge_door.name = "ForgeVisibleDoor"
+	forge_door.rotation_degrees.y = -68.0
+
+	var exit_glow_mat := StandardMaterial3D.new()
+	exit_glow_mat.albedo_color = Color("ffd073")
+	exit_glow_mat.emission_enabled = true
+	exit_glow_mat.emission = Color("ffb54e")
+	exit_glow_mat.emission_energy_multiplier = 2.4
+	exit_glow_mat.roughness = 0.42
+	_make_box(
+		FORGE_ORIGIN + Vector3(0, 0.035, 4.25),
+		Vector3(1.65, 0.06, 0.85),
+		exit_glow_mat
+	)
+	var exit_light := OmniLight3D.new()
+	exit_light.position = FORGE_ORIGIN + Vector3(0, 1.45, 4.20)
+	exit_light.light_color = Color("ffc36d")
+	exit_light.light_energy = 1.55
+	exit_light.omni_range = 3.5
+	exit_light.shadow_enabled = false
+	add_child(exit_light)
+
+	_make_marker(
+		FORGE_ORIGIN + Vector3(0, 2.72, 4.58),
+		"SAÍDA // VALDRAK",
+		Color("f2c978")
 	)
 
 	_build_blacksmith(
@@ -208,7 +303,7 @@ func _build_archive_interior() -> void:
 		false,
 		false,
 		true,
-		Vector3(-10.4, 0.25, -8.3)
+		Vector3(-10.4, 0.08, -8.3)
 	)
 
 	var pedestal := _make_box(
@@ -499,7 +594,7 @@ func _make_interior_light(pos: Vector3) -> void:
 	light.light_color = Color("ffc77d")
 	light.light_energy = 2.2
 	light.omni_range = 7.0
-	light.shadow_enabled = true
+	light.shadow_enabled = false
 	add_child(light)
 
 func _make_chest(
@@ -600,7 +695,7 @@ func _build_tavern_interior() -> void:
 		false,
 		false,
 		true,
-		Vector3(-12.6, 0.25, 6.2)
+		Vector3(-12.6, 0.08, 6.2)
 	)
 
 	_make_box(
@@ -794,12 +889,12 @@ func _fix_npc_materials(
 
 func _build_real_world_room() -> void:
 	var wall := StandardMaterial3D.new()
-	wall.albedo_color = Color("d9d7cf")
-	wall.roughness = 0.88
+	wall.albedo_color = Color("d8d1c4")
+	wall.roughness = 0.90
 
 	var floor_mat := StandardMaterial3D.new()
-	floor_mat.albedo_color = Color("5a4639")
-	floor_mat.roughness = 0.92
+	floor_mat.albedo_color = Color("5b402f")
+	floor_mat.roughness = 0.88
 
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color("20252c")
@@ -851,6 +946,74 @@ func _build_real_world_room() -> void:
 		wall,
 		true
 	)
+
+	# Parede frontal fechada com porta real. A câmera não pode sair do quarto.
+	_make_box(
+		o + Vector3(-2.85, 2.0, 3.5),
+		Vector3(3.30, 4.0, 0.28),
+		wall,
+		true
+	)
+	_make_box(
+		o + Vector3(2.45, 2.0, 3.5),
+		Vector3(4.10, 4.0, 0.28),
+		wall,
+		true
+	)
+	_make_box(
+		o + Vector3(-0.55, 3.55, 3.5),
+		Vector3(1.30, 0.90, 0.28),
+		wall,
+		true
+	)
+
+	var door_mat := StandardMaterial3D.new()
+	door_mat.albedo_color = Color("4a3327")
+	door_mat.roughness = 0.84
+	var real_door := _make_box(
+		o + Vector3(-0.55, 1.45, 3.42),
+		Vector3(1.18, 2.90, 0.16),
+		door_mat,
+		true
+	)
+	real_door.name = "BedroomDoor"
+
+	var frame_mat := StandardMaterial3D.new()
+	frame_mat.albedo_color = Color("2a211d")
+	frame_mat.roughness = 0.76
+	for x in [-1.18, 0.08]:
+		_make_box(
+			o + Vector3(x, 1.55, 3.32),
+			Vector3(0.10, 3.10, 0.12),
+			frame_mat
+		)
+	_make_box(
+		o + Vector3(-0.55, 3.08, 3.32),
+		Vector3(1.36, 0.12, 0.12),
+		frame_mat
+	)
+
+	var knob := MeshInstance3D.new()
+	var knob_mesh := SphereMesh.new()
+	knob_mesh.radius = 0.055
+	knob_mesh.height = 0.11
+	knob.mesh = knob_mesh
+	knob.position = o + Vector3(-0.12, 1.35, 3.29)
+	var knob_mat := StandardMaterial3D.new()
+	knob_mat.albedo_color = Color("a78b57")
+	knob_mat.metallic = 0.72
+	knob_mat.roughness = 0.28
+	knob.material_override = knob_mat
+	add_child(knob)
+
+	_make_interaction(
+		"RealBedroomDoor",
+		o + Vector3(-0.55, 1.15, 2.82),
+		1.10,
+		"Verificar a porta",
+		"real_room_door"
+	)
+
 	# Cama do estudante.
 	_make_box(
 		o + Vector3(-2.75, 0.35, 0.85),
@@ -899,26 +1062,72 @@ func _build_real_world_room() -> void:
 		Vector3(0.72, 0.88, 0.12),
 		dark
 	)
-	# Notebook.
+	# Quarto normal do mundo real: notebook na mesa e televisão.
 	var laptop := Node3D.new()
-	laptop.position = o + Vector3(2.0, 0.92, -1.72)
+	laptop.name = "BedroomLaptop"
+	laptop.position = o + Vector3(2.30, 0.90, -1.72)
 	add_child(laptop)
 
 	var laptop_base := MeshInstance3D.new()
-	var base_mesh := BoxMesh.new()
-	base_mesh.size = Vector3(0.78, 0.05, 0.52)
-	laptop_base.mesh = base_mesh
+	var laptop_base_mesh := BoxMesh.new()
+	laptop_base_mesh.size = Vector3(0.78, 0.045, 0.52)
+	laptop_base.mesh = laptop_base_mesh
 	laptop_base.material_override = dark
 	laptop.add_child(laptop_base)
 
 	var laptop_screen := MeshInstance3D.new()
 	var laptop_screen_mesh := BoxMesh.new()
-	laptop_screen_mesh.size = Vector3(0.78, 0.48, 0.045)
+	laptop_screen_mesh.size = Vector3(0.78, 0.48, 0.04)
 	laptop_screen.mesh = laptop_screen_mesh
 	laptop_screen.position = Vector3(0, 0.27, -0.23)
-	laptop_screen.rotation_degrees.x = -10
-	laptop_screen.material_override = screen
+	laptop_screen.rotation_degrees.x = -10.0
+	var laptop_glow := StandardMaterial3D.new()
+	laptop_glow.albedo_color = Color("1f87bb")
+	laptop_glow.emission_enabled = true
+	laptop_glow.emission = Color("126d9d")
+	laptop_glow.emission_energy_multiplier = 1.45
+	laptop_glow.roughness = 0.20
+	laptop_screen.material_override = laptop_glow
 	laptop.add_child(laptop_screen)
+
+	var keyboard := MeshInstance3D.new()
+	var keyboard_mesh := BoxMesh.new()
+	keyboard_mesh.size = Vector3(0.62, 0.018, 0.24)
+	keyboard.mesh = keyboard_mesh
+	keyboard.position = Vector3(0, 0.035, 0.04)
+	keyboard.material_override = dark
+	laptop.add_child(keyboard)
+
+	# TV de parede, desligada para manter a cena noturna.
+	var tv_frame := _make_box(
+		o + Vector3(-0.1, 2.05, -3.28),
+		Vector3(2.15, 1.22, 0.10),
+		dark
+	)
+	tv_frame.name = "BedroomTV"
+	var tv_screen_mat := StandardMaterial3D.new()
+	tv_screen_mat.albedo_color = Color("111820")
+	tv_screen_mat.metallic = 0.15
+	tv_screen_mat.roughness = 0.18
+	_make_box(
+		o + Vector3(-0.1, 2.05, -3.215),
+		Vector3(1.98, 1.06, 0.025),
+		tv_screen_mat
+	)
+
+	# Criado-mudo e luminária simples.
+	_make_box(
+		o + Vector3(-3.78, 0.42, 1.55),
+		Vector3(0.72, 0.84, 0.72),
+		dark
+	)
+	var lamp := OmniLight3D.new()
+	lamp.position = o + Vector3(-3.78, 1.28, 1.55)
+	lamp.light_color = Color("ffd0a0")
+	lamp.light_energy = 0.68
+	lamp.omni_range = 2.9
+	lamp.shadow_enabled = false
+	add_child(lamp)
 
 	# Livros/cadernos.
 	for i in range(4):
@@ -940,8 +1149,10 @@ func _build_real_world_room() -> void:
 		"RealPhone",
 		o + Vector3(2.85, 1.0, -1.55),
 		1.25,
-		"Ver celular",
-		"real_phone"
+		"Pegar celular",
+		"real_phone",
+		false,
+		true
 	)
 	_make_phone_prop(phone_area, Vector3(0, -0.16, 0))
 	# Estante com materiais da faculdade.
@@ -991,9 +1202,9 @@ func _build_real_world_room() -> void:
 	var room_light := OmniLight3D.new()
 	room_light.position = o + Vector3(0, 2.75, 0)
 	room_light.light_color = Color("ffd6aa")
-	room_light.light_energy = 2.4
-	room_light.omni_range = 8.0
-	room_light.shadow_enabled = true
+	room_light.light_energy = 1.45
+	room_light.omni_range = 7.0
+	room_light.shadow_enabled = false
 	add_child(room_light)
 
 func _build_lost_student_house() -> void:
@@ -1012,13 +1223,20 @@ func _build_lost_student_house() -> void:
 		false,
 		false,
 		true,
-		Vector3(18.4, 0.25, 10.8)
+		Vector3(18.7, 0.08, 10.0)
 	)
 
 	_make_box(
 		LOST_ROOM_ORIGIN + Vector3(-3.3, 0.42, -1.6),
 		Vector3(1.8, 0.46, 3.0),
 		wood
+	)
+	_make_interaction(
+		"RecoveryBed",
+		LOST_ROOM_ORIGIN + Vector3(-3.3, 1.0, -1.15),
+		1.45,
+		"Descansar e registrar despertar",
+		"recovery_bed"
 	)
 	var old_fabric := StandardMaterial3D.new()
 	old_fabric.albedo_color = Color("384c5b")
@@ -1161,6 +1379,7 @@ func _build_story_npc(cfg: Dictionary) -> void:
 	root.name = str(cfg.name)
 	root.position = cfg.pos
 	add_child(root)
+	story_npc_roots.append(root)
 
 	var packed: PackedScene
 	match int(cfg.model):
@@ -1214,13 +1433,14 @@ func _build_story_npc(cfg: Dictionary) -> void:
 		int(cfg.model)
 	)
 
-	_make_interaction(
+	var talk_area := _make_interaction(
 		"Talk%s" % str(cfg.name),
 		root.position + Vector3(0, 0.92, 0),
 		1.6,
 		"Falar com %s" % str(cfg.name),
 		"npc_%s" % str(cfg.name).to_lower()
 	)
+	story_npc_areas.append(talk_area)
 
 func _apply_story_npc_accent(
 	model: Node3D,
@@ -1329,7 +1549,7 @@ func _build_crowwood_access() -> void:
 		true,
 		CROW_DUNGEON_ORIGIN + Vector3(
 			0,
-			0.30,
+			0.08,
 			6.4
 		)
 	)
@@ -1371,7 +1591,7 @@ func _build_crow_dungeon() -> void:
 		false,
 		false,
 		true,
-		Vector3(-69.5, 0.35, -21.5)
+		Vector3(-69.5, 0.08, -21.5)
 	)
 
 	for x in [-7.2, -3.6, 0.0, 3.6, 7.2]:

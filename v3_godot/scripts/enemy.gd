@@ -31,6 +31,8 @@ var anim_player: AnimationPlayer
 var weapon_pivot: Node3D
 var status_label: Label3D
 var marker: MeshInstance3D
+var game_director: Node
+
 func _ready() -> void:
 	add_to_group("enemies")
 	if boss:
@@ -42,6 +44,38 @@ func _ready() -> void:
 	_build_raider()
 	_build_marker()
 	_update_status()
+	call_deferred("_bind_phase_state")
+
+func _bind_phase_state() -> void:
+	game_director = get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if game_director:
+		var cb := Callable(self, "_on_phase_changed")
+		if not game_director.phase_changed.is_connected(cb):
+			game_director.phase_changed.connect(cb)
+	_refresh_phase_state()
+
+func _on_phase_changed(
+	_index: int,
+	_chapter: String
+) -> void:
+	_refresh_phase_state()
+
+func _refresh_phase_state() -> void:
+	var active := _is_active()
+	visible = active
+	var collision := get_node_or_null(
+		"CollisionShape3D"
+	) as CollisionShape3D
+	if collision:
+		collision.set_deferred(
+			"disabled",
+			not active
+		)
+	set_physics_process(active)
+	if not active:
+		_set_combat_visuals(false)
 
 func _physics_process(delta: float) -> void:
 	attack_cd = maxf(0.0, attack_cd - delta)
@@ -57,8 +91,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if not _is_active():
-		_set_combat_visuals(false)
-		_return_home()
+		_refresh_phase_state()
 		return
 
 	if stagger_time > 0.0:
@@ -508,3 +541,25 @@ func _set_combat_visuals(enabled: bool) -> void:
 		marker.visible = enabled
 	if status_label:
 		status_label.visible = enabled
+
+
+func reset_after_player_death() -> void:
+	if health <= 0:
+		return
+
+	velocity = Vector3.ZERO
+	knockback = Vector3.ZERO
+	attack_cd = 0.75
+	swing_time = 0.0
+	stagger_time = 0.0
+	global_position = home_position
+
+	# Bosses reiniciam a tentativa por completo para evitar
+	# dano acumulado entre mortes do jogador.
+	if boss:
+		health = max_health
+		_update_status()
+
+	_set_combat_visuals(false)
+	if anim_player:
+		_play_loop("CharacterArmature|Idle")

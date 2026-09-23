@@ -79,7 +79,7 @@ func _lighting() -> void:
 	$Sun.light_color = Color("ffe2b8")
 	$Sun.light_energy = 1.62
 	$Sun.shadow_enabled = true
-	$Sun.directional_shadow_max_distance = 110.0
+	$Sun.directional_shadow_max_distance = 72.0
 
 	var rim := DirectionalLight3D.new()
 	rim.name = "ColdRim"
@@ -94,6 +94,33 @@ func _authored_village() -> void:
 	_mesh(HOUSE, Vector3(11.5, 0, -11.0), -0.42, 1.48)
 	_mesh(HOUSE, Vector3(-13.2, 0, 3.5), 1.08, 1.38)
 	_mesh(BLACKSMITH, Vector3(12.5, 0, 4.5), -0.82, 1.35)
+
+	# Casa de recuperação do protagonista. Ela precisa existir no mundo
+	# porque é o ponto narrativo para onde ele desperta após morrer.
+	var recovery_house_pos := Vector3(
+		18.7,
+		_ground_y(18.7, 12.4),
+		12.4
+	)
+	var recovery_house := _mesh(
+		HOUSE,
+		recovery_house_pos,
+		PI,
+		1.42
+	)
+	recovery_house.name = "RecoveryHouseExterior"
+
+	_make_torch(Vector3(
+		16.8,
+		_ground_y(16.8, 10.3),
+		10.3
+	))
+	_make_torch(Vector3(
+		20.6,
+		_ground_y(20.6, 10.3),
+		10.3
+	))
+
 	_mesh(BONFIRE, Vector3(0, 0.02, -6.0), 0.0, 2.55)
 
 	for i in range(6):
@@ -117,7 +144,7 @@ func _mesh(
 	pos: Vector3,
 	yaw: float,
 	scale_value: float
-) -> void:
+) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.position = pos
 	body.rotation.y = yaw
@@ -133,6 +160,7 @@ func _mesh(
 	collision.shape = shape
 	body.add_child(collision)
 	add_child(body)
+	return body
 
 func _bonfire_light() -> void:
 	var light := OmniLight3D.new()
@@ -140,7 +168,7 @@ func _bonfire_light() -> void:
 	light.light_color = Color("ff9a45")
 	light.light_energy = 4.2
 	light.omni_range = 12.0
-	light.shadow_enabled = true
+	light.shadow_enabled = false
 	add_child(light)
 
 func _bonfire_particles() -> void:
@@ -172,26 +200,7 @@ func _bonfire_particles() -> void:
 	add_child(particles)
 
 func _forest_edge() -> void:
-	for i in range(96):
-		var angle := float(i) * 2.399963
-		var radius := 34.0 + float((i * 11) % 53)
-		var x := cos(angle) * radius
-		var z := sin(angle) * radius
-
-		if absf(x) < 10.0 and z > -32.0 and z < 76.0:
-			continue
-		if x < -33.0 and x > -52.0 and absf(z) < 65.0:
-			continue
-
-		var pos := Vector3(
-			x,
-			_ground_y(x, z),
-			z
-		)
-		_pine(
-			pos,
-			0.82 + float(i % 7) * 0.095
-		)
+	_build_forest_multimesh()
 
 func _pine(pos: Vector3, size: float) -> void:
 	var root := StaticBody3D.new()
@@ -315,6 +324,10 @@ func _boss_arena() -> void:
 	add_child(arena)
 
 	for i in range(10):
+		# Mantém uma entrada física larga voltada para Valdrak.
+		# As duas pedras do setor norte bloqueavam a aproximação ao boss.
+		if i == 2 or i == 3:
+			continue
 		var angle := TAU * float(i) / 10.0
 		var rock := StaticBody3D.new()
 		rock.position = Vector3(
@@ -542,7 +555,7 @@ func _dream_motes() -> void:
 	var particles := GPUParticles3D.new()
 	particles.name = "DreamMotes"
 	particles.position = Vector3(0, 4.0, 8.0)
-	particles.amount = 110
+	particles.amount = 50
 	particles.lifetime = 7.0
 	particles.randomness = 0.9
 	particles.visibility_aabb = AABB(
@@ -592,7 +605,7 @@ func _crowwood_region() -> void:
 	crow_trunk.albedo_color = Color("241c1a")
 	crow_trunk.roughness = 0.95
 
-	for i in range(34):
+	for i in range(18):
 		var angle := float(i) * 2.399963
 		var radius := 6.0 + float((i * 9) % 21)
 		var x := -58.0 + cos(angle) * radius
@@ -691,3 +704,100 @@ func _crowwood_region() -> void:
 		mark.material_override = mark_mat
 		rune_root.add_child(mark)
 		add_child(rune_root)
+
+func _build_forest_multimesh() -> void:
+	var entries: Array[Dictionary] = []
+	for i in range(44):
+		var angle := float(i) * 2.399963
+		var radius := 34.0 + float((i * 11) % 53)
+		var x := cos(angle) * radius
+		var z := sin(angle) * radius
+		if absf(x) < 10.0 and z > -32.0 and z < 76.0:
+			continue
+		if x < -33.0 and x > -52.0 and absf(z) < 65.0:
+			continue
+		entries.append({
+			"pos": Vector3(x, _ground_y(x, z), z),
+			"scale": 0.82 + float(i % 7) * 0.095
+		})
+
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.13
+	trunk_mesh.bottom_radius = 0.23
+	trunk_mesh.height = 3.1
+	_add_forest_layer(
+		"ForestTrunks",
+		trunk_mesh,
+		trunk_material,
+		entries,
+		1.55
+	)
+
+	for tier in range(4):
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 1.45 - tier * 0.19
+		cone.height = 2.15
+		_add_forest_layer(
+			"ForestLeaves%d" % tier,
+			cone,
+			leaf_material,
+			entries,
+			2.65 + tier * 0.76
+		)
+
+	var collision_body := StaticBody3D.new()
+	collision_body.name = "ForestTreeCollisions"
+	for i in range(entries.size()):
+		if i % 4 != 0:
+			continue
+		var entry: Dictionary = entries[i]
+		var pos: Vector3 = entry["pos"]
+		var scale_value: float = float(entry["scale"])
+		var collision := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = 0.28 * scale_value
+		shape.height = 3.0 * scale_value
+		collision.shape = shape
+		collision.position = pos + Vector3(
+			0,
+			1.5 * scale_value,
+			0
+		)
+		collision_body.add_child(collision)
+	add_child(collision_body)
+
+func _add_forest_layer(
+	node_name: String,
+	mesh: Mesh,
+	material: Material,
+	entries: Array[Dictionary],
+	y_offset: float
+) -> void:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.instance_count = entries.size()
+	multi.mesh = mesh
+	for i in range(entries.size()):
+		var entry: Dictionary = entries[i]
+		var pos: Vector3 = entry["pos"]
+		var scale_value: float = float(entry["scale"])
+		var basis := Basis().scaled(
+			Vector3.ONE * scale_value
+		)
+		multi.set_instance_transform(
+			i,
+			Transform3D(
+				basis,
+				pos + Vector3(
+					0,
+					y_offset * scale_value,
+					0
+				)
+			)
+		)
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	instance.multimesh = multi
+	instance.material_override = material
+	add_child(instance)

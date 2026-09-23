@@ -36,7 +36,12 @@ func interact(player: Node) -> void:
 
 func _activate(player: Node) -> void:
 	if teleport_enabled:
-		if player.has_method("teleport_to"):
+		if player.has_method("transition_teleport_to"):
+			player.transition_teleport_to(
+				target_position,
+				prompt_text
+			)
+		elif player.has_method("teleport_to"):
 			player.teleport_to(target_position)
 		elif player is Node3D:
 			player.global_position = target_position

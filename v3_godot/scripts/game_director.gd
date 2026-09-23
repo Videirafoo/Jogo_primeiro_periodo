@@ -83,7 +83,23 @@ func handle_event(event_id: String) -> void:
 		return
 
 	match event_id:
+		"real_room_door":
+			show_story(
+				"MEMÓRIA",
+				"É tarde. A porta está fechada e amanhã tem prova. Melhor olhar o celular e dormir.",
+				4.5
+			)
 		"real_phone":
+			var audio := get_tree().get_first_node_in_group(
+				"audio_manager"
+			)
+			if audio and audio.has_method("play_sfx"):
+				audio.play_sfx("phone")
+			var player := get_tree().get_first_node_in_group(
+				"player"
+			)
+			if player and player.has_method("pickup_phone"):
+				player.pickup_phone()
 			if objective_id == "check_phone":
 				_set_objective(
 					"sleep",
@@ -98,9 +114,14 @@ func handle_event(event_id: String) -> void:
 				)
 		"dream_begin":
 			if objective_id == "sleep":
+				var audio := get_tree().get_first_node_in_group(
+					"audio_manager"
+				)
+				if audio and audio.has_method("play_sfx"):
+					audio.play_sfx("sleep")
 				transition_requested.emit(
 					"ADORMECENDO",
-					"Um som de notificação continua mesmo depois da tela apagar.",
+					"O quarto desaparece no escuro. Quando você abre os olhos, o ar está gelado.",
 					4.0
 				)
 				show_story(
@@ -111,9 +132,11 @@ func handle_event(event_id: String) -> void:
 				await get_tree().create_timer(1.8).timeout
 				var player := get_tree().get_first_node_in_group("player")
 				if player and player.has_method("teleport_to"):
-					player.teleport_to(Vector3(0, 4.6, 58.0))
+					player.teleport_to(Vector3(0, 0.28, 58.0))
 					if player.has_method("set_checkpoint"):
-						player.set_checkpoint(Vector3(0, 0.8, 58.0))
+						player.set_checkpoint(Vector3(0, 0.28, 58.0))
+					if player.has_method("unlock_starting_sword"):
+						player.unlock_starting_sword()
 				phase_index = 0
 				chapter_name = "CAPÍTULO I // A CHEGADA"
 				phase_changed.emit(phase_index, chapter_name)
@@ -272,6 +295,62 @@ func handle_event(event_id: String) -> void:
 					"Você trouxe a runa até mim. Agora traga também o seu nome.",
 					6.0
 				)
+		"arena_entry":
+			var player := get_tree().get_first_node_in_group(
+				"player"
+			)
+			if objective_id == "defeat_boss":
+				if player and player.has_method(
+					"transition_teleport_to"
+				):
+					player.transition_teleport_to(
+						Vector3(0, 0.18, -27.4),
+						"ARENA DE VORUN"
+					)
+			elif phase_index < 2:
+				show_story(
+					"PORTÃO DOS ETERNOS",
+					"A runa ainda não abriu o caminho para a arena.",
+					3.5
+				)
+		"player_death":
+			for enemy in get_tree().get_nodes_in_group(
+				"enemies"
+			):
+				if enemy.has_method(
+					"reset_after_player_death"
+				):
+					enemy.reset_after_player_death()
+
+			var profile := _profile()
+			if profile:
+				profile.register_discovery(
+					"recovery_house"
+				)
+			show_story(
+				"CASA DO DESPERTO",
+				"Você abre os olhos em outra cama. Alguém em Valdrak já sabia que você voltaria.",
+				5.2
+			)
+		"recovery_bed":
+			var player := get_tree().get_first_node_in_group(
+				"player"
+			)
+			if player:
+				player.health = 120
+				player.stamina = 100.0
+				if player.has_method("set_checkpoint"):
+					player.set_checkpoint(
+						player.global_position
+					)
+			var profile := _profile()
+			if profile:
+				profile.save_game()
+			show_story(
+				"CASA DO DESPERTO",
+				"O sonho registra este quarto como abrigo seguro.",
+				4.0
+			)
 		"bonfire_rest":
 			var player := get_tree().get_first_node_in_group("player")
 			if player:

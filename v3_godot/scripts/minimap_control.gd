@@ -10,6 +10,8 @@ var pois := [
 	{"name":"FORJA","pos":Vector2(12,5),"color":Color("ff9e62")},
 	{"name":"TAVERNA","pos":Vector2(-13,4),"color":Color("d8b46b")},
 	{"name":"CRÔNICAS","pos":Vector2(-11,-10),"color":Color("b99cff")},
+	{"name":"DESPERTO","pos":Vector2(18.7,10.3),"color":Color("8ae8ff")},
+	{"name":"VORUN","pos":Vector2(0,-34),"color":Color("d86cff")},
 	{"name":"CORVOS","pos":Vector2(-44,-8),"color":Color("76d8ae")},
 	{"name":"MASMORRA","pos":Vector2(-72,-24),"color":Color("a875ff")},
 	{"name":"REGIÃO II","pos":Vector2(72,42),"color":Color("69e7f5")}
@@ -33,6 +35,8 @@ func _process(_delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if director and int(director.phase_index) < 0:
+		return
 	var rect := Rect2(
 		Vector2.ZERO,
 		size
@@ -139,6 +143,10 @@ func _map(world: Vector2) -> Vector2:
 	)
 
 func _poi_visible(name: String) -> bool:
+	if name == "DESPERTO":
+		return director and int(director.phase_index) >= 1
+	if name == "VORUN":
+		return director and int(director.phase_index) >= 2
 	if name == "CORVOS" or name == "MASMORRA":
 		return director and int(director.phase_index) >= 3
 	if name == "REGIÃO II":

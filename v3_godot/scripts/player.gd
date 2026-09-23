@@ -44,7 +44,11 @@ var facing := Vector3.FORWARD
 var dodge_direction := Vector3.FORWARD
 var lock_target: Node3D
 var current_interactable: Node
-var respawn_position := Vector3(120, 30.25, 122.0)
+var respawn_position := Vector3(120, 30.20, 120.85)
+var last_safe_position := Vector3(120, 30.20, 120.85)
+var phone_owned := false
+var phone_action_time := 0.0
+var transition_lock_time := 0.0
 
 var model_root: Node3D
 var anim_player: AnimationPlayer
@@ -54,11 +58,17 @@ var weapon_pivot: Node3D
 var weapon_roots: Array[Node3D] = []
 var weapon_index := 0
 var weapon_unlocked := false
+var unlocked_weapon_count := 0
 var skeleton: Skeleton3D
 var phone_root: Node3D
 var phone_screen: MeshInstance3D
 var phone_light: OmniLight3D
+var phone_holo_root: Node3D
 var weapon_rune_light: OmniLight3D
+var weapon_ik: SkeletonIK3D
+var phone_ik: SkeletonIK3D
+var right_hand_target: Node3D
+var left_hand_target: Node3D
 var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(-12.0)
 var camera_manual_timer := 0.0
@@ -71,14 +81,19 @@ var motion_phase := 0.0
 func _ready() -> void:
 	add_to_group("player")
 	respawn_position = global_position
+	last_safe_position = global_position
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_collision()
 	_build_student()
 	_build_backpack()
 	_build_phone()
 	_build_weapon()
+	_build_combat_ik()
 	_build_animation_tree()
 	spring_arm.add_excluded_object(get_rid())
+	if global_position.x > 100.0:
+		camera_yaw = 0.0
+		facing = Vector3(0, 0, -1)
 	_apply_camera_rotation()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -113,10 +128,25 @@ func _physics_process(delta: float) -> void:
 	combo_window = maxf(0.0, combo_window - delta)
 	stamina_regen_delay = maxf(0.0, stamina_regen_delay - delta)
 	camera_manual_timer = maxf(0.0, camera_manual_timer - delta)
+	phone_action_time = maxf(0.0, phone_action_time - delta)
+	transition_lock_time = maxf(
+		0.0,
+		transition_lock_time - delta
+	)
+	if phone_root and phone_action_time <= 0.0:
+		phone_root.visible = false
+		if phone_ik:
+			phone_ik.influence = 0.0
 
 	if combo_window <= 0.0 and attack_time <= 0.0:
 		combo_step = 0
 
+	if transition_lock_time > 0.0:
+		velocity = Vector3.ZERO
+		_update_zone_safety_and_camera(delta)
+		return
+
+	_update_weapon_idle_pose(delta)
 	_validate_lock_target()
 	_update_lock_camera(delta)
 	var input := Input.get_vector(
@@ -166,9 +196,13 @@ func _physics_process(delta: float) -> void:
 	velocity.y = -1.0
 	move_and_slide()
 
+	if is_on_floor() and absf(velocity.y) < 2.0:
+		last_safe_position = global_position
+
 	_rotate_model(delta)
 	_update_locomotion(direction.length(), running)
 	_visual_motion(delta, direction.length(), running)
+	_update_zone_safety_and_camera(delta)
 
 	if Input.is_action_just_pressed("attack"):
 		_light_attack()
@@ -335,6 +369,8 @@ func _light_attack() -> void:
 	_set_attack_rate(anim_rate)
 	_fire_one_shot("AttackShot")
 	_play_weapon_arc(false)
+	_play_weapon_ik(false)
+	_play_sfx("swing")
 	_queue_attack_hit(
 		damage,
 		hit_delay,
@@ -371,6 +407,8 @@ func _heavy_attack() -> void:
 	_set_attack_rate(0.70 * speed_mult)
 	_fire_one_shot("AttackShot")
 	_play_weapon_arc(true)
+	_play_weapon_ik(true)
+	_play_sfx("swing")
 	_queue_attack_hit(
 		damage,
 		0.29 / speed_mult,
@@ -422,6 +460,7 @@ func _deal_attack_hit(
 		var target := hits[i]
 		if target.has_method("take_hit"):
 			target.take_hit(damage, facing.normalized())
+			_play_sfx("impact")
 
 func take_hit(amount: int) -> void:
 	if parry_time > 0.0:
@@ -441,10 +480,9 @@ func take_hit(amount: int) -> void:
 	invuln_time = 0.45
 	health -= amount
 	_fire_one_shot("HitShot")
+	_play_sfx("impact")
 	if health <= 0:
-		health = 120
-		stamina = MAX_STAMINA
-		teleport_to(respawn_position)
+		_recover_after_death()
 
 func _parry() -> void:
 	if not weapon_unlocked:
@@ -571,10 +609,10 @@ func _build_weapon() -> void:
 	weapon_pivot.scale = Vector3.ONE / inherited_scale
 	weapon_pivot.position = Vector3(
 		0.0,
-		-0.03,
-		0.02
+		0.02,
+		0.0
 	) / inherited_scale
-	weapon_pivot.rotation_degrees = Vector3(0, 90, -92)
+	weapon_pivot.rotation_degrees = Vector3.ZERO
 	attachment.add_child(weapon_pivot)
 
 	weapon_roots.clear()
@@ -708,6 +746,7 @@ func set_checkpoint(target: Vector3) -> void:
 
 func teleport_to(target: Vector3) -> void:
 	global_position = target
+	last_safe_position = target
 	velocity = Vector3.ZERO
 	lock_target = null
 	current_interactable = null
@@ -787,9 +826,10 @@ func _build_phone() -> void:
 		0.001
 	)
 	phone_root.scale = Vector3.ONE / inherited_scale
-	phone_root.position = Vector3(0.02, -0.01, 0.04) / inherited_scale
-	phone_root.rotation_degrees = Vector3(8, -18, 8)
+	phone_root.position = Vector3(0.0, 0.07, -0.015) / inherited_scale
+	phone_root.rotation_degrees = Vector3(0, 0, 0)
 	attachment.add_child(phone_root)
+	phone_root.visible = false
 
 	var shell := MeshInstance3D.new()
 	var shell_mesh := BoxMesh.new()
@@ -822,6 +862,8 @@ func _build_phone() -> void:
 	phone_light.omni_range = 1.2
 	phone_light.position = Vector3(0, 0, -0.035)
 	phone_root.add_child(phone_light)
+
+	_build_phone_hologram()
 
 func _build_weapon_details() -> void:
 	if not weapon_pivot:
@@ -874,6 +916,19 @@ func _build_weapon_details() -> void:
 	weapon_rune_light.position = Vector3(0, 0.05, 0.04)
 	weapon_pivot.add_child(weapon_rune_light)
 func _phone_scan() -> void:
+	if not phone_owned:
+		var director := get_tree().get_first_node_in_group(
+			"game_director"
+		)
+		if director:
+			director.show_story(
+				"CELULAR",
+				"O celular ainda está sobre a escrivaninha.",
+				2.8
+			)
+		return
+
+	_present_phone(1.8)
 	_spawn_phone_scan_pulse()
 	if phone_light:
 		phone_light.light_energy = 3.5
@@ -1006,9 +1061,9 @@ func _spawn_phone_scan_pulse() -> void:
 
 func _weapon_metal() -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("66747c")
-	mat.metallic = 0.82
-	mat.roughness = 0.24
+	mat.albedo_color = Color("b9c6cc")
+	mat.metallic = 0.88
+	mat.roughness = 0.20
 	return mat
 
 func _weapon_dark_metal() -> StandardMaterial3D:
@@ -1037,13 +1092,15 @@ func _weapon_rune() -> StandardMaterial3D:
 func _build_player_sword() -> Node3D:
 	var root := Node3D.new()
 	root.name = "RunicSword"
+	root.rotation_degrees.z = -12.0
 	weapon_pivot.add_child(root)
 
 	var blade := MeshInstance3D.new()
 	blade.mesh = preload("res://assets/weapons/LongSword.obj")
 	blade.scale = Vector3.ONE * 0.235
-	blade.position = Vector3(0, -0.18, 0)
-	blade.material_overlay = _weapon_metal()
+	blade.position = Vector3.ZERO
+	blade.rotation_degrees = Vector3(90, 0, 0)
+	blade.material_override = _weapon_metal()
 	root.add_child(blade)
 
 	var guard := MeshInstance3D.new()
@@ -1076,13 +1133,15 @@ func _build_player_sword() -> Node3D:
 func _build_player_axe() -> Node3D:
 	var root := Node3D.new()
 	root.name = "RunicAxe"
+	root.rotation_degrees.z = -9.0
 	weapon_pivot.add_child(root)
 
 	var axe := MeshInstance3D.new()
 	axe.mesh = AXE
 	axe.scale = Vector3.ONE * 0.245
-	axe.position = Vector3(0, -0.17, 0)
-	axe.material_overlay = _weapon_metal()
+	axe.position = Vector3(0, 0.02, 0)
+	axe.rotation_degrees = Vector3(0, 0, -4)
+	axe.material_override = _weapon_metal()
 	root.add_child(axe)
 
 	for y in [-0.33, -0.25, -0.17]:
@@ -1119,41 +1178,42 @@ func _build_player_axe() -> Node3D:
 func _build_player_hammer() -> Node3D:
 	var root := Node3D.new()
 	root.name = "RunicHammer"
+	root.rotation_degrees.z = -7.0
 	weapon_pivot.add_child(root)
 
 	var handle := MeshInstance3D.new()
 	var handle_mesh := CylinderMesh.new()
 	handle_mesh.top_radius = 0.045
 	handle_mesh.bottom_radius = 0.058
-	handle_mesh.height = 0.98
+	handle_mesh.height = 0.76
 	handle.mesh = handle_mesh
-	handle.position.y = -0.28
+	handle.position.y = -0.22
 	handle.material_override = _weapon_wood()
 	root.add_child(handle)
 
 	var head := MeshInstance3D.new()
 	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.62, 0.31, 0.34)
+	head_mesh.size = Vector3(0.38, 0.22, 0.24)
 	head.mesh = head_mesh
-	head.position.y = 0.24
-	head.material_override = _weapon_dark_metal()
+	head.position.y = 0.20
+	head.material_override = _weapon_metal()
 	root.add_child(head)
 
-	for x in [-0.255, 0.255]:
+	for x in [-0.16, 0.16]:
 		var cap := MeshInstance3D.new()
 		var cap_mesh := BoxMesh.new()
-		cap_mesh.size = Vector3(0.09, 0.34, 0.38)
+		cap_mesh.size = Vector3(0.065, 0.24, 0.27)
 		cap.mesh = cap_mesh
-		cap.position = Vector3(x, 0.24, 0)
+		cap.position = Vector3(x, 0.20, 0)
 		cap.material_override = _weapon_metal()
 		root.add_child(cap)
 
-	for z in [-0.18, 0.18]:
+	for z in [-0.13, 0.13]:
 		var rune_plate := MeshInstance3D.new()
 		var plate_mesh := BoxMesh.new()
-		plate_mesh.size = Vector3(0.34, 0.12, 0.025)
+		plate_mesh.size = Vector3(0.24, 0.09, 0.018)
 		rune_plate.mesh = plate_mesh
-		rune_plate.position = Vector3(0, 0.24, z)
+		rune_plate.position = Vector3(0, 0.20, z)
 		rune_plate.material_override = _weapon_rune()
 		root.add_child(rune_plate)
 
@@ -1162,16 +1222,22 @@ func _refresh_weapon_visibility() -> void:
 	for i in range(weapon_roots.size()):
 		weapon_roots[i].visible = (
 			weapon_unlocked
+			and i < unlocked_weapon_count
 			and i == weapon_index
 		)
 	if weapon_rune_light:
 		weapon_rune_light.visible = weapon_unlocked
 
-func unlock_weapons() -> void:
-	if weapon_unlocked:
-		return
+func unlock_starting_sword() -> void:
 	weapon_unlocked = true
+	unlocked_weapon_count = maxi(unlocked_weapon_count, 1)
 	weapon_index = 0
+	_refresh_weapon_visibility()
+
+func unlock_weapons() -> void:
+	weapon_unlocked = true
+	unlocked_weapon_count = 3
+	weapon_index = clampi(weapon_index, 0, 2)
 	_refresh_weapon_visibility()
 	var director := get_tree().get_first_node_in_group(
 		"game_director"
@@ -1185,6 +1251,8 @@ func unlock_weapons() -> void:
 
 func equip_weapon(index: int) -> void:
 	if not weapon_unlocked:
+		return
+	if index < 0 or index >= unlocked_weapon_count:
 		return
 	weapon_index = clampi(index, 0, weapon_roots.size() - 1)
 	_refresh_weapon_visibility()
@@ -1260,24 +1328,28 @@ func _set_weapon_attack_animation(heavy: bool) -> void:
 func _play_weapon_arc(heavy: bool) -> void:
 	if not weapon_pivot:
 		return
-	var start := weapon_pivot.rotation_degrees
-	var windup := Vector3(-22, 42, -132)
-	var impact := Vector3(18, 118, -38)
+	var start := Vector3.ZERO
+	var windup := Vector3(-8, -10, -18)
+	var impact := Vector3(6, 22, 14)
 
 	match weapon_index:
 		0:
-			windup = Vector3(-8, 34, -145)
-			impact = Vector3(12, 132, -42)
+			windup = Vector3(-6, -12, -24)
+			impact = Vector3(7, 28, 18)
 		1:
-			windup = Vector3(-34, 18, -122)
-			impact = Vector3(30, 110, -28)
+			windup = Vector3(-12, -8, -28)
+			impact = Vector3(10, 24, 20)
 		2:
-			windup = Vector3(-58, 14, -152)
-			impact = Vector3(42, 98, -18)
+			windup = Vector3(-18, -4, -32)
+			impact = Vector3(12, 18, 16)
 
-	var windup_time := 0.10 if not heavy else 0.18
-	var impact_time := 0.12 if not heavy else 0.20
-	var recover_time := 0.14 if not heavy else 0.24
+	if heavy:
+		windup *= 1.20
+		impact *= 1.16
+
+	var windup_time := 0.09 if not heavy else 0.16
+	var impact_time := 0.11 if not heavy else 0.18
+	var recover_time := 0.12 if not heavy else 0.20
 
 	var tween := create_tween()
 	tween.tween_property(
@@ -1340,3 +1412,391 @@ func _play_parry_flash() -> void:
 		0.18
 	)
 	tween.tween_callback(flash.queue_free)
+
+
+func pickup_phone() -> void:
+	phone_owned = true
+	_play_sfx("phone")
+	_present_phone(2.8)
+
+func _present_phone(duration: float) -> void:
+	if not phone_root:
+		return
+	phone_action_time = maxf(phone_action_time, duration)
+	phone_root.visible = true
+
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	var runic_mode := (
+		director
+		and int(director.phase_index) >= 0
+	)
+	if phone_holo_root:
+		phone_holo_root.visible = runic_mode
+
+	if phone_ik and left_hand_target:
+		left_hand_target.global_position = _combat_target_world(
+			Vector3(-0.30, 0.98, 0.38)
+		)
+		phone_ik.influence = 0.94
+		if not phone_ik.is_running():
+			phone_ik.start(false)
+
+	var target_rotation := Vector3(-10, -4, -8)
+	if runic_mode:
+		target_rotation = Vector3(-18, -8, -12)
+	var tween := create_tween()
+	tween.set_trans(
+		Tween.TRANS_QUAD
+	)
+	tween.set_ease(
+		Tween.EASE_OUT
+	)
+	tween.tween_property(
+		phone_root,
+		"rotation_degrees",
+		target_rotation,
+		0.16
+	)
+
+func _build_phone_hologram() -> void:
+	if not phone_root:
+		return
+	phone_holo_root = Node3D.new()
+	phone_holo_root.name = "RunicPhoneHologram"
+	phone_holo_root.position = Vector3(
+		0,
+		0.16,
+		-0.03
+	)
+	phone_root.add_child(phone_holo_root)
+
+	var holo_mat := StandardMaterial3D.new()
+	holo_mat.shading_mode = (
+		BaseMaterial3D.SHADING_MODE_UNSHADED
+	)
+	holo_mat.transparency = (
+		BaseMaterial3D.TRANSPARENCY_ALPHA
+	)
+	holo_mat.albedo_color = Color(
+		0.18,
+		0.92,
+		1.0,
+		0.72
+	)
+	holo_mat.emission_enabled = true
+	holo_mat.emission = Color("36e8ff")
+	holo_mat.emission_energy_multiplier = 2.8
+
+	var panel := MeshInstance3D.new()
+	var panel_mesh := BoxMesh.new()
+	panel_mesh.size = Vector3(
+		0.24,
+		0.13,
+		0.004
+	)
+	panel.mesh = panel_mesh
+	panel.material_override = holo_mat
+	phone_holo_root.add_child(panel)
+
+	for x in [-0.075, 0.0, 0.075]:
+		var line := MeshInstance3D.new()
+		var line_mesh := BoxMesh.new()
+		line_mesh.size = Vector3(
+			0.018,
+			0.095,
+			0.008
+		)
+		line.mesh = line_mesh
+		line.position = Vector3(
+			x,
+			0,
+			-0.008
+		)
+		line.material_override = holo_mat
+		phone_holo_root.add_child(line)
+
+	var ring := MeshInstance3D.new()
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 0.035
+	ring_mesh.outer_radius = 0.045
+	ring_mesh.rings = 18
+	ring_mesh.ring_segments = 8
+	ring.mesh = ring_mesh
+	ring.position = Vector3(
+		0,
+		0,
+		-0.014
+	)
+	ring.rotation_degrees.x = 90
+	ring.material_override = holo_mat
+	phone_holo_root.add_child(ring)
+	phone_holo_root.visible = false
+
+func _update_zone_safety_and_camera(delta: float) -> void:
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	var phase := (
+		int(director.phase_index)
+		if director
+		else -1
+	)
+
+	var target_arm := 4.15
+	var target_fov := 64.0
+	if phase < 0:
+		target_arm = 2.15
+		target_fov = 59.0
+	elif global_position.y > 14.0:
+		target_arm = 2.65
+		target_fov = 61.5
+
+	spring_arm.spring_length = lerpf(
+		spring_arm.spring_length,
+		target_arm,
+		clampf(delta * 8.0, 0.0, 1.0)
+	)
+	camera.fov = lerpf(
+		camera.fov,
+		target_fov,
+		clampf(delta * 6.0, 0.0, 1.0)
+	)
+
+	if phase < 0:
+		var outside_room := (
+			global_position.x < 115.75
+			or global_position.x > 124.25
+			or global_position.z < 116.65
+			or global_position.z > 123.30
+			or global_position.y < 29.35
+			or global_position.y > 34.20
+		)
+		if outside_room:
+			teleport_to(
+				Vector3(120, 30.20, 120.85)
+			)
+	elif (
+		global_position.y < -8.0
+		or global_position.y < last_safe_position.y - 5.0
+	):
+		teleport_to(last_safe_position)
+
+
+func _recover_after_death() -> void:
+	health = 120
+	stamina = MAX_STAMINA
+	attack_time = 0.0
+	dodge_time = 0.0
+	parry_time = 0.0
+	lock_target = null
+
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if director and int(director.phase_index) >= 0:
+		var recovery_spawn := Vector3(
+			48.0,
+			18.08,
+			85.25
+		)
+		transition_teleport_to(
+			recovery_spawn,
+			"CASA DO DESPERTO"
+		)
+		if director.has_method("handle_event"):
+			director.handle_event("player_death")
+	else:
+		transition_teleport_to(
+			Vector3(120, 30.20, 120.85),
+			"QUARTO"
+		)
+
+func transition_teleport_to(
+	target: Vector3,
+	title := "TRANSIÇÃO"
+) -> void:
+	transition_lock_time = maxf(
+		transition_lock_time,
+		0.90
+	)
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if director and director.has_signal("transition_requested"):
+		director.transition_requested.emit(
+			title,
+			"",
+			0.9
+		)
+
+	var timer := get_tree().create_timer(0.56)
+	timer.timeout.connect(
+		func():
+			teleport_to(target)
+	)
+
+func _build_combat_ik() -> void:
+	if not skeleton:
+		return
+
+	right_hand_target = Node3D.new()
+	right_hand_target.name = "RightHandIKTarget"
+	add_child(right_hand_target)
+	right_hand_target.global_position = _bone_world_position(
+		"Fist.R"
+	)
+
+	left_hand_target = Node3D.new()
+	left_hand_target.name = "LeftHandIKTarget"
+	add_child(left_hand_target)
+	left_hand_target.global_position = _bone_world_position(
+		"Fist.L"
+	)
+
+	weapon_ik = SkeletonIK3D.new()
+	weapon_ik.name = "WeaponArmIK"
+	weapon_ik.root_bone = "UpperArm.R"
+	weapon_ik.tip_bone = "Fist.R"
+	weapon_ik.influence = 0.0
+	skeleton.add_child(weapon_ik)
+	weapon_ik.target_node = weapon_ik.get_path_to(
+		right_hand_target
+	)
+	weapon_ik.start(false)
+
+	phone_ik = SkeletonIK3D.new()
+	phone_ik.name = "PhoneArmIK"
+	phone_ik.root_bone = "UpperArm.L"
+	phone_ik.tip_bone = "Fist.L"
+	phone_ik.influence = 0.0
+	skeleton.add_child(phone_ik)
+	phone_ik.target_node = phone_ik.get_path_to(
+		left_hand_target
+	)
+	phone_ik.start(false)
+
+func _bone_world_position(bone_name: String) -> Vector3:
+	if not skeleton:
+		return global_position
+	var index := skeleton.find_bone(bone_name)
+	if index < 0:
+		return global_position
+	var pose := skeleton.get_bone_global_pose(index)
+	return (
+		skeleton.global_transform
+		* pose
+	).origin
+
+func _combat_target_world(offset: Vector3) -> Vector3:
+	var forward := facing
+	if forward.length_squared() < 0.001:
+		forward = Vector3.FORWARD
+	forward.y = 0.0
+	forward = forward.normalized()
+	var right := forward.cross(Vector3.UP).normalized()
+	return (
+		global_position
+		+ right * offset.x
+		+ Vector3.UP * offset.y
+		+ forward * offset.z
+	)
+
+func _update_weapon_idle_pose(delta: float) -> void:
+	if not weapon_ik or not right_hand_target:
+		return
+
+	if not weapon_unlocked:
+		weapon_ik.influence = lerpf(
+			weapon_ik.influence,
+			0.0,
+			clampf(delta * 8.0, 0.0, 1.0)
+		)
+		return
+
+	if (
+		attack_time > 0.0
+		or dodge_time > 0.0
+		or parry_time > 0.0
+	):
+		return
+
+	if not weapon_ik.is_running():
+		weapon_ik.start(false)
+
+	var idle_offset := Vector3(0.36, 0.72, 0.16)
+	match weapon_index:
+		1:
+			idle_offset = Vector3(0.38, 0.74, 0.13)
+		2:
+			idle_offset = Vector3(0.40, 0.78, 0.08)
+
+	right_hand_target.global_position = _combat_target_world(
+		idle_offset
+	)
+	weapon_ik.influence = lerpf(
+		weapon_ik.influence,
+		0.34,
+		clampf(delta * 7.5, 0.0, 1.0)
+	)
+
+func _play_weapon_ik(heavy: bool) -> void:
+	if not weapon_ik or not right_hand_target:
+		return
+	if not weapon_ik.is_running():
+		weapon_ik.start(false)
+
+	var windup := Vector3(0.46, 1.42, 0.10)
+	var impact := Vector3(-0.20, 1.02, 0.78)
+
+	match weapon_index:
+		0:
+			windup = Vector3(0.48, 1.40, 0.04)
+			impact = Vector3(-0.26, 1.05, 0.86)
+		1:
+			windup = Vector3(0.50, 1.58, 0.02)
+			impact = Vector3(-0.08, 0.91, 0.86)
+		2:
+			windup = Vector3(0.28, 1.78, 0.06)
+			impact = Vector3(0.02, 0.78, 0.92)
+
+	if heavy:
+		windup.y += 0.14
+		impact.y -= 0.10
+		impact.z += 0.10
+
+	right_hand_target.global_position = _combat_target_world(
+		windup
+	)
+	weapon_ik.influence = 0.88
+
+	var strike_time := (
+		0.18 if not heavy else 0.28
+	)
+	var recover_time := (
+		0.14 if not heavy else 0.22
+	)
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(
+		right_hand_target,
+		"global_position",
+		_combat_target_world(impact),
+		strike_time
+	)
+	tween.tween_property(
+		weapon_ik,
+		"influence",
+		0.0,
+		recover_time
+	)
+
+
+func _play_sfx(id: String) -> void:
+	var audio := get_tree().get_first_node_in_group(
+		"audio_manager"
+	)
+	if audio and audio.has_method("play_sfx"):
+		audio.play_sfx(id)

@@ -147,7 +147,9 @@ func save_game() -> bool:
 			"z": player.global_position.z,
 			"health": player.health,
 			"stamina": player.stamina,
+			"phone_owned": player.phone_owned,
 			"weapon_unlocked": player.weapon_unlocked,
+			"unlocked_weapon_count": player.unlocked_weapon_count,
 			"weapon_index": player.weapon_index,
 			"checkpoint_x": player.respawn_position.x,
 			"checkpoint_y": player.respawn_position.y,
@@ -222,17 +224,48 @@ func load_game() -> bool:
 		))
 		player.health = int(player_data.get("health", 120))
 		player.stamina = float(player_data.get("stamina", 100.0))
+		player.phone_owned = bool(
+			player_data.get(
+				"phone_owned",
+				int(
+					parsed.get("story", {}).get(
+						"phase_index",
+						-1
+					)
+				) >= 0
+			)
+		)
 		if player.has_method("set_checkpoint"):
 			player.set_checkpoint(Vector3(
 				float(player_data.get("checkpoint_x", player.global_position.x)),
 				float(player_data.get("checkpoint_y", player.global_position.y)),
 				float(player_data.get("checkpoint_z", player.global_position.z))
 			))
-		if bool(player_data.get("weapon_unlocked", false)):
-			player.unlock_weapons()
-			player.equip_weapon(
-				int(player_data.get("weapon_index", 0))
+		var restore_weapons := bool(
+			player_data.get("weapon_unlocked", false)
+		)
+		if not restore_weapons:
+			var saved_weapon = equipped.get("weapon", {})
+			if saved_weapon is Dictionary:
+				restore_weapons = not saved_weapon.is_empty()
+		if not restore_weapons:
+			for item in inventory:
+				if str(item.get("slot", "")) == "weapon":
+					restore_weapons = true
+					break
+		if restore_weapons:
+			player.weapon_unlocked = true
+			player.unlocked_weapon_count = clampi(
+				int(player_data.get("unlocked_weapon_count", 3)),
+				1,
+				3
 			)
+			player.weapon_index = clampi(
+				int(player_data.get("weapon_index", 0)),
+				0,
+				player.unlocked_weapon_count - 1
+			)
+			player._refresh_weapon_visibility()
 
 	var story: Dictionary = parsed.get("story", {})
 	if director and not story.is_empty():
