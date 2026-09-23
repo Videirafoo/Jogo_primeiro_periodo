@@ -34,6 +34,7 @@ var weapon_pivot: Node3D
 var status_label: Label3D
 var marker: MeshInstance3D
 var game_director: Node
+var phase_active := false
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -47,6 +48,7 @@ func _ready() -> void:
 	_build_marker()
 	_update_status()
 	call_deferred("_bind_phase_state")
+	call_deferred("_snap_to_ground")
 
 func _bind_phase_state() -> void:
 	game_director = get_tree().get_first_node_in_group(
@@ -87,6 +89,8 @@ func _on_objective_changed(
 
 func _refresh_phase_state() -> void:
 	var active := _is_active()
+	var became_active := active and not phase_active
+	phase_active = active
 	visible = active
 	var collision := get_node_or_null(
 		"CollisionShape3D"
@@ -97,6 +101,8 @@ func _refresh_phase_state() -> void:
 			not active
 		)
 	set_physics_process(active)
+	if became_active:
+		call_deferred("_snap_to_ground")
 	if not active:
 		_set_combat_visuals(false)
 
@@ -593,3 +599,29 @@ func reset_after_player_death() -> void:
 	_set_combat_visuals(false)
 	if anim_player:
 		_play_loop("CharacterArmature|Idle")
+
+
+func _snap_to_ground() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().physics_frame
+	if not is_inside_tree():
+		return
+
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3.UP * 8.0
+	var to := global_position + Vector3.DOWN * 24.0
+	var query := PhysicsRayQueryParameters3D.create(
+		from,
+		to
+	)
+	query.exclude = [get_rid()]
+	query.collision_mask = collision_mask
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return
+
+	var point: Vector3 = hit.position
+	global_position.y = point.y + 0.05
+	if home_position == Vector3.ZERO or phase_active:
+		home_position.y = global_position.y
