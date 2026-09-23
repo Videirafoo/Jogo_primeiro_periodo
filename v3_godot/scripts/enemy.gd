@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+signal died(enemy: Node)
+
 const VIKING := preload("res://assets/characters/viking/Viking_Male.glb")
 const SWORD := preload("res://assets/weapons/LongSword.obj")
 
@@ -10,6 +12,7 @@ const SWORD := preload("res://assets/weapons/LongSword.obj")
 @export var attack_cooldown := 1.15
 @export var attack_damage := 16
 @export var aggro_range := 14.0
+@export var active_phase := 1
 @export var model_scale := 1.22
 @export var archetype := 0
 @export var boss := false
@@ -47,6 +50,12 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player") as Node3D
 		return
+
+	if not _is_active():
+		_set_combat_visuals(false)
+		_return_home()
+		return
+	_set_combat_visuals(true)
 
 	var offset := player.global_position - global_position
 	var planar := Vector3(offset.x, 0.0, offset.z)
@@ -104,6 +113,8 @@ func _attack_player() -> void:
 			player.take_hit(attack_damage)
 
 func take_hit(amount: int, direction: Vector3) -> void:
+	if not _is_active():
+		return
 	health = maxi(0, health - amount)
 	knockback += direction * (3.6 if boss else 5.2)
 	_spawn_hit_vfx(direction)
@@ -119,6 +130,7 @@ func take_hit(amount: int, direction: Vector3) -> void:
 		_die()
 
 func _die() -> void:
+	died.emit(self)
 	if anim_player:
 		anim_player.play("CharacterArmature|Defeat", 0.08, 1.0)
 	set_physics_process(false)
@@ -351,3 +363,17 @@ func _apply_character_proportions(model: Node3D) -> void:
 			neck,
 			Vector3(0.93, 1.02, 0.93)
 		)
+
+func _is_active() -> bool:
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if not director:
+		return true
+	return int(director.phase_index) >= active_phase
+
+func _set_combat_visuals(enabled: bool) -> void:
+	if marker:
+		marker.visible = enabled
+	if status_label:
+		status_label.visible = enabled
