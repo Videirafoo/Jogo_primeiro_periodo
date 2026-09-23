@@ -7,6 +7,8 @@ const ASTRID := preload("res://assets/characters/npcs/Astrid.glb")
 const FORGE_ORIGIN := Vector3(0, 18, 82)
 const ARCHIVE_ORIGIN := Vector3(24, 18, 82)
 const TAVERN_ORIGIN := Vector3(-24, 18, 82)
+const LOST_ROOM_ORIGIN := Vector3(48, 18, 82)
+const REAL_ROOM_ORIGIN := Vector3(120, 30, 120)
 
 var wood := StandardMaterial3D.new()
 var stone := StandardMaterial3D.new()
@@ -15,10 +17,12 @@ var rune := StandardMaterial3D.new()
 
 func _ready() -> void:
 	_build_materials()
+	_build_real_world_room()
 	_build_story_zones()
 	_build_forge_interior()
 	_build_archive_interior()
 	_build_tavern_interior()
+	_build_lost_student_house()
 
 func _build_materials() -> void:
 	wood.albedo_color = Color("4b3022")
@@ -116,6 +120,23 @@ func _build_story_zones() -> void:
 		Vector3(-12.8, 2.7, 4.4),
 		"TAVERNA DO CORVO",
 		Color("efc778")
+	)
+
+	_make_interaction(
+		"LostStudentDoor",
+		Vector3(18.7, 1.0, 12.4),
+		1.55,
+		"Entrar na Casa do Desperto",
+		"lost_student_enter",
+		false,
+		false,
+		true,
+		LOST_ROOM_ORIGIN + Vector3(0, 0.25, 3.4)
+	)
+	_make_marker(
+		Vector3(18.7, 2.65, 12.4),
+		"CASA DO DESPERTO",
+		Color("8ae8ff")
 	)
 
 func _build_forge_interior() -> void:
@@ -765,3 +786,313 @@ func _fix_npc_materials(
 				head,
 				Vector3(0.72, 0.72, 0.72)
 			)
+
+func _build_real_world_room() -> void:
+	var wall := StandardMaterial3D.new()
+	wall.albedo_color = Color("d9d7cf")
+	wall.roughness = 0.88
+
+	var floor_mat := StandardMaterial3D.new()
+	floor_mat.albedo_color = Color("5a4639")
+	floor_mat.roughness = 0.92
+
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color("20252c")
+	dark.roughness = 0.78
+
+	var fabric := StandardMaterial3D.new()
+	fabric.albedo_color = Color("334c62")
+	fabric.roughness = 0.96
+
+	var paper := StandardMaterial3D.new()
+	paper.albedo_color = Color("e8e2d2")
+	paper.roughness = 0.98
+
+	var screen := StandardMaterial3D.new()
+	screen.albedo_color = Color("73efff")
+	screen.emission_enabled = true
+	screen.emission = Color("29d7ee")
+	screen.emission_energy_multiplier = 2.2
+	screen.roughness = 0.12
+
+	var o := REAL_ROOM_ORIGIN
+	_make_box(
+		o + Vector3(0, -0.18, 0),
+		Vector3(9.0, 0.35, 7.0),
+		floor_mat,
+		true
+	)
+	_make_box(
+		o + Vector3(0, 2.0, -3.5),
+		Vector3(9.0, 4.0, 0.28),
+		wall,
+		true
+	)
+	_make_box(
+		o + Vector3(-4.5, 2.0, 0),
+		Vector3(0.28, 4.0, 7.0),
+		wall,
+		true
+	)
+	_make_box(
+		o + Vector3(4.5, 2.0, 0),
+		Vector3(0.28, 4.0, 7.0),
+		wall,
+		true
+	)
+	_make_box(
+		o + Vector3(0, 4.05, 0),
+		Vector3(9.0, 0.22, 7.0),
+		wall,
+		true
+	)
+	# Cama do estudante.
+	_make_box(
+		o + Vector3(-2.75, 0.35, 0.85),
+		Vector3(2.05, 0.42, 3.45),
+		dark
+	)
+	_make_box(
+		o + Vector3(-2.75, 0.62, 0.78),
+		Vector3(1.9, 0.28, 3.1),
+		fabric
+	)
+	_make_box(
+		o + Vector3(-2.75, 0.86, -0.48),
+		Vector3(1.72, 0.18, 0.72),
+		paper
+	)
+
+	_make_interaction(
+		"RealBed",
+		o + Vector3(-2.75, 0.85, 0.9),
+		1.55,
+		"Dormir",
+		"dream_begin"
+	)
+
+	# Escrivaninha e cadeira.
+	_make_box(
+		o + Vector3(2.65, 0.78, -1.75),
+		Vector3(3.1, 0.16, 1.05),
+		dark
+	)
+	for x in [-1.25, 1.25]:
+		_make_box(
+			o + Vector3(2.65 + x, 0.38, -1.75),
+			Vector3(0.14, 0.78, 0.14),
+			dark
+		)
+
+	_make_box(
+		o + Vector3(2.45, 0.47, -0.55),
+		Vector3(0.72, 0.16, 0.72),
+		dark
+	)
+	_make_box(
+		o + Vector3(2.45, 0.95, -0.85),
+		Vector3(0.72, 0.88, 0.12),
+		dark
+	)
+	# Notebook.
+	var laptop := Node3D.new()
+	laptop.position = o + Vector3(2.0, 0.92, -1.72)
+	add_child(laptop)
+
+	var laptop_base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(0.78, 0.05, 0.52)
+	laptop_base.mesh = base_mesh
+	laptop_base.material_override = dark
+	laptop.add_child(laptop_base)
+
+	var laptop_screen := MeshInstance3D.new()
+	var laptop_screen_mesh := BoxMesh.new()
+	laptop_screen_mesh.size = Vector3(0.78, 0.48, 0.045)
+	laptop_screen.mesh = laptop_screen_mesh
+	laptop_screen.position = Vector3(0, 0.27, -0.23)
+	laptop_screen.rotation_degrees.x = -10
+	laptop_screen.material_override = screen
+	laptop.add_child(laptop_screen)
+
+	# Livros/cadernos.
+	for i in range(4):
+		_make_box(
+			o + Vector3(
+				3.15,
+				0.91 + float(i) * 0.045,
+				-1.76
+			),
+			Vector3(
+				0.58 - float(i) * 0.03,
+				0.04,
+				0.42
+			),
+			paper
+		)
+
+	var phone_area := _make_interaction(
+		"RealPhone",
+		o + Vector3(2.85, 1.0, -1.55),
+		1.25,
+		"Ver celular",
+		"real_phone"
+	)
+	_make_phone_prop(phone_area, Vector3(0, -0.16, 0))
+	# Estante com materiais da faculdade.
+	for y in [0.55, 1.25, 1.95]:
+		_make_box(
+			o + Vector3(-3.9, y, -2.75),
+			Vector3(1.0, 0.10, 0.48),
+			dark
+		)
+	for x in [-0.42, 0.42]:
+		_make_box(
+			o + Vector3(-3.9 + x, 1.25, -2.75),
+			Vector3(0.08, 2.5, 0.45),
+			dark
+		)
+
+	# Janela fechada: cidade real do lado de fora.
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.08, 0.14, 0.20, 0.55)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.metallic = 0.15
+	glass.roughness = 0.12
+	_make_box(
+		o + Vector3(0.2, 2.15, -3.32),
+		Vector3(2.7, 1.55, 0.035),
+		glass
+	)
+
+	for i in range(10):
+		var light_box := MeshInstance3D.new()
+		var light_mesh := BoxMesh.new()
+		light_mesh.size = Vector3(0.16, 0.10, 0.02)
+		light_box.mesh = light_mesh
+		light_box.position = o + Vector3(
+			-0.9 + float(i % 5) * 0.48,
+			1.75 + float(i / 5) * 0.58,
+			-3.39
+		)
+		var city_mat := StandardMaterial3D.new()
+		city_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		city_mat.albedo_color = Color("ffd98a")
+		city_mat.emission_enabled = true
+		city_mat.emission = Color("ffc66d")
+		light_box.material_override = city_mat
+		add_child(light_box)
+
+	var room_light := OmniLight3D.new()
+	room_light.position = o + Vector3(0, 2.75, 0)
+	room_light.light_color = Color("ffd6aa")
+	room_light.light_energy = 2.4
+	room_light.omni_range = 8.0
+	room_light.shadow_enabled = true
+	add_child(room_light)
+
+func _build_lost_student_house() -> void:
+	_build_room(
+		LOST_ROOM_ORIGIN,
+		Vector2(11.5, 8.5),
+		"CASA DO DESPERTO"
+	)
+
+	_make_interaction(
+		"LostHouseExit",
+		LOST_ROOM_ORIGIN + Vector3(0, 1.0, 3.35),
+		1.35,
+		"Sair para Valdrak",
+		"",
+		false,
+		false,
+		true,
+		Vector3(18.4, 0.25, 10.8)
+	)
+
+	_make_box(
+		LOST_ROOM_ORIGIN + Vector3(-3.3, 0.42, -1.6),
+		Vector3(1.8, 0.46, 3.0),
+		wood
+	)
+	var old_fabric := StandardMaterial3D.new()
+	old_fabric.albedo_color = Color("384c5b")
+	old_fabric.roughness = 0.97
+	_make_box(
+		LOST_ROOM_ORIGIN + Vector3(-3.3, 0.72, -1.6),
+		Vector3(1.65, 0.22, 2.72),
+		old_fabric
+	)
+
+	_make_table(
+		LOST_ROOM_ORIGIN + Vector3(2.65, 0.66, -1.8),
+		Vector3(2.2, 0.16, 1.0)
+	)
+
+	var echo := _make_interaction(
+		"LostPhoneEcho",
+		LOST_ROOM_ORIGIN + Vector3(2.65, 0.95, -1.8),
+		1.25,
+		"Examinar celular quebrado",
+		"lost_student_phone"
+	)
+	_make_phone_prop(echo, Vector3(0, -0.18, 0))
+
+	var note := _make_interaction(
+		"LostNotebook",
+		LOST_ROOM_ORIGIN + Vector3(1.5, 0.9, 1.2),
+		1.35,
+		"Ler caderno do Desperto",
+		"lost_notebook"
+	)
+	var paper_mat := StandardMaterial3D.new()
+	paper_mat.albedo_color = Color("d9d1b8")
+	paper_mat.roughness = 1.0
+	var note_mesh := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.55, 0.04, 0.72)
+	note_mesh.mesh = mesh
+	note_mesh.material_override = paper_mat
+	note.add_child(note_mesh)
+
+	_make_box(
+		LOST_ROOM_ORIGIN + Vector3(-0.4, 0.62, 2.0),
+		Vector3(0.55, 1.15, 0.30),
+		metal
+	)
+func _make_phone_prop(
+	parent: Node3D,
+	offset: Vector3
+) -> void:
+	var shell := MeshInstance3D.new()
+	var shell_mesh := BoxMesh.new()
+	shell_mesh.size = Vector3(0.17, 0.035, 0.32)
+	shell.mesh = shell_mesh
+	shell.position = offset
+	var shell_mat := StandardMaterial3D.new()
+	shell_mat.albedo_color = Color("12171d")
+	shell_mat.metallic = 0.72
+	shell_mat.roughness = 0.24
+	shell.material_override = shell_mat
+	parent.add_child(shell)
+
+	var display := MeshInstance3D.new()
+	var display_mesh := BoxMesh.new()
+	display_mesh.size = Vector3(0.145, 0.010, 0.285)
+	display.mesh = display_mesh
+	display.position = offset + Vector3(0, -0.023, 0)
+	var display_mat := StandardMaterial3D.new()
+	display_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	display_mat.albedo_color = Color("65efff")
+	display_mat.emission_enabled = true
+	display_mat.emission = Color("2cdff2")
+	display_mat.emission_energy_multiplier = 2.8
+	display.material_override = display_mat
+	parent.add_child(display)
+
+	var light := OmniLight3D.new()
+	light.position = offset + Vector3(0, 0.20, 0)
+	light.light_color = Color("65efff")
+	light.light_energy = 1.0
+	light.omni_range = 1.8
+	parent.add_child(light)

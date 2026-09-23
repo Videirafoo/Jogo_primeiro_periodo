@@ -7,6 +7,7 @@ var health_bar: ProgressBar
 var health_label: Label
 var stamina_bar: ProgressBar
 var stamina_label: Label
+var weapon_label: Label
 
 var target_panel: PanelContainer
 var target_bar: ProgressBar
@@ -25,6 +26,12 @@ var story_speaker: Label
 var story_text: Label
 var story_timer := 0.0
 
+var transition_layer: Control
+var transition_background: ColorRect
+var transition_title: Label
+var transition_subtitle: Label
+var region_tag: Label
+
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	director = get_tree().get_first_node_in_group("game_director")
@@ -33,6 +40,7 @@ func _ready() -> void:
 	_build_objective_panel()
 	_build_interaction_panel()
 	_build_story_panel()
+	_build_transition_layer()
 	_build_crosshair()
 	_build_region_tag()
 	call_deferred("_bind_director")
@@ -49,6 +57,17 @@ func _bind_director() -> void:
 	if not director.story_message.is_connected(story_cb):
 		director.story_message.connect(story_cb)
 
+	var transition_cb := Callable(
+		self,
+		"_on_transition_requested"
+	)
+	if not director.transition_requested.is_connected(
+		transition_cb
+	):
+		director.transition_requested.connect(
+			transition_cb
+		)
+
 	_on_objective_changed(
 		str(director.chapter_name),
 		str(director.objective_title),
@@ -64,6 +83,7 @@ func _process(delta: float) -> void:
 	_update_player_status()
 	_update_target()
 	_update_interaction()
+	_update_region_tag()
 
 	if story_timer > 0.0:
 		story_timer = maxf(0.0, story_timer - delta)
@@ -78,10 +98,13 @@ func _update_player_status() -> void:
 	stamina_bar.value = stamina
 	stamina_label.text = "FÔLEGO  %03d / 100" % int(stamina)
 
+	if weapon_label and player.has_method("get_weapon_name"):
+		weapon_label.text = "ARMA  %s" % player.get_weapon_name()
+
 func _build_status_panel() -> void:
 	var panel := PanelContainer.new()
 	panel.position = Vector2(22, 22)
-	panel.custom_minimum_size = Vector2(340, 164)
+	panel.custom_minimum_size = Vector2(340, 184)
 	panel.add_theme_stylebox_override(
 		"panel",
 		_panel_style(Color(0.018, 0.035, 0.045, 0.94))
@@ -126,8 +149,17 @@ func _build_status_panel() -> void:
 	_style_bar(stamina_bar, Color("e7b65c"))
 	box.add_child(stamina_bar)
 
+	weapon_label = Label.new()
+	weapon_label.text = "ARMA  SEM ARMA"
+	weapon_label.add_theme_font_size_override("font_size", 11)
+	weapon_label.add_theme_color_override(
+		"font_color",
+		Color("a8eff5")
+	)
+	box.add_child(weapon_label)
+
 	var controls := Label.new()
-	controls.text = "WASD mover  •  SHIFT correr  •  R interagir  •  T celular  •  Q lock"
+	controls.text = "WASD mover • R interagir • T celular • 1 espada • 2 machado • 3 martelo"
 	controls.add_theme_font_size_override("font_size", 10)
 	controls.add_theme_color_override(
 		"font_color",
@@ -353,18 +385,28 @@ func _build_crosshair() -> void:
 	add_child(cross)
 
 func _build_region_tag() -> void:
-	var tag := Label.new()
-	tag.text = "VALDRAK  //  REGIÃO I"
-	tag.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	tag.position = Vector2(-250, 24)
-	tag.custom_minimum_size = Vector2(225, 32)
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	tag.add_theme_font_size_override("font_size", 13)
-	tag.add_theme_color_override(
+	region_tag = Label.new()
+	region_tag.text = "MUNDO REAL  //  QUARTO"
+	region_tag.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	region_tag.position = Vector2(-285, 24)
+	region_tag.custom_minimum_size = Vector2(260, 32)
+	region_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	region_tag.add_theme_font_size_override("font_size", 13)
+	region_tag.add_theme_color_override(
 		"font_color",
 		Color("d9fbff")
 	)
-	add_child(tag)
+	add_child(region_tag)
+
+func _update_region_tag() -> void:
+	if not region_tag or not is_instance_valid(player):
+		return
+	if director and int(director.phase_index) < 0:
+		region_tag.text = "MUNDO REAL  //  QUARTO"
+	elif player.global_position.y > 14.0:
+		region_tag.text = "VALDRAK  //  INTERIOR"
+	else:
+		region_tag.text = "VALDRAK  //  REGIÃO I"
 func _panel_style(background: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
@@ -405,3 +447,80 @@ func _margin(
 	margin.add_theme_constant_override("margin_top", top)
 	margin.add_theme_constant_override("margin_bottom", bottom)
 	return margin
+
+func _build_transition_layer() -> void:
+	transition_layer = Control.new()
+	transition_layer.set_anchors_preset(
+		Control.PRESET_FULL_RECT
+	)
+	transition_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	transition_layer.visible = false
+	add_child(transition_layer)
+
+	transition_background = ColorRect.new()
+	transition_background.set_anchors_preset(
+		Control.PRESET_FULL_RECT
+	)
+	transition_background.color = Color(0.01, 0.015, 0.02, 0.0)
+	transition_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	transition_layer.add_child(transition_background)
+
+	transition_title = Label.new()
+	transition_title.set_anchors_preset(Control.PRESET_CENTER)
+	transition_title.position = Vector2(-260, -42)
+	transition_title.custom_minimum_size = Vector2(520, 48)
+	transition_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	transition_title.add_theme_font_size_override("font_size", 27)
+	transition_title.add_theme_color_override(
+		"font_color",
+		Color("dffbff")
+	)
+	transition_layer.add_child(transition_title)
+
+	transition_subtitle = Label.new()
+	transition_subtitle.set_anchors_preset(Control.PRESET_CENTER)
+	transition_subtitle.position = Vector2(-340, 14)
+	transition_subtitle.custom_minimum_size = Vector2(680, 70)
+	transition_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	transition_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	transition_subtitle.add_theme_font_size_override("font_size", 14)
+	transition_subtitle.add_theme_color_override(
+		"font_color",
+		Color(0.72, 0.84, 0.86, 1.0)
+	)
+	transition_layer.add_child(transition_subtitle)
+func _on_transition_requested(
+	title: String,
+	subtitle: String,
+	duration: float
+) -> void:
+	transition_title.text = title
+	transition_subtitle.text = subtitle
+	transition_layer.visible = true
+	transition_layer.modulate = Color(1, 1, 1, 1)
+
+	var tween := create_tween()
+	tween.tween_property(
+		transition_background,
+		"color",
+		Color(0.01, 0.015, 0.02, 0.97),
+		0.55
+	)
+	tween.tween_interval(maxf(0.4, duration - 1.2))
+	tween.tween_property(
+		transition_layer,
+		"modulate",
+		Color(1, 1, 1, 0),
+		0.65
+	)
+	tween.tween_callback(
+		func():
+			transition_layer.visible = false
+			transition_background.color = Color(
+				0.01,
+				0.015,
+				0.02,
+				0.0
+			)
+			transition_layer.modulate = Color.WHITE
+	)

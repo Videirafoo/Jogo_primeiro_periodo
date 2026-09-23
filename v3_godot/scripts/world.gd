@@ -15,10 +15,14 @@ func _ready() -> void:
 	_environment()
 	_lighting()
 	_authored_village()
+	_outer_village()
 	_village_props()
+	_road_lanterns()
 	_forest_edge()
+	_ruin_outpost()
 	_landmark()
 	_boss_arena()
+	_dream_motes()
 
 func _build_shared_materials() -> void:
 	leaf_material = StandardMaterial3D.new()
@@ -43,38 +47,38 @@ func _environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("06111a")
-	sky_mat.sky_horizon_color = Color("617476")
-	sky_mat.ground_bottom_color = Color("060a0c")
-	sky_mat.ground_horizon_color = Color("2f403d")
-	sky_mat.sun_angle_max = 12.0
-	sky_mat.sun_curve = 0.12
+	sky_mat.sky_top_color = Color("0b2948")
+	sky_mat.sky_horizon_color = Color("527d8b")
+	sky_mat.ground_bottom_color = Color("07130f")
+	sky_mat.ground_horizon_color = Color("35544a")
+	sky_mat.sun_angle_max = 6.0
+	sky_mat.sun_curve = 0.075
 	sky.sky_material = sky_mat
 	env.sky = sky
 
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.54
-	env.ambient_light_sky_contribution = 0.88
+	env.ambient_light_energy = 0.62
+	env.ambient_light_sky_contribution = 0.92
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
 	env.fog_enabled = true
-	env.fog_light_color = Color("6f8585")
-	env.fog_light_energy = 0.58
-	env.fog_density = 0.009
-	env.fog_height = 0.6
-	env.fog_height_density = 0.055
+	env.fog_light_color = Color("6f8884")
+	env.fog_light_energy = 0.52
+	env.fog_density = 0.0024
+	env.fog_height = 1.1
+	env.fog_height_density = 0.026
 	env.adjustment_enabled = true
-	env.adjustment_brightness = 1.03
-	env.adjustment_contrast = 1.12
-	env.adjustment_saturation = 0.88
+	env.adjustment_brightness = 1.02
+	env.adjustment_contrast = 1.13
+	env.adjustment_saturation = 1.08
 	$WorldEnvironment.environment = env
 
 func _lighting() -> void:
 	$Sun.light_color = Color("ffe2b8")
-	$Sun.light_energy = 1.52
+	$Sun.light_energy = 1.62
 	$Sun.shadow_enabled = true
-	$Sun.directional_shadow_max_distance = 68.0
+	$Sun.directional_shadow_max_distance = 110.0
 
 	var rim := DirectionalLight3D.new()
 	rim.name = "ColdRim"
@@ -167,17 +171,26 @@ func _bonfire_particles() -> void:
 	add_child(particles)
 
 func _forest_edge() -> void:
-	for i in range(42):
-		var angle := TAU * float(i) / 42.0
-		var radius := 25.0 + float((i * 5) % 8) * 1.15
-		var pos := Vector3(
-			cos(angle) * radius,
-			0,
-			sin(angle) * radius
-		)
-		if pos.z < -28.0 and absf(pos.x) < 11.0:
+	for i in range(96):
+		var angle := float(i) * 2.399963
+		var radius := 34.0 + float((i * 11) % 53)
+		var x := cos(angle) * radius
+		var z := sin(angle) * radius
+
+		if absf(x) < 10.0 and z > -32.0 and z < 76.0:
 			continue
-		_pine(pos, 0.85 + float(i % 5) * 0.08)
+		if x < -33.0 and x > -52.0 and absf(z) < 65.0:
+			continue
+
+		var pos := Vector3(
+			x,
+			_ground_y(x, z),
+			z
+		)
+		_pine(
+			pos,
+			0.82 + float(i % 7) * 0.095
+		)
 
 func _pine(pos: Vector3, size: float) -> void:
 	var root := StaticBody3D.new()
@@ -447,3 +460,123 @@ func _make_rune_stone(pos: Vector3) -> void:
 	collision.position.y = 1.1
 	root.add_child(collision)
 	add_child(root)
+
+func _outer_village() -> void:
+	var homes := [
+		[Vector3(-23.0, 0, -4.0), 0.72, 1.22],
+		[Vector3(23.5, 0, -3.0), -0.68, 1.20],
+		[Vector3(-21.5, 0, 12.0), 1.35, 1.16],
+		[Vector3(21.0, 0, 13.0), -1.25, 1.18],
+		[Vector3(-19.0, 0, -18.5), 0.22, 1.08],
+		[Vector3(19.5, 0, -18.0), -0.18, 1.10]
+	]
+	for entry in homes:
+		var pos: Vector3 = entry[0]
+		pos.y = _ground_y(pos.x, pos.z)
+		_mesh(
+			HOUSE,
+			pos,
+			float(entry[1]),
+			float(entry[2])
+		)
+
+	for x_value in [-27.0, 27.0]:
+		var x: float = float(x_value)
+		var y: float = _ground_y(x, 4.5)
+		_make_rune_stone(Vector3(x, y, 4.5))
+
+func _road_lanterns() -> void:
+	for i in range(7):
+		var z: float = 48.0 - float(i) * 6.7
+		for side_value in [-1.0, 1.0]:
+			var side: float = float(side_value)
+			var x: float = side * 3.8
+			var y: float = _ground_y(x, z)
+			_make_torch(Vector3(x, y, z))
+
+func _ruin_outpost() -> void:
+	var center := Vector3(
+		31.0,
+		_ground_y(31.0, -31.0),
+		-31.0
+	)
+	for i in range(6):
+		var angle := TAU * float(i) / 6.0
+		var pos := center + Vector3(
+			cos(angle) * 4.8,
+			0,
+			sin(angle) * 4.8
+		)
+		var root := StaticBody3D.new()
+		root.position = pos
+		root.rotation.y = angle * 0.55
+
+		var stone := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(
+			0.85 + float(i % 2) * 0.25,
+			2.4 + float(i % 3) * 0.55,
+			0.9
+		)
+		stone.mesh = mesh
+		stone.position.y = mesh.size.y * 0.5
+		stone.material_override = stone_material
+		root.add_child(stone)
+
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = mesh.size
+		collision.shape = shape
+		collision.position.y = mesh.size.y * 0.5
+		root.add_child(collision)
+		add_child(root)
+
+	var rune_light := OmniLight3D.new()
+	rune_light.position = center + Vector3(0, 2.0, 0)
+	rune_light.light_color = Color("8b72ff")
+	rune_light.light_energy = 2.2
+	rune_light.omni_range = 7.0
+	add_child(rune_light)
+func _dream_motes() -> void:
+	var particles := GPUParticles3D.new()
+	particles.name = "DreamMotes"
+	particles.position = Vector3(0, 4.0, 8.0)
+	particles.amount = 110
+	particles.lifetime = 7.0
+	particles.randomness = 0.9
+	particles.visibility_aabb = AABB(
+		Vector3(-65, -4, -70),
+		Vector3(130, 20, 145)
+	)
+
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process.emission_box_extents = Vector3(52, 5, 58)
+	process.direction = Vector3(0.18, 0.35, -0.08)
+	process.spread = 180.0
+	process.initial_velocity_min = 0.05
+	process.initial_velocity_max = 0.30
+	process.gravity = Vector3(0, 0.025, 0)
+	process.color = Color(0.44, 0.92, 1.0, 0.46)
+	particles.process_material = process
+
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.035, 0.035)
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.64, 0.96, 1.0, 0.58)
+	mat.emission_enabled = true
+	mat.emission = Color("5deaff")
+	mat.emission_energy_multiplier = 1.5
+	quad.material = mat
+	particles.draw_pass_1 = quad
+	particles.emitting = true
+	add_child(particles)
+
+func _ground_y(x: float, z: float) -> float:
+	if has_node("Terrain"):
+		var terrain := get_node("Terrain")
+		if terrain and terrain.has_method("_height_at"):
+			return float(terrain._height_at(x, z))
+	return 0.0

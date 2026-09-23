@@ -4,6 +4,7 @@ signal died(enemy: Node)
 
 const VIKING := preload("res://assets/characters/viking/Viking_Male.glb")
 const SWORD := preload("res://assets/weapons/LongSword.obj")
+const AXE := preload("res://assets/weapons/SimpleAxe.obj")
 
 @export var display_name := "VALDRAK RAIDER"
 @export var max_health := 100
@@ -13,8 +14,10 @@ const SWORD := preload("res://assets/weapons/LongSword.obj")
 @export var attack_damage := 16
 @export var aggro_range := 14.0
 @export var active_phase := 1
-@export var model_scale := 1.22
+@export var model_scale := 0.49
+@export var body_height := 1.80
 @export var archetype := 0
+@export var weapon_type := 0
 @export var boss := false
 
 var health := 100
@@ -55,11 +58,13 @@ func _physics_process(delta: float) -> void:
 		_set_combat_visuals(false)
 		_return_home()
 		return
-	_set_combat_visuals(true)
 
 	var offset := player.global_position - global_position
 	var planar := Vector3(offset.x, 0.0, offset.z)
 	var distance := planar.length()
+	_set_combat_visuals(
+		distance <= (14.0 if boss else 8.5)
+	)
 
 	if distance > aggro_range:
 		_return_home()
@@ -143,10 +148,10 @@ func _die() -> void:
 
 func _build_collision() -> void:
 	var shape := CapsuleShape3D.new()
-	shape.radius = 0.52 if boss else 0.40
-	shape.height = 2.15 if boss else 1.75
+	shape.radius = clampf(body_height * 0.19, 0.30, 0.72)
+	shape.height = body_height
 	$CollisionShape3D.shape = shape
-	$CollisionShape3D.position.y = 1.05 if boss else 0.88
+	$CollisionShape3D.position.y = body_height * 0.5
 func _build_raider() -> void:
 	var model := VIKING.instantiate()
 	model.name = "EnemyModel"
@@ -195,11 +200,111 @@ func _attach_weapon(model: Node3D) -> void:
 	weapon_pivot.rotation_degrees = Vector3(0, 90, -92)
 	attachment.add_child(weapon_pivot)
 
+	match weapon_type:
+		1:
+			_build_enemy_axe()
+		2:
+			_build_enemy_hammer()
+		_:
+			_build_enemy_sword()
+
+func _weapon_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("59656d")
+	mat.metallic = 0.78
+	mat.roughness = 0.28
+	return mat
+
+func _rune_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = _archetype_color().lightened(0.18)
+	mat.emission_enabled = true
+	mat.emission = _archetype_color()
+	mat.emission_energy_multiplier = 2.6
+	mat.metallic = 0.22
+	mat.roughness = 0.20
+	return mat
+
+func _build_enemy_sword() -> void:
 	var sword := MeshInstance3D.new()
+	sword.name = "RunicSword"
 	sword.mesh = SWORD
-	sword.scale = Vector3.ONE * (0.29 if boss else 0.23)
+	sword.scale = Vector3.ONE * (0.30 if boss else 0.23)
 	sword.position = Vector3(0, -0.18, 0)
+	sword.material_overlay = _weapon_material()
 	weapon_pivot.add_child(sword)
+
+	var guard := MeshInstance3D.new()
+	var guard_mesh := BoxMesh.new()
+	guard_mesh.size = Vector3(0.34, 0.045, 0.065)
+	guard.mesh = guard_mesh
+	guard.position = Vector3(0, -0.03, 0)
+	guard.material_override = _rune_material()
+	weapon_pivot.add_child(guard)
+
+func _build_enemy_axe() -> void:
+	var axe := MeshInstance3D.new()
+	axe.name = "RaiderAxe"
+	axe.mesh = AXE
+	axe.scale = Vector3.ONE * (0.30 if boss else 0.22)
+	axe.position = Vector3(0, -0.16, 0)
+	axe.material_overlay = _weapon_material()
+	weapon_pivot.add_child(axe)
+
+	var rune_core := MeshInstance3D.new()
+	var core_mesh := SphereMesh.new()
+	core_mesh.radius = 0.045
+	core_mesh.height = 0.09
+	rune_core.mesh = core_mesh
+	rune_core.position = Vector3(0.02, 0.04, 0.02)
+	rune_core.material_override = _rune_material()
+	weapon_pivot.add_child(rune_core)
+
+func _build_enemy_hammer() -> void:
+	var root := Node3D.new()
+	root.name = "JarlHammer"
+	weapon_pivot.add_child(root)
+
+	var handle := MeshInstance3D.new()
+	var handle_mesh := CylinderMesh.new()
+	handle_mesh.top_radius = 0.045
+	handle_mesh.bottom_radius = 0.055
+	handle_mesh.height = 0.95
+	handle.mesh = handle_mesh
+	handle.position.y = -0.28
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("4e2f22")
+	wood.roughness = 0.9
+	handle.material_override = wood
+	root.add_child(handle)
+
+	var head := MeshInstance3D.new()
+	var head_mesh := BoxMesh.new()
+	head_mesh.size = Vector3(
+		0.72 if boss else 0.48,
+		0.34 if boss else 0.26,
+		0.34 if boss else 0.26
+	)
+	head.mesh = head_mesh
+	head.position.y = 0.22
+	head.material_override = _weapon_material()
+	root.add_child(head)
+
+	for x in [-0.29, 0.29]:
+		var rune_plate := MeshInstance3D.new()
+		var plate_mesh := BoxMesh.new()
+		plate_mesh.size = Vector3(0.055, 0.22, 0.24)
+		rune_plate.mesh = plate_mesh
+		rune_plate.position = Vector3(x, 0.22, -0.18)
+		rune_plate.material_override = _rune_material()
+		root.add_child(rune_plate)
+
+	var glow := OmniLight3D.new()
+	glow.light_color = _archetype_color()
+	glow.light_energy = 1.4 if boss else 0.8
+	glow.omni_range = 2.0
+	glow.position = Vector3(0, 0.22, 0)
+	root.add_child(glow)
 func _apply_archetype_overlay(model: Node3D) -> void:
 	var color := _archetype_color()
 	var overlay := StandardMaterial3D.new()
@@ -232,7 +337,7 @@ func _build_marker() -> void:
 	status_label = Label3D.new()
 	status_label.position = Vector3(
 		0,
-		3.05 if boss else 2.38,
+		body_height + (0.62 if boss else 0.38),
 		0
 	)
 	status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -351,7 +456,7 @@ func _apply_character_proportions(model: Node3D) -> void:
 
 	var head := rig.find_bone("Head")
 	if head >= 0:
-		var head_scale := 0.54 if boss else 0.58
+		var head_scale := 0.70 if boss else 0.72
 		rig.set_bone_pose_scale(
 			head,
 			Vector3.ONE * head_scale

@@ -138,7 +138,12 @@ func save_game() -> bool:
 			"y": player.global_position.y,
 			"z": player.global_position.z,
 			"health": player.health,
-			"stamina": player.stamina
+			"stamina": player.stamina,
+			"weapon_unlocked": player.weapon_unlocked,
+			"weapon_index": player.weapon_index,
+			"checkpoint_x": player.respawn_position.x,
+			"checkpoint_y": player.respawn_position.y,
+			"checkpoint_z": player.respawn_position.z
 		},
 		"story": {
 			"phase_index": director.phase_index,
@@ -202,25 +207,36 @@ func load_game() -> bool:
 		))
 		player.health = int(player_data.get("health", 120))
 		player.stamina = float(player_data.get("stamina", 100.0))
+		if player.has_method("set_checkpoint"):
+			player.set_checkpoint(Vector3(
+				float(player_data.get("checkpoint_x", player.global_position.x)),
+				float(player_data.get("checkpoint_y", player.global_position.y)),
+				float(player_data.get("checkpoint_z", player.global_position.z))
+			))
+		if bool(player_data.get("weapon_unlocked", false)):
+			player.unlock_weapons()
+			player.equip_weapon(
+				int(player_data.get("weapon_index", 0))
+			)
 
 	var story: Dictionary = parsed.get("story", {})
 	if director and not story.is_empty():
-		director.phase_index = int(story.get("phase_index", 0))
+		director.phase_index = int(story.get("phase_index", -1))
 		director.chapter_name = str(story.get(
 			"chapter_name",
-			"CAPÍTULO I // A CHEGADA"
+			"PRÓLOGO // UMA NOITE COMUM"
 		))
 		director.objective_id = str(story.get(
 			"objective_id",
-			"reach_bonfire"
+			"check_phone"
 		))
 		director.objective_title = str(story.get(
 			"objective_title",
-			"Siga a fumaça"
+			"Amanhã tem prova"
 		))
 		director.objective_detail = str(story.get(
 			"objective_detail",
-			"Alcance a fogueira no centro de Valdrak."
+			"Veja as mensagens no celular antes de dormir."
 		))
 		director.objective_progress = str(story.get(
 			"objective_progress",

@@ -41,7 +41,7 @@ directional_shadow_max_distance = 68.0
 script = ExtResource("5")
 
 [node name="Player" type="CharacterBody3D" parent="."]
-position = Vector3(0, 0.08, 3.0)
+position = Vector3(120, 30.25, 122.0)
 script = ExtResource("2")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
 
@@ -68,8 +68,10 @@ max_health = 100
 move_speed = 2.7
 attack_damage = 16
 aggro_range = 13.5
-model_scale = 1.22
+model_scale = 0.49
+body_height = 1.80
 archetype = 0
+weapon_type = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Raider"]
 [node name="Berserker" type="CharacterBody3D" parent="."]
@@ -82,8 +84,10 @@ attack_range = 1.9
 attack_cooldown = 1.3
 attack_damage = 23
 aggro_range = 12.5
-model_scale = 1.38
+model_scale = 0.56
+body_height = 2.05
 archetype = 1
+weapon_type = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Berserker"]
 
@@ -97,8 +101,10 @@ attack_range = 1.65
 attack_cooldown = 1.0
 attack_damage = 12
 aggro_range = 8.0
-model_scale = 1.12
+model_scale = 0.48
+body_height = 1.76
 archetype = 0
+weapon_type = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ScoutLeft"]
 
@@ -112,8 +118,10 @@ attack_range = 1.7
 attack_cooldown = 1.08
 attack_damage = 14
 aggro_range = 8.5
-model_scale = 1.16
+model_scale = 0.50
+body_height = 1.83
 archetype = 1
+weapon_type = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ScoutRight"]
 
@@ -128,8 +136,10 @@ attack_cooldown = 1.42
 attack_damage = 32
 aggro_range = 10.5
 active_phase = 2
-model_scale = 1.56
+model_scale = 0.95
+body_height = 3.48
 archetype = 2
+weapon_type = 2
 boss = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="JarlBoss"]

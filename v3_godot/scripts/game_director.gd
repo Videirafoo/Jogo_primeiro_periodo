@@ -12,20 +12,25 @@ signal story_message(
 	duration: float
 )
 signal phase_changed(index: int, name: String)
+signal transition_requested(
+	title: String,
+	subtitle: String,
+	duration: float
+)
 signal game_completed()
 
-const PROLOGUE := [
-	["MEMÓRIA", "Fui dormir num dia comum. Quando abri os olhos, a chuva fria de Valdrak batia no meu rosto."],
-	["MEMÓRIA", "Pinheiros cercavam uma estrada de lama. Ao longe: fumaça, ferro e o som de uma guerra."],
-	["SISTEMA", "PODER DESPERTADO // TECNOLOGIA. Scanner de Runas, Mapa Holográfico e Pulso de Código disponíveis."],
-	["MEMÓRIA", "Outros sonhadores estão presos aqui. Para acordar, preciso encontrar a última porta."]
+const VALDRAK_ARRIVAL := [
+	["MEMÓRIA", "O chão desapareceu. Eu não estava mais no quarto."],
+	["MEMÓRIA", "Acordei numa estrada molhada cercada por pinheiros e montanhas."],
+	["CELULAR", "SEM REDE // ambiente desconhecido detectado: VALDRAK."],
+	["MEMÓRIA", "Se isto é um sonho, ele sabe coisas demais sobre mim."]
 ]
 
-var phase_index := 0
-var chapter_name := "CAPÍTULO I // A CHEGADA"
-var objective_id := "reach_bonfire"
-var objective_title := "Siga a fumaça"
-var objective_detail := "Alcance a fogueira no centro de Valdrak."
+var phase_index := -1
+var chapter_name := "PRÓLOGO // UMA NOITE COMUM"
+var objective_id := "check_phone"
+var objective_title := "Amanhã tem prova"
+var objective_detail := "Veja as mensagens no celular antes de dormir."
 var objective_progress := "0 / 1"
 var completed := false
 
@@ -37,7 +42,11 @@ func _bootstrap() -> void:
 	await get_tree().process_frame
 	_bind_enemies()
 	_emit_objective()
-	call_deferred("_play_prologue")
+	show_story(
+		"23:18 // QUARTO",
+		"Livros abertos, mochila pronta e uma prova amanhã. Só falta responder as mensagens e dormir.",
+		5.5
+	)
 func _bind_enemies() -> void:
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if node.has_signal("died"):
@@ -47,6 +56,83 @@ func _bind_enemies() -> void:
 
 func handle_event(event_id: String) -> void:
 	match event_id:
+		"real_phone":
+			if objective_id == "check_phone":
+				_set_objective(
+					"sleep",
+					"Desligue por hoje",
+					"A cama está pronta. Durma antes da prova de amanhã.",
+					"0 / 1"
+				)
+				show_story(
+					"CELULAR // GRUPO DA TURMA",
+					"23:19 — 'Não esquece a prova amanhã.'  23:20 — 'Você terminou o trabalho?'",
+					6.0
+				)
+		"dream_begin":
+			if objective_id == "sleep":
+				transition_requested.emit(
+					"ADORMECENDO",
+					"Um som de notificação continua mesmo depois da tela apagar.",
+					4.0
+				)
+				show_story(
+					"CELULAR // 00:03",
+					"NOVA REDE ENCONTRADA: VALDRAK // intensidade impossível.",
+					3.4
+				)
+				await get_tree().create_timer(1.8).timeout
+				var player := get_tree().get_first_node_in_group("player")
+				if player and player.has_method("teleport_to"):
+					player.teleport_to(Vector3(0, 4.6, 58.0))
+					if player.has_method("set_checkpoint"):
+						player.set_checkpoint(Vector3(0, 0.8, 58.0))
+				phase_index = 0
+				chapter_name = "CAPÍTULO I // A CHEGADA"
+				phase_changed.emit(phase_index, chapter_name)
+				_set_objective(
+					"reach_bonfire",
+					"Siga a fumaça",
+					"Você acordou numa estrada desconhecida. Alcance a fogueira de Valdrak.",
+					"0 / 1"
+				)
+				var profile := _profile()
+				if profile:
+					profile.register_discovery("first_dream")
+					profile.unlock_codex("telefone")
+				await get_tree().create_timer(0.8).timeout
+				call_deferred("_play_valdrak_arrival")
+		"lost_student_enter":
+			var profile := _profile()
+			if profile and not profile.discoveries.has("lost_student_house"):
+				profile.register_discovery("lost_student_house")
+				profile.unlock_codex("sonhadores")
+				show_story(
+					"MEMÓRIA",
+					"Há um carregador moderno sobre a mesa. Alguém do meu mundo viveu aqui antes de mim.",
+					5.5
+				)
+		"lost_student_phone":
+			var profile := _profile()
+			if profile:
+				profile.register_discovery("lost_phone")
+				profile.unlock_codex("telefone")
+				profile.add_xp(20)
+			show_story(
+				"CELULAR QUEBRADO",
+				"Última gravação: 'Dia 43. Aqui passam semanas. Minha mãe ainda manda mensagens do mesmo domingo.'",
+				7.0
+			)
+		"lost_notebook":
+			var profile := _profile()
+			if profile:
+				profile.register_discovery("lost_notebook")
+				profile.add_xp(25)
+			show_story(
+				"CADERNO DO DESPERTO",
+				"'Não confie no tempo de Valdrak. A Última Porta não leva todos para o mesmo lugar.'",
+				7.0
+			)
 		"bonfire_arrival":
 			if objective_id == "reach_bonfire":
 				_set_objective(
@@ -137,6 +223,11 @@ func handle_event(event_id: String) -> void:
 						"stat": "energy",
 						"value": 10
 					})
+				var player := get_tree().get_first_node_in_group(
+					"player"
+				)
+				if player and player.has_method("unlock_weapons"):
+					player.unlock_weapons()
 				call_deferred("_evaluate_regular_enemies")
 		"eternal_gate":
 			if objective_id == "reach_gate":
@@ -159,6 +250,8 @@ func handle_event(event_id: String) -> void:
 			if player:
 				player.health = 120
 				player.stamina = 100.0
+				if player.has_method("set_checkpoint"):
+					player.set_checkpoint(player.global_position)
 			var profile := _profile()
 			if profile:
 				profile.save_game()
@@ -330,12 +423,12 @@ func _emit_objective() -> void:
 		objective_progress
 	)
 
-func _play_prologue() -> void:
-	for entry in PROLOGUE:
-		if objective_id != "reach_bonfire":
+func _play_valdrak_arrival() -> void:
+	for entry in VALDRAK_ARRIVAL:
+		if phase_index < 0:
 			return
-		show_story(str(entry[0]), str(entry[1]), 4.2)
-		await get_tree().create_timer(4.35).timeout
+		show_story(str(entry[0]), str(entry[1]), 4.0)
+		await get_tree().create_timer(4.15).timeout
 
 func _profile() -> Node:
 	return get_tree().get_first_node_in_group("game_profile")

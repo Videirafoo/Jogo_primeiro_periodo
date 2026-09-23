@@ -40,11 +40,15 @@ var facing := Vector3.FORWARD
 var dodge_direction := Vector3.FORWARD
 var lock_target: Node3D
 var current_interactable: Node
+var respawn_position := Vector3(120, 30.25, 122.0)
 
 var model_root: Node3D
 var anim_player: AnimationPlayer
 var animation_tree: AnimationTree
 var weapon_pivot: Node3D
+var weapon_roots: Array[Node3D] = []
+var weapon_index := 0
+var weapon_unlocked := false
 var skeleton: Skeleton3D
 var phone_root: Node3D
 var phone_screen: MeshInstance3D
@@ -61,6 +65,7 @@ var motion_phase := 0.0
 
 func _ready() -> void:
 	add_to_group("player")
+	respawn_position = global_position
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_collision()
 	_build_student()
@@ -171,6 +176,12 @@ func _physics_process(delta: float) -> void:
 		_interact()
 	if Input.is_action_just_pressed("phone_scan"):
 		_phone_scan()
+	if Input.is_action_just_pressed("weapon_sword"):
+		equip_weapon(0)
+	if Input.is_action_just_pressed("weapon_axe"):
+		equip_weapon(1)
+	if Input.is_action_just_pressed("weapon_hammer"):
+		equip_weapon(2)
 
 func _camera_relative_direction(input: Vector2) -> Vector3:
 	if input.length_squared() <= 0.01:
@@ -265,6 +276,8 @@ func _rotate_model(delta: float) -> void:
 	)
 
 func _light_attack() -> void:
+	if not weapon_unlocked:
+		return
 	if attack_time > 0.12 or dodge_time > 0.0:
 		return
 
@@ -273,35 +286,70 @@ func _light_attack() -> void:
 	else:
 		combo_step = 0
 
-	if stamina < LIGHT_COSTS[combo_step]:
+	var stamina_cost := (
+		LIGHT_COSTS[combo_step]
+		* _weapon_stamina_multiplier()
+	)
+	if stamina < stamina_cost:
 		return
 
-	var damage: int = LIGHT_DAMAGE[combo_step]
-	var duration: float = LIGHT_DURATION[combo_step]
-	var hit_delay: float = LIGHT_HIT_DELAY[combo_step]
-	var anim_rate: float = LIGHT_ANIM_RATE[combo_step]
+	var damage := int(
+		round(
+			float(LIGHT_DAMAGE[combo_step])
+			* _weapon_damage_multiplier()
+		)
+	)
+	var speed_mult := _weapon_speed_multiplier()
+	var duration := LIGHT_DURATION[combo_step] / speed_mult
+	var hit_delay := LIGHT_HIT_DELAY[combo_step] / speed_mult
+	var anim_rate := LIGHT_ANIM_RATE[combo_step] * speed_mult
 
-	_spend_stamina(LIGHT_COSTS[combo_step], 0.52)
+	_spend_stamina(stamina_cost, 0.52)
 	attack_time = duration
 	combo_window = 0.68
 	_face_lock_target()
 	_set_attack_rate(anim_rate)
 	_fire_one_shot("AttackShot")
-	_queue_attack_hit(damage, hit_delay, 2.55, false)
+	_queue_attack_hit(
+		damage,
+		hit_delay,
+		_weapon_reach(),
+		weapon_index == 2
+	)
+
 func _heavy_attack() -> void:
+	if not weapon_unlocked:
+		return
 	if attack_time > 0.0 or dodge_time > 0.0:
 		return
-	if stamina < HEAVY_COST:
+
+	var stamina_cost := (
+		HEAVY_COST
+		* _weapon_stamina_multiplier()
+	)
+	if stamina < stamina_cost:
 		return
 
-	_spend_stamina(HEAVY_COST, 0.82)
-	attack_time = 0.74
+	var speed_mult := _weapon_speed_multiplier()
+	var damage := int(
+		round(
+			62.0
+			* _weapon_damage_multiplier()
+		)
+	)
+	_spend_stamina(stamina_cost, 0.82)
+	attack_time = 0.74 / speed_mult
 	combo_window = 0.0
 	combo_step = 0
 	_face_lock_target()
-	_set_attack_rate(0.70)
+	_set_attack_rate(0.70 * speed_mult)
 	_fire_one_shot("AttackShot")
-	_queue_attack_hit(62, 0.29, 2.9, true)
+	_queue_attack_hit(
+		damage,
+		0.29 / speed_mult,
+		_weapon_reach() + 0.25,
+		true
+	)
 
 func _queue_attack_hit(
 	damage: int,
@@ -357,8 +405,7 @@ func take_hit(amount: int) -> void:
 	if health <= 0:
 		health = 120
 		stamina = MAX_STAMINA
-		global_position = Vector3.ZERO
-		velocity = Vector3.ZERO
+		teleport_to(respawn_position)
 
 func _dodge() -> void:
 	if dodge_time > 0.0 or attack_time > 0.25:
@@ -463,25 +510,24 @@ func _build_weapon() -> void:
 
 	weapon_pivot = Node3D.new()
 	weapon_pivot.name = "WeaponPivot"
-	var inherited_scale := attachment.global_basis.get_scale().x
-	inherited_scale = maxf(inherited_scale, 0.001)
+	var inherited_scale := maxf(
+		attachment.global_basis.get_scale().x,
+		0.001
+	)
 	weapon_pivot.scale = Vector3.ONE / inherited_scale
-	weapon_pivot.position = Vector3(0.0, -0.03, 0.02) / inherited_scale
+	weapon_pivot.position = Vector3(
+		0.0,
+		-0.03,
+		0.02
+	) / inherited_scale
 	weapon_pivot.rotation_degrees = Vector3(0, 90, -92)
 	attachment.add_child(weapon_pivot)
 
-	var axe := MeshInstance3D.new()
-	axe.name = "CodeAxe"
-	axe.mesh = AXE
-	axe.scale = Vector3.ONE * 0.24
-	axe.position = Vector3(0.0, -0.17, 0.0)
-	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color("58646c")
-	steel.metallic = 0.72
-	steel.roughness = 0.30
-	axe.material_overlay = steel
-	weapon_pivot.add_child(axe)
-	_build_weapon_details()
+	weapon_roots.clear()
+	weapon_roots.append(_build_player_sword())
+	weapon_roots.append(_build_player_axe())
+	weapon_roots.append(_build_player_hammer())
+	_refresh_weapon_visibility()
 
 func _build_animation_tree() -> void:
 	if not anim_player:
@@ -603,12 +649,18 @@ func get_interaction_prompt() -> String:
 		return current_interactable.get_prompt()
 	return "Interagir"
 
+func set_checkpoint(target: Vector3) -> void:
+	respawn_position = target
+
 func teleport_to(target: Vector3) -> void:
 	global_position = target
 	velocity = Vector3.ZERO
 	lock_target = null
 	current_interactable = null
+	facing = Vector3.FORWARD
+	dodge_direction = Vector3.FORWARD
 	camera_manual_timer = 0.0
+	camera_yaw = 0.0
 	camera_pitch = deg_to_rad(-12.0)
 	_apply_camera_rotation()
 
@@ -897,3 +949,237 @@ func _spawn_phone_scan_pulse() -> void:
 		0.72
 	)
 	tween.chain().tween_callback(ring.queue_free)
+
+func _weapon_metal() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("66747c")
+	mat.metallic = 0.82
+	mat.roughness = 0.24
+	return mat
+
+func _weapon_dark_metal() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("273239")
+	mat.metallic = 0.74
+	mat.roughness = 0.32
+	return mat
+
+func _weapon_wood() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("523224")
+	mat.roughness = 0.90
+	return mat
+
+func _weapon_rune() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("70f4ff")
+	mat.emission_enabled = true
+	mat.emission = Color("25dff4")
+	mat.emission_energy_multiplier = 3.2
+	mat.metallic = 0.20
+	mat.roughness = 0.16
+	return mat
+
+func _build_player_sword() -> Node3D:
+	var root := Node3D.new()
+	root.name = "RunicSword"
+	weapon_pivot.add_child(root)
+
+	var blade := MeshInstance3D.new()
+	blade.mesh = preload("res://assets/weapons/LongSword.obj")
+	blade.scale = Vector3.ONE * 0.235
+	blade.position = Vector3(0, -0.18, 0)
+	blade.material_overlay = _weapon_metal()
+	root.add_child(blade)
+
+	var guard := MeshInstance3D.new()
+	var guard_mesh := BoxMesh.new()
+	guard_mesh.size = Vector3(0.40, 0.050, 0.075)
+	guard.mesh = guard_mesh
+	guard.position = Vector3(0, -0.025, 0)
+	guard.material_override = _weapon_dark_metal()
+	root.add_child(guard)
+
+	for x in [-0.16, 0.16]:
+		var tip := MeshInstance3D.new()
+		var tip_mesh := SphereMesh.new()
+		tip_mesh.radius = 0.045
+		tip_mesh.height = 0.09
+		tip.mesh = tip_mesh
+		tip.position = Vector3(x, -0.025, 0)
+		tip.material_override = _weapon_rune()
+		root.add_child(tip)
+
+	var rune_strip := MeshInstance3D.new()
+	var strip_mesh := BoxMesh.new()
+	strip_mesh.size = Vector3(0.018, 0.48, 0.018)
+	rune_strip.mesh = strip_mesh
+	rune_strip.position = Vector3(0.022, 0.25, 0.025)
+	rune_strip.material_override = _weapon_rune()
+	root.add_child(rune_strip)
+
+	return root
+func _build_player_axe() -> Node3D:
+	var root := Node3D.new()
+	root.name = "RunicAxe"
+	weapon_pivot.add_child(root)
+
+	var axe := MeshInstance3D.new()
+	axe.mesh = AXE
+	axe.scale = Vector3.ONE * 0.245
+	axe.position = Vector3(0, -0.17, 0)
+	axe.material_overlay = _weapon_metal()
+	root.add_child(axe)
+
+	for y in [-0.33, -0.25, -0.17]:
+		var wrap := MeshInstance3D.new()
+		var wrap_mesh := TorusMesh.new()
+		wrap_mesh.inner_radius = 0.025
+		wrap_mesh.outer_radius = 0.041
+		wrap_mesh.rings = 12
+		wrap_mesh.ring_segments = 6
+		wrap.mesh = wrap_mesh
+		wrap.position = Vector3(0, y, 0)
+		wrap.rotation_degrees.x = 90
+		wrap.material_override = _weapon_wood()
+		root.add_child(wrap)
+
+	var core := MeshInstance3D.new()
+	var core_mesh := SphereMesh.new()
+	core_mesh.radius = 0.055
+	core_mesh.height = 0.11
+	core.mesh = core_mesh
+	core.position = Vector3(0.0, 0.04, 0.025)
+	core.material_override = _weapon_rune()
+	root.add_child(core)
+
+	var rune_strip := MeshInstance3D.new()
+	var strip_mesh := BoxMesh.new()
+	strip_mesh.size = Vector3(0.022, 0.24, 0.030)
+	rune_strip.mesh = strip_mesh
+	rune_strip.position = Vector3(0.038, -0.02, 0.025)
+	rune_strip.material_override = _weapon_rune()
+	root.add_child(rune_strip)
+
+	return root
+func _build_player_hammer() -> Node3D:
+	var root := Node3D.new()
+	root.name = "RunicHammer"
+	weapon_pivot.add_child(root)
+
+	var handle := MeshInstance3D.new()
+	var handle_mesh := CylinderMesh.new()
+	handle_mesh.top_radius = 0.045
+	handle_mesh.bottom_radius = 0.058
+	handle_mesh.height = 0.98
+	handle.mesh = handle_mesh
+	handle.position.y = -0.28
+	handle.material_override = _weapon_wood()
+	root.add_child(handle)
+
+	var head := MeshInstance3D.new()
+	var head_mesh := BoxMesh.new()
+	head_mesh.size = Vector3(0.62, 0.31, 0.34)
+	head.mesh = head_mesh
+	head.position.y = 0.24
+	head.material_override = _weapon_dark_metal()
+	root.add_child(head)
+
+	for x in [-0.255, 0.255]:
+		var cap := MeshInstance3D.new()
+		var cap_mesh := BoxMesh.new()
+		cap_mesh.size = Vector3(0.09, 0.34, 0.38)
+		cap.mesh = cap_mesh
+		cap.position = Vector3(x, 0.24, 0)
+		cap.material_override = _weapon_metal()
+		root.add_child(cap)
+
+	for z in [-0.18, 0.18]:
+		var rune_plate := MeshInstance3D.new()
+		var plate_mesh := BoxMesh.new()
+		plate_mesh.size = Vector3(0.34, 0.12, 0.025)
+		rune_plate.mesh = plate_mesh
+		rune_plate.position = Vector3(0, 0.24, z)
+		rune_plate.material_override = _weapon_rune()
+		root.add_child(rune_plate)
+
+	return root
+func _refresh_weapon_visibility() -> void:
+	for i in range(weapon_roots.size()):
+		weapon_roots[i].visible = (
+			weapon_unlocked
+			and i == weapon_index
+		)
+	if weapon_rune_light:
+		weapon_rune_light.visible = weapon_unlocked
+
+func unlock_weapons() -> void:
+	if weapon_unlocked:
+		return
+	weapon_unlocked = true
+	weapon_index = 0
+	_refresh_weapon_visibility()
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if director:
+		director.show_story(
+			"RUNA DO CÓDIGO",
+			"A runa reconheceu o celular. Três formas de arma foram gravadas: espada, machado e martelo.",
+			5.5
+		)
+
+func equip_weapon(index: int) -> void:
+	if not weapon_unlocked:
+		return
+	weapon_index = clampi(index, 0, weapon_roots.size() - 1)
+	_refresh_weapon_visibility()
+
+func get_weapon_name() -> String:
+	if not weapon_unlocked:
+		return "SEM ARMA"
+	match weapon_index:
+		0:
+			return "ESPADA RÚNICA"
+		1:
+			return "MACHADO RÚNICO"
+		2:
+			return "MARTELO RÚNICO"
+		_:
+			return "ARMA"
+
+func _weapon_damage_multiplier() -> float:
+	match weapon_index:
+		1:
+			return 1.18
+		2:
+			return 1.42
+		_:
+			return 1.0
+
+func _weapon_stamina_multiplier() -> float:
+	match weapon_index:
+		1:
+			return 1.04
+		2:
+			return 1.28
+		_:
+			return 0.92
+
+func _weapon_speed_multiplier() -> float:
+	match weapon_index:
+		1:
+			return 0.96
+		2:
+			return 0.78
+		_:
+			return 1.12
+
+func _weapon_reach() -> float:
+	match weapon_index:
+		1:
+			return 2.70
+		2:
+			return 2.95
+		_:
+			return 2.55
