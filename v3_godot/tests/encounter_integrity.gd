@@ -97,11 +97,54 @@ func _run() -> void:
 			"%s_full_health" % node.name
 		)
 
-	_set_objective(director, "reach_gate")
+	# Checkpoint/death regression: partial encounters restart cleanly.
+	village[0].take_hit(
+		int(village[0].max_health) + 10,
+		Vector3.FORWARD
+	)
 	await process_frame
 	check(
+		int(village[0].health) == 0,
+		"one_village_enemy_can_be_defeated"
+	)
+	director.handle_event("player_death")
+	await process_frame
+	await process_frame
+	check(
+		_visible_alive_count(village) == 4,
+		"player_death_restores_full_encounter"
+	)
+	for node in village:
+		check(
+			int(node.health) == int(node.max_health),
+			"%s_restored_after_player_death" % node.name
+		)
+
+	# Regression: an already-started encounter must never vanish
+	# because another objective signal arrives by mistake.
+	_set_objective(director, "qa_midfight")
+	await process_frame
+	check(
+		_visible_alive_count(village) == 4,
+		"village_does_not_disappear_midfight"
+	)
+
+	_set_objective(director, "clear_village")
+	await process_frame
+	for node in village:
+		node.take_hit(
+			int(node.max_health) + 50,
+			Vector3.FORWARD
+		)
+	await process_frame
+	await process_frame
+	check(
+		director.objective_id == "reach_gate",
+		"village_completion_advances_objective"
+	)
+	check(
 		_visible_alive_count(village) == 0,
-		"village_deactivates_after_encounter"
+		"defeated_village_is_hidden"
 	)
 
 	director.phase_index = 2
@@ -112,16 +155,21 @@ func _run() -> void:
 		"jarl_activates_only_for_boss_objective"
 	)
 
+	_set_objective(director, "qa_midboss")
+	await process_frame
+	check(
+		_visible_alive_count(jarl) == 1,
+		"jarl_does_not_disappear_midfight"
+	)
+	_set_objective(director, "defeat_boss")
+	await process_frame
+
 	director.phase_index = 4
 	_set_objective(director, "enter_crow_dungeon")
 	await process_frame
 	check(
 		_visible_alive_count(crowwood) == 2,
 		"crowwood_patrol_activates"
-	)
-	check(
-		_visible_alive_count(jarl) == 0,
-		"jarl_deactivates_after_boss_objective"
 	)
 
 	director.phase_index = 5
@@ -132,8 +180,8 @@ func _run() -> void:
 		"warden_encounter_activates_three"
 	)
 	check(
-		_visible_alive_count(crowwood) == 0,
-		"crowwood_patrol_deactivates_in_dungeon"
+		_visible_alive_count(crowwood) == 2,
+		"started_crowwood_patrol_remains_consistent"
 	)
 
 	if failures.is_empty():

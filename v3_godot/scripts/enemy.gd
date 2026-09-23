@@ -35,6 +35,11 @@ var status_label: Label3D
 var marker: MeshInstance3D
 var game_director: Node
 var phase_active := false
+var encounter_started := false
+var defeated := false
+var base_scale := Vector3.ONE
+var initial_collision_layer := 1
+var initial_collision_mask := 1
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -42,6 +47,9 @@ func _ready() -> void:
 		add_to_group("bosses")
 	health = max_health
 	home_position = global_position
+	base_scale = scale
+	initial_collision_layer = collision_layer
+	initial_collision_mask = collision_mask
 	player = get_tree().get_first_node_in_group("player") as Node3D
 	_build_collision()
 	_build_raider()
@@ -102,7 +110,9 @@ func _refresh_phase_state() -> void:
 		)
 	set_physics_process(active)
 	if became_active:
+		encounter_started = true
 		call_deferred("_snap_to_ground")
+		call_deferred("_play_spawn_vfx")
 	if not active:
 		_set_combat_visuals(false)
 
@@ -217,16 +227,36 @@ func take_hit(amount: int, direction: Vector3) -> void:
 		_die()
 
 func _die() -> void:
+	if defeated:
+		return
+	defeated = true
 	died.emit(self)
 	if anim_player:
-		anim_player.play("CharacterArmature|Defeat", 0.08, 1.0)
+		anim_player.play(
+			"CharacterArmature|Defeat",
+			0.08,
+			1.0
+		)
 	set_physics_process(false)
 	collision_layer = 0
 	collision_mask = 0
 	var tween := create_tween()
 	tween.tween_interval(0.85)
-	tween.tween_property(self, "scale", Vector3.ZERO, 0.35)
-	tween.tween_callback(queue_free)
+	tween.tween_property(
+		self,
+		"scale",
+		base_scale * 0.92,
+		0.22
+	)
+	tween.tween_callback(
+		Callable(self, "_finish_defeat_visual")
+	)
+
+func _finish_defeat_visual() -> void:
+	if not defeated:
+		return
+	visible = false
+	scale = base_scale
 
 func _build_collision() -> void:
 	var shape := CapsuleShape3D.new()
@@ -565,10 +595,15 @@ func _is_active() -> bool:
 		return true
 
 	if activation_objective != "":
-		return (
+		if encounter_started and health > 0:
+			return true
+		if (
 			str(director.objective_id)
 			== activation_objective
-		)
+		):
+			encounter_started = true
+			return true
+		return false
 
 	return int(director.phase_index) >= active_phase
 
@@ -580,7 +615,18 @@ func _set_combat_visuals(enabled: bool) -> void:
 
 
 func reset_after_player_death() -> void:
-	if health <= 0:
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	var encounter_still_active := (
+		activation_objective == ""
+		or (
+			director
+			and str(director.objective_id)
+			== activation_objective
+		)
+	)
+	if not encounter_still_active:
 		return
 
 	velocity = Vector3.ZERO
@@ -589,16 +635,30 @@ func reset_after_player_death() -> void:
 	swing_time = 0.0
 	stagger_time = 0.0
 	global_position = home_position
+	scale = base_scale
+	health = max_health
+	defeated = false
+	encounter_started = true
+	collision_layer = initial_collision_layer
+	collision_mask = initial_collision_mask
+	_update_status()
+	phase_active = true
+	visible = true
+	set_physics_process(true)
 
-	# Bosses reiniciam a tentativa por completo para evitar
-	# dano acumulado entre mortes do jogador.
-	if boss:
-		health = max_health
-		_update_status()
+	var collision := get_node_or_null(
+		"CollisionShape3D"
+	) as CollisionShape3D
+	if collision:
+		collision.set_deferred(
+			"disabled",
+			false
+		)
 
 	_set_combat_visuals(false)
 	if anim_player:
 		_play_loop("CharacterArmature|Idle")
+	call_deferred("_snap_to_ground")
 
 
 func _snap_to_ground() -> void:
@@ -625,3 +685,68 @@ func _snap_to_ground() -> void:
 	global_position.y = point.y + 0.05
 	if home_position == Vector3.ZERO or phase_active:
 		home_position.y = global_position.y
+
+
+func _play_spawn_vfx() -> void:
+	if not is_inside_tree() or not visible:
+		return
+
+	var pulse := MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.42 if not boss else 0.82
+	ring.outer_radius = 0.50 if not boss else 0.94
+	ring.rings = 18
+	ring.ring_segments = 8
+	pulse.mesh = ring
+	pulse.position.y = 0.055
+
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var color := _archetype_color()
+	mat.albedo_color = Color(
+		color.r,
+		color.g,
+		color.b,
+		0.72
+	)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 1.8
+	pulse.material_override = mat
+	add_child(pulse)
+
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 1.8 if not boss else 3.2
+	light.omni_range = 2.8 if not boss else 5.0
+	light.shadow_enabled = false
+	light.position.y = 0.8
+	add_child(light)
+
+	var base_scale := scale
+	scale = base_scale * 0.93
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(
+		self,
+		"scale",
+		base_scale,
+		0.22
+	)
+	tween.tween_property(
+		pulse,
+		"scale",
+		Vector3.ONE * 1.85,
+		0.34
+	)
+	tween.tween_property(
+		light,
+		"light_energy",
+		0.0,
+		0.32
+	)
+	tween.set_parallel(false)
+	tween.tween_callback(pulse.queue_free)
+	tween.tween_callback(light.queue_free)

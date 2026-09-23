@@ -571,9 +571,7 @@ func _evaluate_regular_enemies() -> void:
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(node):
 			continue
-		if bool(node.boss):
-			continue
-		if int(node.active_phase) > 1:
+		if str(node.encounter_id) != "valdrak_village":
 			continue
 		if int(node.health) > 0:
 			alive += 1
