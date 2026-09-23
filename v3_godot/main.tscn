@@ -1,43 +1,128 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource path="res://scripts/world.gd" type="Script" id="1"]
 [ext_resource path="res://scripts/player.gd" type="Script" id="2"]
 [ext_resource path="res://scripts/enemy.gd" type="Script" id="3"]
 [ext_resource path="res://scripts/hud.gd" type="Script" id="4"]
+[ext_resource path="res://scripts/terrain.gd" type="Script" id="5"]
+[ext_resource path="res://scripts/game_director.gd" type="Script" id="6"]
+[ext_resource path="res://scripts/world_content.gd" type="Script" id="7"]
+
+[sub_resource type="SphereShape3D" id="CameraShape"]
+radius = 0.34
 
 [node name="V3World" type="Node3D"]
 script = ExtResource("1")
 
+[node name="GameDirector" type="Node" parent="."]
+script = ExtResource("6")
+
+[node name="NarrativeContent" type="Node3D" parent="."]
+script = ExtResource("7")
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-52, -32, 0)
-light_energy = 1.35
+rotation_degrees = Vector3(-48, -35, 0)
+light_energy = 1.5
 shadow_enabled = true
-directional_shadow_max_distance = 80.0
+directional_shadow_max_distance = 68.0
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("5")
 
 [node name="Player" type="CharacterBody3D" parent="."]
+position = Vector3(0, 0.08, 3.0)
 script = ExtResource("2")
-
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
 
 [node name="CameraRig" type="Node3D" parent="Player"]
-position = Vector3(0, 1.55, 0)
+position = Vector3(0, 1.8, 0)
 
 [node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraRig"]
-spring_length = 5.4
-margin = 0.18
+spring_length = 4.8
+margin = 0.28
+shape = SubResource("CameraShape")
 collision_mask = 1
+
 [node name="Camera3D" type="Camera3D" parent="Player/CameraRig/SpringArm3D"]
+position = Vector3(0.46, 0.08, 0)
 current = true
-fov = 65.0
+fov = 64.0
 near = 0.08
 
 [node name="Raider" type="CharacterBody3D" parent="."]
-position = Vector3(0, 0, -7)
+position = Vector3(-4.5, 0.05, -12)
 script = ExtResource("3")
+display_name = "VALDRAK RAIDER"
+max_health = 100
+move_speed = 2.7
+attack_damage = 16
+aggro_range = 13.5
+model_scale = 1.22
+archetype = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Raider"]
+[node name="Berserker" type="CharacterBody3D" parent="."]
+position = Vector3(6.5, 0.05, -17.0)
+script = ExtResource("3")
+display_name = "BERSERKER"
+max_health = 165
+move_speed = 2.35
+attack_range = 1.9
+attack_cooldown = 1.3
+attack_damage = 23
+aggro_range = 12.5
+model_scale = 1.38
+archetype = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Berserker"]
+
+[node name="ScoutLeft" type="CharacterBody3D" parent="."]
+position = Vector3(-11.0, 0.05, -22.0)
+script = ExtResource("3")
+display_name = "BATEDOR"
+max_health = 80
+move_speed = 3.0
+attack_range = 1.65
+attack_cooldown = 1.0
+attack_damage = 12
+aggro_range = 8.0
+model_scale = 1.12
+archetype = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ScoutLeft"]
+
+[node name="ScoutRight" type="CharacterBody3D" parent="."]
+position = Vector3(10.5, 0.05, -24.0)
+script = ExtResource("3")
+display_name = "VIGIA"
+max_health = 90
+move_speed = 2.85
+attack_range = 1.7
+attack_cooldown = 1.08
+attack_damage = 14
+aggro_range = 8.5
+model_scale = 1.16
+archetype = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ScoutRight"]
+
+[node name="JarlBoss" type="CharacterBody3D" parent="."]
+position = Vector3(0, 0.18, -34.0)
+script = ExtResource("3")
+display_name = "JARL VORUN"
+max_health = 420
+move_speed = 2.05
+attack_range = 2.25
+attack_cooldown = 1.42
+attack_damage = 32
+aggro_range = 10.5
+model_scale = 1.56
+archetype = 2
+boss = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="JarlBoss"]
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("4")
