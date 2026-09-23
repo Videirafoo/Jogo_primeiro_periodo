@@ -637,3 +637,7 @@ Validação do hotfix:
 - 76 telas de smoke;
 - QA runtime nas 7 regiões;
 - travessia real das duas emendas do mapa.
+
+### Revalidação V2.8.1 Beta 2
+
+Este checkpoint reexecuta os gates oficiais de Windows sobre a branch de hotfix: geração de música V2.8, suíte completa de testes, smoke nativo e PyInstaller.
