@@ -14,3 +14,5 @@ venv/
 
 # Godot generated cache
 v3_godot/.godot/
+
+v3_godot/third_party/
