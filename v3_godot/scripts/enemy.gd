@@ -59,19 +59,19 @@ func _attack_player() -> void:
         anim_player.play("CharacterArmature|Punch", 0.05, 1.1)
 
     if weapon_pivot:
-        weapon_pivot.rotation_degrees = Vector3(-14, 0, -18)
+        weapon_pivot.rotation_degrees = Vector3(0, 90, -92)
         var tween := create_tween()
         tween.tween_property(
             weapon_pivot,
             "rotation_degrees",
-            Vector3(-18, 82, 58),
-            0.16
+            Vector3(-8, 32, -48),
+            0.14
         )
         tween.tween_property(
             weapon_pivot,
             "rotation_degrees",
-            Vector3(-14, 0, -18),
-            0.18
+            Vector3(0, 90, -92),
+            0.20
         )
 
     if player and player.has_method("take_hit"):
@@ -80,6 +80,7 @@ func _attack_player() -> void:
 func take_hit(amount: int, direction: Vector3) -> void:
     health -= amount
     knockback += direction * 5.2
+    _spawn_hit_vfx(direction)
     if anim_player and health > 0:
         anim_player.play("CharacterArmature|RecieveHit", 0.03, 1.1)
     if health <= 0:
@@ -115,16 +116,28 @@ func _build_raider() -> void:
                 anim.loop_mode = Animation.LOOP_LINEAR
         _play_loop("CharacterArmature|Idle")
 
+    var skeleton := model.find_child(
+        "Skeleton3D",
+        true,
+        false
+    ) as Skeleton3D
+    if not skeleton:
+        return
+
+    var attachment := BoneAttachment3D.new()
+    attachment.name = "RightHandWeapon"
+    attachment.bone_name = "Fist.R"
+    skeleton.add_child(attachment)
+
     weapon_pivot = Node3D.new()
-    weapon_pivot.position = Vector3(0.46, 1.0, -0.08)
-    weapon_pivot.rotation_degrees = Vector3(-14, 0, -18)
-    add_child(weapon_pivot)
+    weapon_pivot.position = Vector3(0.0, -0.03, 0.02)
+    weapon_pivot.rotation_degrees = Vector3(0, 90, -92)
+    attachment.add_child(weapon_pivot)
 
     var sword := MeshInstance3D.new()
     sword.mesh = SWORD
-    sword.scale = Vector3.ONE * 0.26
+    sword.scale = Vector3.ONE * 0.23
     sword.position = Vector3(0, -0.18, 0)
-    sword.rotation_degrees = Vector3(0, 0, -8)
     weapon_pivot.add_child(sword)
 
 func _play_loop(name: String) -> void:
@@ -133,3 +146,48 @@ func _play_loop(name: String) -> void:
     if anim_player.current_animation == name:
         return
     anim_player.play(name, 0.12)
+
+func _spawn_hit_vfx(direction: Vector3) -> void:
+    var particles := GPUParticles3D.new()
+    particles.amount = 16
+    particles.lifetime = 0.42
+    particles.one_shot = true
+    particles.explosiveness = 0.95
+
+    var process := ParticleProcessMaterial.new()
+    process.direction = Vector3(
+        direction.x,
+        0.85,
+        direction.z
+    ).normalized()
+    process.spread = 62.0
+    process.initial_velocity_min = 2.4
+    process.initial_velocity_max = 5.2
+    process.gravity = Vector3(0, -7.5, 0)
+    process.color = Color("79f3ff")
+    particles.process_material = process
+
+    var quad := QuadMesh.new()
+    quad.size = Vector2(0.06, 0.06)
+    var material := StandardMaterial3D.new()
+    material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    material.albedo_color = Color("bffcff")
+    material.emission_enabled = true
+    material.emission = Color("47e8ff")
+    quad.material = material
+    particles.draw_pass_1 = quad
+
+    get_parent().add_child(particles)
+    particles.global_position = global_position + Vector3.UP * 1.0
+    particles.finished.connect(particles.queue_free)
+    particles.emitting = true
+
+    var flash := OmniLight3D.new()
+    flash.light_color = Color("63efff")
+    flash.light_energy = 3.2
+    flash.omni_range = 3.0
+    get_parent().add_child(flash)
+    flash.global_position = particles.global_position
+    var fade := get_tree().create_tween()
+    fade.tween_property(flash, "light_energy", 0.0, 0.14)
+    fade.tween_callback(flash.queue_free)

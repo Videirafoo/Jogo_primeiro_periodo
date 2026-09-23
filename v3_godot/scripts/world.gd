@@ -34,6 +34,10 @@ func _environment() -> void:
     env.fog_density = 0.012
     env.fog_height = 0.0
     env.fog_height_density = 0.08
+    env.adjustment_enabled = true
+    env.adjustment_brightness = 1.02
+    env.adjustment_contrast = 1.08
+    env.adjustment_saturation = 0.92
     $WorldEnvironment.environment = env
 
 func _ground() -> void:
@@ -68,6 +72,7 @@ func _authored_village() -> void:
         var x := -8.5 + float(i) * 2.4
         _mesh(FENCE, Vector3(x, 0, 4.8), 0.0, 1.2)
     _bonfire_light()
+    _bonfire_particles()
 
 func _mesh(
     mesh: Mesh,
@@ -75,12 +80,19 @@ func _mesh(
     yaw: float,
     scale_value: float
 ) -> void:
+    var body := StaticBody3D.new()
+    body.position = pos
+    body.rotation.y = yaw
+    body.scale = Vector3.ONE * scale_value
+
     var instance := MeshInstance3D.new()
     instance.mesh = mesh
-    instance.position = pos
-    instance.rotation.y = yaw
-    instance.scale = Vector3.ONE * scale_value
-    add_child(instance)
+    body.add_child(instance)
+
+    var collision := CollisionShape3D.new()
+    collision.shape = mesh.create_trimesh_shape()
+    body.add_child(collision)
+    add_child(body)
 
 func _bonfire_light() -> void:
     var light := OmniLight3D.new()
@@ -156,3 +168,31 @@ func _landmark() -> void:
     rune.light_energy = 2.8
     rune.omni_range = 7.0
     add_child(rune)
+
+func _bonfire_particles() -> void:
+    var particles := GPUParticles3D.new()
+    particles.position = Vector3(0, 0.65, -5)
+    particles.amount = 28
+    particles.lifetime = 1.2
+    particles.randomness = 0.45
+
+    var process := ParticleProcessMaterial.new()
+    process.direction = Vector3(0, 1, 0)
+    process.spread = 24.0
+    process.initial_velocity_min = 0.7
+    process.initial_velocity_max = 2.1
+    process.gravity = Vector3(0, 0.55, 0)
+    process.color = Color("ffb15c")
+    particles.process_material = process
+
+    var quad := QuadMesh.new()
+    quad.size = Vector2(0.055, 0.055)
+    var material := StandardMaterial3D.new()
+    material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    material.albedo_color = Color("ffd7a0")
+    material.emission_enabled = true
+    material.emission = Color("ff7f2a")
+    quad.material = material
+    particles.draw_pass_1 = quad
+    particles.emitting = true
+    add_child(particles)
