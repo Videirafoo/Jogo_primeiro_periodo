@@ -56,4 +56,22 @@ func _activate(player: Node) -> void:
 		visible = false
 
 func get_prompt() -> String:
+	if event_id == "blacksmith_talk":
+		var director := get_tree().get_first_node_in_group(
+			"game_director"
+		)
+		if director:
+			match str(director.objective_id):
+				"talk_eirik":
+					return "Falar com Eirik"
+				"collect_rune":
+					return "Perguntar sobre a Runa Partida"
+				"clear_village":
+					return "Perguntar sobre os invasores"
+				"reach_gate":
+					return "Pedir conselho a Eirik"
+				"defeat_boss":
+					return "Perguntar sobre Jarl Vorun"
+				"complete":
+					return "Falar com Eirik"
 	return prompt_text

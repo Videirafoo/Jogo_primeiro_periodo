@@ -14,6 +14,13 @@ signal story_message(
 signal phase_changed(index: int, name: String)
 signal game_completed()
 
+const PROLOGUE := [
+	["MEMÓRIA", "Fui dormir num dia comum. Quando abri os olhos, a chuva fria de Valdrak batia no meu rosto."],
+	["MEMÓRIA", "Pinheiros cercavam uma estrada de lama. Ao longe: fumaça, ferro e o som de uma guerra."],
+	["SISTEMA", "PODER DESPERTADO // TECNOLOGIA. Scanner de Runas, Mapa Holográfico e Pulso de Código disponíveis."],
+	["MEMÓRIA", "Outros sonhadores estão presos aqui. Para acordar, preciso encontrar a última porta."]
+]
+
 var phase_index := 0
 var chapter_name := "CAPÍTULO I // A CHEGADA"
 var objective_id := "reach_bonfire"
@@ -30,11 +37,7 @@ func _bootstrap() -> void:
 	await get_tree().process_frame
 	_bind_enemies()
 	_emit_objective()
-	show_story(
-		"MEMÓRIA",
-		"Valdrak deveria estar celebrando. Em vez disso, só há fumaça e silêncio.",
-		5.0
-	)
+	call_deferred("_play_prologue")
 func _bind_enemies() -> void:
 	for node in get_tree().get_nodes_in_group("enemies"):
 		if node.has_signal("died"):
@@ -43,9 +46,6 @@ func _bind_enemies() -> void:
 				node.died.connect(callback)
 
 func handle_event(event_id: String) -> void:
-	if completed:
-		return
-
 	match event_id:
 		"bonfire_arrival":
 			if objective_id == "reach_bonfire":
@@ -84,6 +84,36 @@ func handle_event(event_id: String) -> void:
 					"Vorun abriu o Portão dos Eternos. Sem a runa, ninguém o fecha.",
 					6.0
 				)
+			elif objective_id == "collect_rune":
+				show_story(
+					"EIRIK",
+					"A runa está sobre o pedestal da forja. Ela pulsa quando você se aproxima.",
+					5.0
+				)
+			elif objective_id == "clear_village":
+				show_story(
+					"EIRIK",
+					"Não deixe nenhum invasor de pé. Depois siga para o portão ao norte.",
+					5.0
+				)
+			elif objective_id == "reach_gate":
+				show_story(
+					"EIRIK",
+					"O Portão dos Eternos responde à runa. Atravesse-o e não olhe para trás.",
+					5.0
+				)
+			elif objective_id == "defeat_boss":
+				show_story(
+					"EIRIK",
+					"Vorun está na arena. Quebre o juramento dele e Valdrak respirará de novo.",
+					5.0
+				)
+			elif objective_id == "complete":
+				show_story(
+					"EIRIK",
+					"Você libertou Valdrak. Mas este foi apenas o primeiro juramento.",
+					5.0
+				)
 		"rune_collect":
 			if objective_id == "collect_rune":
 				_set_objective(
@@ -97,6 +127,16 @@ func handle_event(event_id: String) -> void:
 					"Agora eles sentirão a runa despertar. Prepare-se.",
 					4.0
 				)
+				var profile := _profile()
+				if profile:
+					profile.unlock_codex("runas")
+					profile.add_item({
+						"name": "Runa do Código",
+						"slot": "rune",
+						"rarity": "Raro",
+						"stat": "energy",
+						"value": 10
+					})
 				call_deferred("_evaluate_regular_enemies")
 		"eternal_gate":
 			if objective_id == "reach_gate":
@@ -114,7 +154,62 @@ func handle_event(event_id: String) -> void:
 					"Você trouxe a runa até mim. Agora traga também o seu nome.",
 					6.0
 				)
+		"bonfire_rest":
+			var player := get_tree().get_first_node_in_group("player")
+			if player:
+				player.health = 120
+				player.stamina = 100.0
+			var profile := _profile()
+			if profile:
+				profile.save_game()
+			show_story(
+				"FOGUEIRA",
+				"O calor devolve suas forças. O sonho registra este momento.",
+				4.0
+			)
+		"loot_forge_chest":
+			var profile := _profile()
+			if profile and profile.open_chest("forge_chest"):
+				profile.add_coins(35)
+				profile.add_item({
+					"name": "Machado de Valdrak",
+					"slot": "weapon",
+					"rarity": "Raro",
+					"stat": "attack",
+					"value": 9
+				})
+				show_story(
+					"TESOURO",
+					"Você encontrou um Machado de Valdrak e 35 moedas.",
+					4.0
+				)
+		"loot_archive_chest":
+			var profile := _profile()
+			if profile and profile.open_chest("archive_chest"):
+				profile.add_coins(22)
+				profile.add_item({
+					"name": "Olho de Aurel",
+					"slot": "amulet",
+					"rarity": "Raro",
+					"stat": "crit",
+					"value": 5
+				})
+				profile.unlock_codex("eternos")
+				show_story(
+					"TESOURO",
+					"Você encontrou o Olho de Aurel e um registro sobre os Eternos.",
+					4.5
+				)
+		"quest_board":
+			var quests := get_tree().get_first_node_in_group(
+				"quest_manager"
+			)
+			if quests:
+				quests.interact_board()
 		"lore_house":
+			var profile := _profile()
+			if profile:
+				profile.unlock_codex("eternos")
 			show_story(
 				"CRÔNICA DE VALDRAK",
 				"Os Eternos não eram deuses. Eram guerreiros que se recusaram a morrer.",
@@ -174,6 +269,11 @@ func _complete_story() -> void:
 	objective_detail = "Vertical slice concluído. Novas regiões serão abertas a partir daqui."
 	objective_progress = "CONCLUÍDO"
 	_emit_objective()
+	var profile := _profile()
+	if profile:
+		profile.add_xp(250)
+		profile.add_coins(100)
+		profile.unlock_codex("guardioes")
 	show_story(
 		"EIRIK",
 		"Um Jarl caiu. Seis regiões ainda carregam o mesmo juramento.",
@@ -199,3 +299,13 @@ func _emit_objective() -> void:
 		objective_detail,
 		objective_progress
 	)
+
+func _play_prologue() -> void:
+	for entry in PROLOGUE:
+		if objective_id != "reach_bonfire":
+			return
+		show_story(str(entry[0]), str(entry[1]), 4.2)
+		await get_tree().create_timer(4.35).timeout
+
+func _profile() -> Node:
+	return get_tree().get_first_node_in_group("game_profile")

@@ -45,6 +45,14 @@ func _build_story_zones() -> void:
 	)
 
 	_make_interaction(
+		"BonfireRest",
+		Vector3(0, 0.8, -6.0),
+		2.2,
+		"Descansar na fogueira",
+		"bonfire_rest"
+	)
+
+	_make_interaction(
 		"ForgeDoor",
 		Vector3(10.3, 1.0, 6.7),
 		1.5,
@@ -88,6 +96,8 @@ func _build_story_zones() -> void:
 		Color("d4b6ff")
 	)
 
+	_make_quest_board(Vector3(-5.8, 0.0, -4.2))
+
 func _build_forge_interior() -> void:
 	_build_room(
 		FORGE_ORIGIN,
@@ -127,6 +137,13 @@ func _build_forge_interior() -> void:
 
 	_make_hearth(
 		FORGE_ORIGIN + Vector3(4.4, 0.35, -3.2)
+	)
+
+	_make_chest(
+		"ForgeChest",
+		FORGE_ORIGIN + Vector3(-3.7, 0.45, 2.4),
+		"loot_forge_chest",
+		"Abrir baú da ferraria"
 	)
 
 func _build_archive_interior() -> void:
@@ -175,6 +192,13 @@ func _build_archive_interior() -> void:
 			_make_shelf(
 				ARCHIVE_ORIGIN + Vector3(x, 1.25, z)
 			)
+
+	_make_chest(
+		"ArchiveChest",
+		ARCHIVE_ORIGIN + Vector3(3.1, 0.45, -2.9),
+		"loot_archive_chest",
+		"Abrir cofre das crônicas"
+	)
 
 func _build_room(
 	origin: Vector3,
@@ -430,3 +454,85 @@ func _make_interior_light(pos: Vector3) -> void:
 	light.omni_range = 7.0
 	light.shadow_enabled = true
 	add_child(light)
+
+func _make_chest(
+	node_name: String,
+	pos: Vector3,
+	event_id: String,
+	prompt: String
+) -> void:
+	var area := _make_interaction(
+		node_name,
+		pos + Vector3(0, 0.65, 0),
+		1.35,
+		prompt,
+		event_id,
+		false,
+		true
+	)
+
+	var chest := Node3D.new()
+	chest.position = Vector3(0, -0.38, 0)
+	area.add_child(chest)
+
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(1.2, 0.6, 0.75)
+	base.mesh = base_mesh
+	base.material_override = wood
+	chest.add_child(base)
+
+	var lid := MeshInstance3D.new()
+	var lid_mesh := BoxMesh.new()
+	lid_mesh.size = Vector3(1.25, 0.22, 0.8)
+	lid.mesh = lid_mesh
+	lid.position.y = 0.42
+	lid.material_override = metal
+	chest.add_child(lid)
+
+	var rune_mark := MeshInstance3D.new()
+	var rune_mesh := BoxMesh.new()
+	rune_mesh.size = Vector3(0.18, 0.32, 0.82)
+	rune_mark.mesh = rune_mesh
+	rune_mark.position = Vector3(0, 0.02, -0.39)
+	rune_mark.material_override = rune
+	chest.add_child(rune_mark)
+
+func _make_quest_board(pos: Vector3) -> void:
+	var area := _make_interaction(
+		"QuestBoard",
+		pos + Vector3(0, 1.2, 0),
+		1.8,
+		"Ver quadro de caçadas",
+		"quest_board"
+	)
+
+	var board := Node3D.new()
+	board.position = Vector3(0, -0.25, 0)
+	area.add_child(board)
+
+	for x in [-0.95, 0.95]:
+		var post := MeshInstance3D.new()
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.14, 2.2, 0.16)
+		post.mesh = post_mesh
+		post.position = Vector3(x, 0.0, 0)
+		post.material_override = wood
+		board.add_child(post)
+
+	var plank := MeshInstance3D.new()
+	var plank_mesh := BoxMesh.new()
+	plank_mesh.size = Vector3(2.35, 1.25, 0.14)
+	plank.mesh = plank_mesh
+	plank.position = Vector3(0, 0.35, 0)
+	plank.material_override = wood
+	board.add_child(plank)
+
+	var label := Label3D.new()
+	label.text = "CAÇADAS"
+	label.position = Vector3(0, 0.45, -0.12)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 24
+	label.outline_size = 6
+	label.modulate = Color("f2c879")
+	board.add_child(label)
