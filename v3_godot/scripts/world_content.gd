@@ -42,11 +42,28 @@ func _process(_delta: float) -> void:
 	)
 	if not director:
 		return
+
+	_refresh_dynamic_quest_props(director)
+
 	var phase := int(director.phase_index)
 	if phase == last_story_phase:
 		return
 	last_story_phase = phase
 	_refresh_story_npc_visibility()
+
+func _refresh_dynamic_quest_props(director: Node) -> void:
+	var rune_area := find_child(
+		"BrokenRune",
+		true,
+		false
+	) as Area3D
+	if rune_area and not rune_area.consumed:
+		var should_show := (
+			str(director.objective_id) == "collect_rune"
+		)
+		rune_area.visible = should_show
+		rune_area.monitoring = should_show
+		rune_area.monitorable = should_show
 
 func _refresh_story_npc_visibility() -> void:
 	var director := get_tree().get_first_node_in_group(
@@ -207,32 +224,8 @@ func _build_forge_interior() -> void:
 		Vector3(10.3, 0.08, 7.85)
 	)
 
-	# Porta de saída visível e proporcional. O vão da sala continua livre.
-	var forge_door_mat := StandardMaterial3D.new()
-	forge_door_mat.albedo_color = Color("4b2f20")
-	forge_door_mat.roughness = 0.90
-	var forge_frame_mat := StandardMaterial3D.new()
-	forge_frame_mat.albedo_color = Color("241a14")
-	forge_frame_mat.roughness = 0.86
-	for x in [-0.72, 0.72]:
-		_make_box(
-			FORGE_ORIGIN + Vector3(x, 1.22, 4.78),
-			Vector3(0.14, 2.44, 0.16),
-			forge_frame_mat
-		)
-	_make_box(
-		FORGE_ORIGIN + Vector3(0, 2.38, 4.78),
-		Vector3(1.58, 0.16, 0.16),
-		forge_frame_mat
-	)
-	var forge_door := _make_box(
-		FORGE_ORIGIN + Vector3(0.92, 1.10, 4.55),
-		Vector3(1.18, 2.20, 0.11),
-		forge_door_mat
-	)
-	forge_door.name = "ForgeVisibleDoor"
-	forge_door.rotation_degrees.y = -68.0
-
+	# A porta física é criada pelo _build_room para manter o mesmo
+	# padrão em ferraria, taverna, arquivo, casa e masmorra.
 	var exit_glow_mat := StandardMaterial3D.new()
 	exit_glow_mat.albedo_color = Color("ffd073")
 	exit_glow_mat.emission_enabled = true
@@ -263,18 +256,33 @@ func _build_forge_interior() -> void:
 	)
 
 	_make_rune_relic(
-		FORGE_ORIGIN + Vector3(2.25, 1.0, -1.2)
+		FORGE_ORIGIN + Vector3(2.25, 1.18, -1.35)
 	)
 
-	_make_anvil(FORGE_ORIGIN + Vector3(0.2, 0.55, -1.4))
+	_make_anvil(FORGE_ORIGIN + Vector3(0.2, 0.58, -1.4))
 	_make_table(
-		FORGE_ORIGIN + Vector3(3.8, 0.65, 1.8),
+		FORGE_ORIGIN + Vector3(3.8, 0.68, 1.8),
 		Vector3(2.4, 0.18, 1.0)
 	)
-	for z in [-2.8, -1.8, -0.8]:
-		_make_weapon_rack(
-			FORGE_ORIGIN + Vector3(-5.2, 1.15, z)
-		)
+
+	_make_forge_weapon_display(
+		FORGE_ORIGIN + Vector3(-5.15, 1.10, -2.55),
+		0,
+		"ESPADA RÚNICA",
+		"forge_weapon_sword"
+	)
+	_make_forge_weapon_display(
+		FORGE_ORIGIN + Vector3(-5.15, 1.10, -0.65),
+		1,
+		"MACHADO RÚNICO",
+		"forge_weapon_axe"
+	)
+	_make_forge_weapon_display(
+		FORGE_ORIGIN + Vector3(-5.15, 1.10, 1.25),
+		2,
+		"MARTELO RÚNICO",
+		"forge_weapon_hammer"
+	)
 
 	_make_hearth(
 		FORGE_ORIGIN + Vector3(4.4, 0.35, -3.2)
@@ -375,23 +383,38 @@ func _build_room(
 	)
 
 	var front_z := size.y * 0.5
+	var doorway_w := 1.75
+	var side_w := (size.x - doorway_w) * 0.5
 	_make_box(
-		origin + Vector3(-4.1, wall_h * 0.5, front_z),
-		Vector3(size.x * 0.34, wall_h, thickness),
+		origin + Vector3(
+			-(doorway_w * 0.5 + side_w * 0.5),
+			wall_h * 0.5,
+			front_z
+		),
+		Vector3(side_w, wall_h, thickness),
 		stone,
 		true
 	)
 	_make_box(
-		origin + Vector3(4.1, wall_h * 0.5, front_z),
-		Vector3(size.x * 0.34, wall_h, thickness),
+		origin + Vector3(
+			doorway_w * 0.5 + side_w * 0.5,
+			wall_h * 0.5,
+			front_z
+		),
+		Vector3(side_w, wall_h, thickness),
 		stone,
 		true
 	)
 	_make_box(
-		origin + Vector3(0, wall_h - 0.45, front_z),
-		Vector3(3.3, 0.9, thickness),
+		origin + Vector3(0, 3.65, front_z),
+		Vector3(doorway_w, 1.50, thickness),
 		wood,
 		true
+	)
+	_make_complete_interior_door(
+		origin,
+		front_z,
+		title
 	)
 
 	_make_box(
@@ -445,27 +468,90 @@ func _build_blacksmith(pos: Vector3) -> void:
 	)
 
 func _make_rune_relic(pos: Vector3) -> void:
+	var pedestal_mat := StandardMaterial3D.new()
+	pedestal_mat.albedo_color = Color("2a3034")
+	pedestal_mat.metallic = 0.18
+	pedestal_mat.roughness = 0.68
+
+	_make_box(
+		pos + Vector3(0, -0.78, 0),
+		Vector3(1.25, 0.32, 1.10),
+		pedestal_mat,
+		true
+	)
+	_make_box(
+		pos + Vector3(0, -0.48, 0),
+		Vector3(0.78, 0.34, 0.72),
+		metal
+	)
+
 	var area := _make_interaction(
 		"BrokenRune",
 		pos,
-		1.25,
+		1.55,
 		"Recuperar a Runa Partida",
 		"rune_collect",
 		false,
 		true
 	)
-	var crystal := MeshInstance3D.new()
-	var mesh := PrismMesh.new()
-	mesh.size = Vector3(0.62, 1.25, 0.62)
-	crystal.mesh = mesh
-	crystal.rotation_degrees = Vector3(0, 22, 18)
-	crystal.material_override = rune
-	area.add_child(crystal)
+
+	var relic := Node3D.new()
+	relic.name = "BrokenRuneVisual"
+	area.add_child(relic)
+
+	var core := MeshInstance3D.new()
+	var core_mesh := BoxMesh.new()
+	core_mesh.size = Vector3(0.34, 0.82, 0.15)
+	core.mesh = core_mesh
+	core.rotation_degrees = Vector3(0, 18, -11)
+	core.material_override = rune
+	relic.add_child(core)
+
+	for side in [-1.0, 1.0]:
+		var fragment := MeshInstance3D.new()
+		var fragment_mesh := BoxMesh.new()
+		fragment_mesh.size = Vector3(0.16, 0.42, 0.12)
+		fragment.mesh = fragment_mesh
+		fragment.position = Vector3(
+			0.24 * side,
+			0.10 * side,
+			0.02
+		)
+		fragment.rotation_degrees = Vector3(
+			8 * side,
+			-20 * side,
+			24 * side
+		)
+		fragment.material_override = rune
+		relic.add_child(fragment)
+
+	for radius in [0.42, 0.58]:
+		var ring := MeshInstance3D.new()
+		var ring_mesh := TorusMesh.new()
+		ring_mesh.inner_radius = radius
+		ring_mesh.outer_radius = radius + 0.018
+		ring_mesh.rings = 24
+		ring_mesh.ring_segments = 8
+		ring.mesh = ring_mesh
+		ring.rotation_degrees.x = 90
+		ring.material_override = rune
+		relic.add_child(ring)
+
+	var label := Label3D.new()
+	label.text = "RUNA PARTIDA  //  R"
+	label.position = Vector3(0, 1.05, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 28
+	label.outline_size = 8
+	label.modulate = Color("7cf5ff")
+	relic.add_child(label)
 
 	var light := OmniLight3D.new()
+	light.position = Vector3(0, 0.25, 0)
 	light.light_color = Color("5be7ff")
-	light.light_energy = 2.7
-	light.omni_range = 4.8
+	light.light_energy = 4.2
+	light.omni_range = 5.8
+	light.shadow_enabled = false
 	area.add_child(light)
 
 func _make_interaction(
@@ -541,21 +627,44 @@ func _make_box(
 	return root
 func _make_table(pos: Vector3, size: Vector3) -> void:
 	_make_box(pos, size, wood)
-	for x in [-0.95, 0.95]:
-		for z in [-0.32, 0.32]:
+	var leg_x := maxf(0.22, size.x * 0.40)
+	var leg_z := maxf(0.16, size.z * 0.34)
+	for x in [-leg_x, leg_x]:
+		for z in [-leg_z, leg_z]:
 			_make_box(
 				pos + Vector3(x, -0.55, z),
-				Vector3(0.14, 1.1, 0.14),
+				Vector3(0.13, 1.1, 0.13),
 				wood
 			)
 
 func _make_anvil(pos: Vector3) -> void:
-	_make_box(pos, Vector3(1.4, 0.35, 0.55), metal)
+	var stand_mat := StandardMaterial3D.new()
+	stand_mat.albedo_color = Color("3f2a1d")
+	stand_mat.roughness = 0.90
 	_make_box(
-		pos + Vector3(0, -0.55, 0),
-		Vector3(0.55, 0.9, 0.45),
+		pos + Vector3(0, -0.58, 0),
+		Vector3(0.62, 0.82, 0.48),
+		stand_mat,
+		true
+	)
+	_make_box(
+		pos + Vector3(0, -0.12, 0),
+		Vector3(0.82, 0.20, 0.50),
 		metal
 	)
+	_make_box(
+		pos + Vector3(0.12, 0.10, 0),
+		Vector3(1.18, 0.22, 0.46),
+		metal
+	)
+	var horn := MeshInstance3D.new()
+	var horn_mesh := PrismMesh.new()
+	horn_mesh.size = Vector3(0.42, 0.24, 0.44)
+	horn.mesh = horn_mesh
+	horn.position = pos + Vector3(0.77, 0.10, 0)
+	horn.rotation_degrees = Vector3(0, 0, -90)
+	horn.material_override = metal
+	add_child(horn)
 
 func _make_weapon_rack(pos: Vector3) -> void:
 	_make_box(pos, Vector3(0.16, 2.1, 0.16), wood)
@@ -580,12 +689,59 @@ func _make_shelf(pos: Vector3) -> void:
 		)
 
 func _make_hearth(pos: Vector3) -> void:
-	_make_box(pos, Vector3(2.2, 0.55, 1.4), stone)
+	var coal_mat := StandardMaterial3D.new()
+	coal_mat.albedo_color = Color("191513")
+	coal_mat.roughness = 0.96
+
+	var ember_mat := StandardMaterial3D.new()
+	ember_mat.albedo_color = Color("ff7d28")
+	ember_mat.emission_enabled = true
+	ember_mat.emission = Color("ff4f16")
+	ember_mat.emission_energy_multiplier = 2.6
+	ember_mat.roughness = 0.70
+
+	_make_box(
+		pos + Vector3(0, -0.12, 0),
+		Vector3(2.35, 0.32, 1.55),
+		stone,
+		true
+	)
+	_make_box(
+		pos + Vector3(0, 0.06, 0),
+		Vector3(1.72, 0.12, 0.92),
+		coal_mat
+	)
+
+	for x in [-0.90, 0.90]:
+		_make_box(
+			pos + Vector3(x, 0.24, 0),
+			Vector3(0.26, 0.54, 1.45),
+			stone
+		)
+
+	for z in [-0.62, 0.62]:
+		_make_box(
+			pos + Vector3(0, 0.24, z),
+			Vector3(2.05, 0.54, 0.22),
+			stone
+		)
+
+	for x in [-0.48, 0.0, 0.48]:
+		var ember := MeshInstance3D.new()
+		var ember_mesh := SphereMesh.new()
+		ember_mesh.radius = 0.12
+		ember_mesh.height = 0.18
+		ember.mesh = ember_mesh
+		ember.position = pos + Vector3(x, 0.22, 0)
+		ember.material_override = ember_mat
+		add_child(ember)
+
 	var light := OmniLight3D.new()
 	light.position = pos + Vector3(0, 1.0, 0)
 	light.light_color = Color("ff7f32")
-	light.light_energy = 3.5
-	light.omni_range = 5.5
+	light.light_energy = 3.0
+	light.omni_range = 5.2
+	light.shadow_enabled = false
 	add_child(light)
 
 func _make_interior_light(pos: Vector3) -> void:
@@ -1634,3 +1790,188 @@ func _build_crow_dungeon() -> void:
 	rune_mark.position = Vector3(0, 0.52, 0)
 	rune_mark.material_override = rune
 	altar.add_child(rune_mark)
+
+
+func _make_complete_interior_door(
+	origin: Vector3,
+	front_z: float,
+	room_title: String
+) -> void:
+	var frame_mat := StandardMaterial3D.new()
+	frame_mat.albedo_color = Color("2c1a11")
+	frame_mat.roughness = 0.88
+
+	var door_mat := StandardMaterial3D.new()
+	door_mat.albedo_color = Color("5a3520")
+	door_mat.roughness = 0.84
+
+	for x in [-0.92, 0.92]:
+		_make_box(
+			origin + Vector3(x, 1.35, front_z - 0.12),
+			Vector3(0.16, 2.70, 0.18),
+			frame_mat
+		)
+
+	_make_box(
+		origin + Vector3(0, 2.73, front_z - 0.12),
+		Vector3(2.00, 0.18, 0.18),
+		frame_mat
+	)
+
+	var leaf := _make_box(
+		origin + Vector3(0.88, 1.30, front_z + 0.34),
+		Vector3(1.55, 2.52, 0.12),
+		door_mat
+	)
+	leaf.name = "%sDoorLeaf" % room_title.replace(" ", "")
+	leaf.rotation_degrees.y = 72.0
+
+	var brace_mat := StandardMaterial3D.new()
+	brace_mat.albedo_color = Color("211713")
+	brace_mat.metallic = 0.18
+	brace_mat.roughness = 0.76
+	for y in [0.72, 1.30, 1.88]:
+		var brace := _make_box(
+			origin + Vector3(
+				0.88,
+				y,
+				front_z + 0.28
+			),
+			Vector3(1.20, 0.10, 0.08),
+			brace_mat
+		)
+		brace.rotation_degrees.y = 72.0
+
+	var handle := MeshInstance3D.new()
+	var handle_mesh := SphereMesh.new()
+	handle_mesh.radius = 0.055
+	handle_mesh.height = 0.11
+	handle.mesh = handle_mesh
+	handle.position = origin + Vector3(
+		0.34,
+		1.25,
+		front_z + 0.12
+	)
+	var handle_mat := StandardMaterial3D.new()
+	handle_mat.albedo_color = Color("b48b52")
+	handle_mat.metallic = 0.74
+	handle_mat.roughness = 0.26
+	handle.material_override = handle_mat
+	add_child(handle)
+
+	_make_box(
+		origin + Vector3(0, 0.035, front_z - 0.18),
+		Vector3(1.75, 0.07, 0.52),
+		wood
+	)
+
+	var exit_label := Label3D.new()
+	exit_label.text = "SAÍDA"
+	exit_label.position = origin + Vector3(
+		0,
+		3.02,
+		front_z - 0.18
+	)
+	exit_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	exit_label.font_size = 20
+	exit_label.outline_size = 6
+	exit_label.modulate = Color("f0d398")
+	add_child(exit_label)
+
+
+func _make_forge_weapon_display(
+	pos: Vector3,
+	weapon_type: int,
+	display_name: String,
+	event_id: String
+) -> void:
+	var area := _make_interaction(
+		"ForgeWeapon_%d" % weapon_type,
+		pos + Vector3(0.45, 0.0, 0),
+		1.35,
+		"Equipar %s" % display_name,
+		event_id
+	)
+
+	var rack := Node3D.new()
+	rack.name = "Display_%s" % display_name.replace(" ", "_")
+	rack.position = pos
+	add_child(rack)
+
+	var rack_mat := StandardMaterial3D.new()
+	rack_mat.albedo_color = Color("4c2f20")
+	rack_mat.roughness = 0.92
+
+	for x in [-0.48, 0.48]:
+		var post := MeshInstance3D.new()
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.12, 2.05, 0.16)
+		post.mesh = post_mesh
+		post.position = Vector3(x, 0, 0)
+		post.material_override = rack_mat
+		rack.add_child(post)
+
+	for y in [-0.52, 0.34]:
+		var beam := MeshInstance3D.new()
+		var beam_mesh := BoxMesh.new()
+		beam_mesh.size = Vector3(1.10, 0.12, 0.18)
+		beam.mesh = beam_mesh
+		beam.position = Vector3(0, y, 0)
+		beam.material_override = rack_mat
+		rack.add_child(beam)
+
+	var weapon_root := Node3D.new()
+	weapon_root.position = Vector3(0, 0.10, -0.12)
+	rack.add_child(weapon_root)
+
+	if weapon_type == 0:
+		var sword := MeshInstance3D.new()
+		sword.mesh = LONG_SWORD
+		sword.scale = Vector3.ONE * 0.22
+		sword.rotation_degrees = Vector3(90, 0, 0)
+		sword.material_override = metal
+		weapon_root.add_child(sword)
+	elif weapon_type == 1:
+		var axe := MeshInstance3D.new()
+		axe.mesh = SIMPLE_AXE
+		axe.scale = Vector3.ONE * 0.22
+		axe.rotation_degrees = Vector3(0, 0, -8)
+		axe.material_override = metal
+		weapon_root.add_child(axe)
+	else:
+		var handle := MeshInstance3D.new()
+		var handle_mesh := CylinderMesh.new()
+		handle_mesh.top_radius = 0.045
+		handle_mesh.bottom_radius = 0.055
+		handle_mesh.height = 1.05
+		handle.mesh = handle_mesh
+		handle.position = Vector3(0, -0.22, 0)
+		handle.material_override = wood
+		weapon_root.add_child(handle)
+
+		var head := MeshInstance3D.new()
+		var head_mesh := BoxMesh.new()
+		head_mesh.size = Vector3(0.42, 0.24, 0.28)
+		head.mesh = head_mesh
+		head.position = Vector3(0, 0.34, 0)
+		head.material_override = metal
+		weapon_root.add_child(head)
+
+	var label := Label3D.new()
+	label.text = display_name
+	label.position = Vector3(0, 1.28, -0.18)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 20
+	label.outline_size = 6
+	label.modulate = Color("e9d5a2")
+	rack.add_child(label)
+
+	var rune_mark := MeshInstance3D.new()
+	var mark_mesh := BoxMesh.new()
+	mark_mesh.size = Vector3(0.16, 0.16, 0.035)
+	rune_mark.mesh = mark_mesh
+	rune_mark.position = Vector3(0, 0.78, -0.20)
+	rune_mark.material_override = rune
+	rack.add_child(rune_mark)
+
+	area.position = pos + Vector3(0, 0.15, 0.15)

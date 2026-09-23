@@ -1092,128 +1092,167 @@ func _weapon_rune() -> StandardMaterial3D:
 func _build_player_sword() -> Node3D:
 	var root := Node3D.new()
 	root.name = "RunicSword"
-	root.rotation_degrees.z = -12.0
+	root.rotation_degrees = Vector3(0, 0, -22)
 	weapon_pivot.add_child(root)
 
-	var blade := MeshInstance3D.new()
-	blade.mesh = preload("res://assets/weapons/LongSword.obj")
-	blade.scale = Vector3.ONE * 0.235
-	blade.position = Vector3.ZERO
-	blade.rotation_degrees = Vector3(90, 0, 0)
-	blade.material_override = _weapon_metal()
-	root.add_child(blade)
+	var grip := MeshInstance3D.new()
+	var grip_mesh := CylinderMesh.new()
+	grip_mesh.top_radius = 0.035
+	grip_mesh.bottom_radius = 0.045
+	grip_mesh.height = 0.28
+	grip.mesh = grip_mesh
+	grip.position = Vector3(0, 0.10, 0)
+	grip.material_override = _weapon_wood()
+	root.add_child(grip)
+
+	var pommel := MeshInstance3D.new()
+	var pommel_mesh := SphereMesh.new()
+	pommel_mesh.radius = 0.055
+	pommel_mesh.height = 0.11
+	pommel.mesh = pommel_mesh
+	pommel.position = Vector3(0, -0.08, 0)
+	pommel.material_override = _weapon_dark_metal()
+	root.add_child(pommel)
 
 	var guard := MeshInstance3D.new()
 	var guard_mesh := BoxMesh.new()
-	guard_mesh.size = Vector3(0.40, 0.050, 0.075)
+	guard_mesh.size = Vector3(0.34, 0.045, 0.065)
 	guard.mesh = guard_mesh
-	guard.position = Vector3(0, -0.025, 0)
+	guard.position = Vector3(0, 0.25, 0)
 	guard.material_override = _weapon_dark_metal()
 	root.add_child(guard)
 
-	for x in [-0.16, 0.16]:
-		var tip := MeshInstance3D.new()
-		var tip_mesh := SphereMesh.new()
-		tip_mesh.radius = 0.045
-		tip_mesh.height = 0.09
-		tip.mesh = tip_mesh
-		tip.position = Vector3(x, -0.025, 0)
-		tip.material_override = _weapon_rune()
-		root.add_child(tip)
+	var blade := MeshInstance3D.new()
+	var blade_mesh := BoxMesh.new()
+	blade_mesh.size = Vector3(0.072, 0.92, 0.026)
+	blade.mesh = blade_mesh
+	blade.position = Vector3(0, 0.72, 0)
+	blade.material_override = _weapon_metal()
+	root.add_child(blade)
 
-	var rune_strip := MeshInstance3D.new()
-	var strip_mesh := BoxMesh.new()
-	strip_mesh.size = Vector3(0.018, 0.48, 0.018)
-	rune_strip.mesh = strip_mesh
-	rune_strip.position = Vector3(0.022, 0.25, 0.025)
-	rune_strip.material_override = _weapon_rune()
-	root.add_child(rune_strip)
+	var fuller := MeshInstance3D.new()
+	var fuller_mesh := BoxMesh.new()
+	fuller_mesh.size = Vector3(0.018, 0.74, 0.032)
+	fuller.mesh = fuller_mesh
+	fuller.position = Vector3(0, 0.70, 0)
+	fuller.material_override = _weapon_rune()
+	root.add_child(fuller)
+
+	var tip := MeshInstance3D.new()
+	var tip_mesh := PrismMesh.new()
+	tip_mesh.size = Vector3(0.075, 0.18, 0.028)
+	tip.mesh = tip_mesh
+	tip.position = Vector3(0, 1.27, 0)
+	tip.rotation_degrees = Vector3(0, 0, 90)
+	tip.material_override = _weapon_metal()
+	root.add_child(tip)
 
 	return root
 func _build_player_axe() -> Node3D:
 	var root := Node3D.new()
 	root.name = "RunicAxe"
-	root.rotation_degrees.z = -9.0
-	weapon_pivot.add_child(root)
-
-	var axe := MeshInstance3D.new()
-	axe.mesh = AXE
-	axe.scale = Vector3.ONE * 0.245
-	axe.position = Vector3(0, 0.02, 0)
-	axe.rotation_degrees = Vector3(0, 0, -4)
-	axe.material_override = _weapon_metal()
-	root.add_child(axe)
-
-	for y in [-0.33, -0.25, -0.17]:
-		var wrap := MeshInstance3D.new()
-		var wrap_mesh := TorusMesh.new()
-		wrap_mesh.inner_radius = 0.025
-		wrap_mesh.outer_radius = 0.041
-		wrap_mesh.rings = 12
-		wrap_mesh.ring_segments = 6
-		wrap.mesh = wrap_mesh
-		wrap.position = Vector3(0, y, 0)
-		wrap.rotation_degrees.x = 90
-		wrap.material_override = _weapon_wood()
-		root.add_child(wrap)
-
-	var core := MeshInstance3D.new()
-	var core_mesh := SphereMesh.new()
-	core_mesh.radius = 0.055
-	core_mesh.height = 0.11
-	core.mesh = core_mesh
-	core.position = Vector3(0.0, 0.04, 0.025)
-	core.material_override = _weapon_rune()
-	root.add_child(core)
-
-	var rune_strip := MeshInstance3D.new()
-	var strip_mesh := BoxMesh.new()
-	strip_mesh.size = Vector3(0.022, 0.24, 0.030)
-	rune_strip.mesh = strip_mesh
-	rune_strip.position = Vector3(0.038, -0.02, 0.025)
-	rune_strip.material_override = _weapon_rune()
-	root.add_child(rune_strip)
-
-	return root
-func _build_player_hammer() -> Node3D:
-	var root := Node3D.new()
-	root.name = "RunicHammer"
-	root.rotation_degrees.z = -7.0
+	root.rotation_degrees = Vector3(0, 0, -16)
 	weapon_pivot.add_child(root)
 
 	var handle := MeshInstance3D.new()
 	var handle_mesh := CylinderMesh.new()
-	handle_mesh.top_radius = 0.045
-	handle_mesh.bottom_radius = 0.058
-	handle_mesh.height = 0.76
+	handle_mesh.top_radius = 0.035
+	handle_mesh.bottom_radius = 0.050
+	handle_mesh.height = 0.90
 	handle.mesh = handle_mesh
-	handle.position.y = -0.22
+	handle.position = Vector3(0, 0.38, 0)
 	handle.material_override = _weapon_wood()
 	root.add_child(handle)
 
 	var head := MeshInstance3D.new()
 	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.38, 0.22, 0.24)
+	head_mesh.size = Vector3(0.34, 0.22, 0.12)
 	head.mesh = head_mesh
-	head.position.y = 0.20
+	head.position = Vector3(0.12, 0.85, 0)
 	head.material_override = _weapon_metal()
 	root.add_child(head)
 
-	for x in [-0.16, 0.16]:
+	var edge := MeshInstance3D.new()
+	var edge_mesh := PrismMesh.new()
+	edge_mesh.size = Vector3(0.20, 0.30, 0.12)
+	edge.mesh = edge_mesh
+	edge.position = Vector3(0.34, 0.85, 0)
+	edge.rotation_degrees = Vector3(0, 0, -90)
+	edge.material_override = _weapon_metal()
+	root.add_child(edge)
+
+	var core := MeshInstance3D.new()
+	var core_mesh := SphereMesh.new()
+	core_mesh.radius = 0.052
+	core_mesh.height = 0.104
+	core.mesh = core_mesh
+	core.position = Vector3(0.05, 0.83, 0.07)
+	core.material_override = _weapon_rune()
+	root.add_child(core)
+
+	for y in [0.10, 0.20, 0.30]:
+		var wrap := MeshInstance3D.new()
+		var wrap_mesh := TorusMesh.new()
+		wrap_mesh.inner_radius = 0.033
+		wrap_mesh.outer_radius = 0.045
+		wrap_mesh.rings = 12
+		wrap_mesh.ring_segments = 6
+		wrap.mesh = wrap_mesh
+		wrap.position = Vector3(0, y, 0)
+		wrap.rotation_degrees.x = 90
+		wrap.material_override = _weapon_dark_metal()
+		root.add_child(wrap)
+
+	return root
+func _build_player_hammer() -> Node3D:
+	var root := Node3D.new()
+	root.name = "RunicHammer"
+	root.rotation_degrees = Vector3(0, 0, -14)
+	weapon_pivot.add_child(root)
+
+	var handle := MeshInstance3D.new()
+	var handle_mesh := CylinderMesh.new()
+	handle_mesh.top_radius = 0.040
+	handle_mesh.bottom_radius = 0.055
+	handle_mesh.height = 0.84
+	handle.mesh = handle_mesh
+	handle.position = Vector3(0, 0.36, 0)
+	handle.material_override = _weapon_wood()
+	root.add_child(handle)
+
+	var collar := MeshInstance3D.new()
+	var collar_mesh := CylinderMesh.new()
+	collar_mesh.top_radius = 0.060
+	collar_mesh.bottom_radius = 0.060
+	collar_mesh.height = 0.12
+	collar.mesh = collar_mesh
+	collar.position = Vector3(0, 0.76, 0)
+	collar.material_override = _weapon_dark_metal()
+	root.add_child(collar)
+
+	var head := MeshInstance3D.new()
+	var head_mesh := BoxMesh.new()
+	head_mesh.size = Vector3(0.42, 0.24, 0.26)
+	head.mesh = head_mesh
+	head.position = Vector3(0, 0.86, 0)
+	head.material_override = _weapon_metal()
+	root.add_child(head)
+
+	for x in [-0.18, 0.18]:
 		var cap := MeshInstance3D.new()
 		var cap_mesh := BoxMesh.new()
-		cap_mesh.size = Vector3(0.065, 0.24, 0.27)
+		cap_mesh.size = Vector3(0.07, 0.27, 0.29)
 		cap.mesh = cap_mesh
-		cap.position = Vector3(x, 0.20, 0)
-		cap.material_override = _weapon_metal()
+		cap.position = Vector3(x, 0.86, 0)
+		cap.material_override = _weapon_dark_metal()
 		root.add_child(cap)
 
-	for z in [-0.13, 0.13]:
+	for z in [-0.135, 0.135]:
 		var rune_plate := MeshInstance3D.new()
 		var plate_mesh := BoxMesh.new()
-		plate_mesh.size = Vector3(0.24, 0.09, 0.018)
+		plate_mesh.size = Vector3(0.22, 0.085, 0.020)
 		rune_plate.mesh = plate_mesh
-		rune_plate.position = Vector3(0, 0.20, z)
+		rune_plate.position = Vector3(0, 0.86, z)
 		rune_plate.material_override = _weapon_rune()
 		root.add_child(rune_plate)
 

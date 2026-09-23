@@ -356,30 +356,64 @@ func _build_stream() -> void:
 
 func _build_distant_mountains() -> void:
 	var mountain_material := StandardMaterial3D.new()
-	mountain_material.albedo_color = Color("253337")
+	mountain_material.albedo_color = Color("26363b")
 	mountain_material.roughness = 1.0
 
-	for i in range(14):
-		var angle := TAU * float(i) / 14.0
-		var radius := 103.0 + float(i % 4) * 4.5
-		var height := 24.0 + float((i * 7) % 14)
-		var width := 9.0 + float(i % 5) * 2.2
+	var distant_material := StandardMaterial3D.new()
+	distant_material.albedo_color = Color("1d2b30")
+	distant_material.roughness = 1.0
 
-		var mountain := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = width
-		cone.height = height
-		cone.radial_segments = 7
-		mountain.mesh = cone
-		mountain.position = Vector3(
+	# Montanhas em massas rochosas low-poly, sem cones geométricos.
+	var ridge_mesh := SphereMesh.new()
+	ridge_mesh.radius = 1.0
+	ridge_mesh.height = 2.0
+	ridge_mesh.radial_segments = 7
+	ridge_mesh.rings = 5
+
+	for i in range(12):
+		var angle := TAU * float(i) / 12.0
+		var radius := 104.0 + float(i % 3) * 5.5
+		var height := 20.0 + float((i * 5) % 13)
+		var width := 10.0 + float(i % 4) * 2.6
+
+		var cluster := Node3D.new()
+		cluster.name = "MountainCluster_%02d" % i
+		cluster.position = Vector3(
 			cos(angle) * radius,
-			height * 0.5 - 2.0,
+			0,
 			sin(angle) * radius
 		)
-		mountain.rotation.y = angle
-		mountain.material_override = mountain_material
-		add_child(mountain)
+		cluster.rotation.y = angle
+		add_child(cluster)
+
+		for peak in range(3):
+			var mountain := MeshInstance3D.new()
+			mountain.mesh = ridge_mesh
+			var peak_scale := 1.0 - float(peak) * 0.18
+			var peak_height := height * (
+				0.78 + float((i + peak) % 3) * 0.10
+			)
+			mountain.scale = Vector3(
+				width * peak_scale,
+				peak_height * 0.50,
+				width * (0.62 + float(peak) * 0.07)
+			)
+			mountain.position = Vector3(
+				(float(peak) - 1.0) * width * 0.58,
+				peak_height * 0.34 - 2.4,
+				(float((i + peak) % 2) - 0.5) * width * 0.22
+			)
+			mountain.rotation_degrees = Vector3(
+				float((i + peak) % 3) * 3.0 - 3.0,
+				float(peak - 1) * 11.0,
+				float((i * 7 + peak * 5) % 9) - 4.0
+			)
+			mountain.material_override = (
+				mountain_material
+				if peak < 2
+				else distant_material
+			)
+			cluster.add_child(mountain)
 
 func _build_world_boundary() -> void:
 	var body := StaticBody3D.new()

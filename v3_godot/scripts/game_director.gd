@@ -250,6 +250,39 @@ func handle_event(event_id: String) -> void:
 					"Você libertou Valdrak. Mas este foi apenas o primeiro juramento.",
 					5.0
 				)
+		"forge_weapon_sword":
+			var player := get_tree().get_first_node_in_group(
+				"player"
+			)
+			if player and player.has_method("equip_weapon"):
+				player.equip_weapon(0)
+				show_story(
+					"FORJA DE EIRIK",
+					"Espada Rúnica equipada.",
+					2.6
+				)
+		"forge_weapon_axe":
+			var player := get_tree().get_first_node_in_group(
+				"player"
+			)
+			if player and player.has_method("equip_weapon"):
+				player.equip_weapon(1)
+				show_story(
+					"FORJA DE EIRIK",
+					"Machado Rúnico equipado.",
+					2.6
+				)
+		"forge_weapon_hammer":
+			var player := get_tree().get_first_node_in_group(
+				"player"
+			)
+			if player and player.has_method("equip_weapon"):
+				player.equip_weapon(2)
+				show_story(
+					"FORJA DE EIRIK",
+					"Martelo Rúnico equipado.",
+					2.6
+				)
 		"rune_collect":
 			if objective_id == "collect_rune":
 				_set_objective(
@@ -278,6 +311,16 @@ func handle_event(event_id: String) -> void:
 				)
 				if player and player.has_method("unlock_weapons"):
 					player.unlock_weapons()
+				var audio := get_tree().get_first_node_in_group(
+					"audio_manager"
+				)
+				if audio and audio.has_method("play_sfx"):
+					audio.play_sfx("phone")
+				show_story(
+					"RUNA PARTIDA",
+					"A energia percorre o celular e desperta as três armas no suporte da forja.",
+					5.0
+				)
 				call_deferred("_evaluate_regular_enemies")
 		"eternal_gate":
 			if objective_id == "reach_gate":

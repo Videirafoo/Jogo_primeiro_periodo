@@ -35,6 +35,9 @@ func interact(player: Node) -> void:
 	_activate(player)
 
 func _activate(player: Node) -> void:
+	if not _activation_allowed():
+		return
+
 	if teleport_enabled:
 		if player.has_method("transition_teleport_to"):
 			player.transition_teleport_to(
@@ -81,3 +84,39 @@ func get_prompt() -> String:
 				"complete":
 					return "Falar com Eirik"
 	return prompt_text
+
+
+func _activation_allowed() -> bool:
+	if event_id == "":
+		return true
+
+	var director := get_tree().get_first_node_in_group(
+		"game_director"
+	)
+	if not director:
+		return true
+
+	if event_id == "rune_collect":
+		if str(director.objective_id) != "collect_rune":
+			if director.has_method("show_story"):
+				director.show_story(
+					"RUNA PARTIDA",
+					"Ela não responde. Eirik talvez saiba como despertá-la.",
+					3.4
+				)
+			return false
+
+	if event_id.begins_with("forge_weapon_"):
+		var player := get_tree().get_first_node_in_group(
+			"player"
+		)
+		if not player or int(player.unlocked_weapon_count) < 3:
+			if director.has_method("show_story"):
+				director.show_story(
+					"ARMAMENTO DA FORJA",
+					"As armas estão inertes. A Runa Partida precisa ser despertada primeiro.",
+					3.6
+				)
+			return false
+
+	return true

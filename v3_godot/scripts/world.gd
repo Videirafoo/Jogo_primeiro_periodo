@@ -225,14 +225,26 @@ func _pine(pos: Vector3, size: float) -> void:
 	trunk_collision.position.y = 1.5
 	root.add_child(trunk_collision)
 
-	for tier in range(4):
+	# Copa em volumes orgânicos low-poly. Evita o visual de cones
+	# empilhados que parecia placeholder.
+	for tier in range(3):
 		var leaves := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = 1.45 - tier * 0.19
-		cone.height = 2.15
-		leaves.mesh = cone
-		leaves.position.y = 2.65 + tier * 0.76
+		var canopy := SphereMesh.new()
+		canopy.radius = 1.18 - float(tier) * 0.15
+		canopy.height = 1.80 - float(tier) * 0.12
+		canopy.radial_segments = 8
+		canopy.rings = 5
+		leaves.mesh = canopy
+		leaves.position = Vector3(
+			0.13 * sin(float(tier) * 1.8),
+			2.75 + float(tier) * 0.92,
+			0.10 * cos(float(tier) * 1.6)
+		)
+		leaves.scale = Vector3(
+			1.05,
+			0.88,
+			1.05
+		)
 		leaves.material_override = leaf_material
 		root.add_child(leaves)
 	add_child(root)
@@ -638,14 +650,20 @@ func _crowwood_region() -> void:
 		collision.position.y = 1.85
 		root.add_child(collision)
 
-		for tier in range(4):
+		for tier in range(3):
 			var leaves := MeshInstance3D.new()
-			var cone := CylinderMesh.new()
-			cone.top_radius = 0.0
-			cone.bottom_radius = 1.55 - float(tier) * 0.20
-			cone.height = 2.35
-			leaves.mesh = cone
-			leaves.position.y = 3.05 + float(tier) * 0.82
+			var canopy := SphereMesh.new()
+			canopy.radius = 1.30 - float(tier) * 0.17
+			canopy.height = 1.95 - float(tier) * 0.10
+			canopy.radial_segments = 8
+			canopy.rings = 5
+			leaves.mesh = canopy
+			leaves.position = Vector3(
+				0.22 * sin(angle + float(tier) * 1.7),
+				3.15 + float(tier) * 0.92,
+				0.18 * cos(angle + float(tier) * 1.4)
+			)
+			leaves.scale = Vector3(1.08, 0.82, 1.0)
 			leaves.material_override = crow_leaf
 			root.add_child(leaves)
 
@@ -733,17 +751,18 @@ func _build_forest_multimesh() -> void:
 		1.55
 	)
 
-	for tier in range(4):
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = 1.45 - tier * 0.19
-		cone.height = 2.15
+	for tier in range(3):
+		var canopy := SphereMesh.new()
+		canopy.radius = 1.16 - float(tier) * 0.14
+		canopy.height = 1.78 - float(tier) * 0.10
+		canopy.radial_segments = 8
+		canopy.rings = 5
 		_add_forest_layer(
-			"ForestLeaves%d" % tier,
-			cone,
+			"ForestCanopy%d" % tier,
+			canopy,
 			leaf_material,
 			entries,
-			2.65 + tier * 0.76
+			2.78 + float(tier) * 0.90
 		)
 
 	var collision_body := StaticBody3D.new()

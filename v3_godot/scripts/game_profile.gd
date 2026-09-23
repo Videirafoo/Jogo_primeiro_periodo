@@ -293,6 +293,27 @@ func load_game() -> bool:
 		director.completed = bool(story.get("completed", false))
 		director._emit_objective()
 
+		# Migração de saves antigos da V3: ninguém em Valdrak pode ficar
+		# sem arma por ter salvo antes do sistema de armamentos.
+		if player and int(director.phase_index) >= 0:
+			var progressed_past_rune := [
+				"clear_village",
+				"reach_gate",
+				"defeat_boss",
+				"choose_ally",
+				"reach_crowwood",
+				"enter_crow_dungeon",
+				"defeat_raven_warden",
+				"region_two_gate",
+				"region_two_arrival"
+			].has(str(director.objective_id))
+			if progressed_past_rune:
+				if player.has_method("unlock_weapons"):
+					player.unlock_weapons()
+			elif int(player.unlocked_weapon_count) <= 0:
+				if player.has_method("unlock_starting_sword"):
+					player.unlock_starting_sword()
+
 	profile_changed.emit()
 	toast_requested.emit("SAVE CARREGADO")
 	return true
