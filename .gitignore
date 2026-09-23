@@ -11,3 +11,6 @@ dist/
 gallery_os_eternos.json
 save_os_eternos.json
 venv/
+
+# Godot generated cache
+v3_godot/.godot/
