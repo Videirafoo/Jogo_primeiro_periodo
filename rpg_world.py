@@ -1883,6 +1883,10 @@ class RPGWorld:
                 self.events.append(result["sfx"])
                 return
 
+            # E remains the primary combat key when there is no
+            # contextual interaction in range. SPACE stays as an
+            # alternate attack key for players who prefer it.
+            self.attack()
             return
 
         if event.key == pygame.K_1:
